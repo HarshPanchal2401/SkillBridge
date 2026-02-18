@@ -1,0 +1,2685 @@
+{
+  "python": {
+    "abbr": [],
+    "aliases": []
+  },
+  "sql": {
+    "abbr": [],
+    "aliases": []
+  },
+  "r": {
+    "abbr": [],
+    "aliases": []
+  },
+  "java": {
+    "abbr": [],
+    "aliases": []
+  },
+  "c++": {
+    "abbr": [
+      "cpp"
+    ],
+    "aliases": [
+      "cplusplus"
+    ]
+  },
+  "c": {
+    "abbr": [],
+    "aliases": []
+  },
+  "c#": {
+    "abbr": [],
+    "aliases": [
+      "c sharp",
+      "csharp"
+    ]
+  },
+  "javascript": {
+    "abbr": [
+      "js"
+    ],
+    "aliases": []
+  },
+  "typescript": {
+    "abbr": [
+      "ts"
+    ],
+    "aliases": []
+  },
+  "go": {
+    "abbr": [],
+    "aliases": [
+      "golang"
+    ]
+  },
+  "golang": {
+    "abbr": [],
+    "aliases": []
+  },
+  "rust": {
+    "abbr": [],
+    "aliases": []
+  },
+  "swift": {
+    "abbr": [],
+    "aliases": []
+  },
+  "kotlin": {
+    "abbr": [],
+    "aliases": []
+  },
+  "scala": {
+    "abbr": [],
+    "aliases": []
+  },
+  "ruby": {
+    "abbr": [],
+    "aliases": []
+  },
+  "php": {
+    "abbr": [],
+    "aliases": []
+  },
+  "perl": {
+    "abbr": [],
+    "aliases": []
+  },
+  "matlab": {
+    "abbr": [],
+    "aliases": []
+  },
+  "julia": {
+    "abbr": [],
+    "aliases": []
+  },
+  "lua": {
+    "abbr": [],
+    "aliases": []
+  },
+  "shell": {
+    "abbr": [],
+    "aliases": []
+  },
+  "bash": {
+    "abbr": [],
+    "aliases": [
+      "bash scripting"
+    ]
+  },
+  "powershell": {
+    "abbr": [],
+    "aliases": []
+  },
+  "html": {
+    "abbr": [],
+    "aliases": []
+  },
+  "css": {
+    "abbr": [],
+    "aliases": []
+  },
+  "sass": {
+    "abbr": [],
+    "aliases": []
+  },
+  "less": {
+    "abbr": [],
+    "aliases": []
+  },
+  "tailwind": {
+    "abbr": [],
+    "aliases": [
+      "tailwind css",
+      "tailwind-css",
+      "tailwindcss"
+    ]
+  },
+  "bootstrap": {
+    "abbr": [],
+    "aliases": []
+  },
+  "material ui": {
+    "abbr": [],
+    "aliases": [
+      "material-ui"
+    ]
+  },
+  "chakra ui": {
+    "abbr": [],
+    "aliases": [
+      "chakra-ui"
+    ]
+  },
+  "machine learning": {
+    "abbr": [
+      "ai",
+      "ml"
+    ],
+    "aliases": [
+      "artificial intelligence",
+      "artificial-intelligence",
+      "machine-learning"
+    ]
+  },
+  "deep learning": {
+    "abbr": [],
+    "aliases": [
+      "deep-learning"
+    ]
+  },
+  "tensorflow": {
+    "abbr": [
+      "tf"
+    ],
+    "aliases": []
+  },
+  "pytorch": {
+    "abbr": [],
+    "aliases": []
+  },
+  "scikit learn": {
+    "abbr": [],
+    "aliases": [
+      "sci-kit learn",
+      "scikit learn",
+      "scikit-learn",
+      "sk-learn",
+      "sklearn"
+    ]
+  },
+  "pandas": {
+    "abbr": [],
+    "aliases": []
+  },
+  "numpy": {
+    "abbr": [],
+    "aliases": []
+  },
+  "scipy": {
+    "abbr": [],
+    "aliases": []
+  },
+  "keras": {
+    "abbr": [],
+    "aliases": []
+  },
+  "nltk": {
+    "abbr": [],
+    "aliases": []
+  },
+  "spacy": {
+    "abbr": [],
+    "aliases": []
+  },
+  "transformers": {
+    "abbr": [],
+    "aliases": []
+  },
+  "huggingface": {
+    "abbr": [
+      "hf"
+    ],
+    "aliases": [
+      "hugging face",
+      "hugging-face"
+    ]
+  },
+  "opencv": {
+    "abbr": [],
+    "aliases": []
+  },
+  "caffe": {
+    "abbr": [],
+    "aliases": []
+  },
+  "mxnet": {
+    "abbr": [],
+    "aliases": []
+  },
+  "xgboost": {
+    "abbr": [
+      "xgb"
+    ],
+    "aliases": []
+  },
+  "lightgbm": {
+    "abbr": [
+      "lgbm"
+    ],
+    "aliases": [
+      "light gbm"
+    ]
+  },
+  "catboost": {
+    "abbr": [
+      "catb"
+    ],
+    "aliases": []
+  },
+  "random forest": {
+    "abbr": [],
+    "aliases": [
+      "random forest",
+      "random-forest",
+      "randomforest"
+    ]
+  },
+  "neural networks": {
+    "abbr": [],
+    "aliases": [
+      "neural-networks"
+    ]
+  },
+  "cnn": {
+    "abbr": [],
+    "aliases": [
+      "convolutional neural network",
+      "convolutional-neural-network"
+    ]
+  },
+  "rnn": {
+    "abbr": [],
+    "aliases": [
+      "recurrent neural network",
+      "recurrent-neural-network"
+    ]
+  },
+  "lstm": {
+    "abbr": [],
+    "aliases": [
+      "long short term memory",
+      "long-short-term-memory"
+    ]
+  },
+  "bert": {
+    "abbr": [],
+    "aliases": []
+  },
+  "gpt": {
+    "abbr": [
+      "gpt3",
+      "gpt4"
+    ],
+    "aliases": [
+      "gpt-3",
+      "gpt-4"
+    ]
+  },
+  "attention mechanism": {
+    "abbr": [],
+    "aliases": [
+      "attention-mechanism"
+    ]
+  },
+  "reinforcement learning": {
+    "abbr": [],
+    "aliases": [
+      "reinforcement-learning"
+    ]
+  },
+  "supervised learning": {
+    "abbr": [],
+    "aliases": [
+      "supervised-learning"
+    ]
+  },
+  "unsupervised learning": {
+    "abbr": [],
+    "aliases": [
+      "unsupervised-learning"
+    ]
+  },
+  "feature engineering": {
+    "abbr": [],
+    "aliases": [
+      "feature-engineering"
+    ]
+  },
+  "model training": {
+    "abbr": [],
+    "aliases": [
+      "model-training"
+    ]
+  },
+  "hyperparameter tuning": {
+    "abbr": [],
+    "aliases": [
+      "hyperparameter-tuning"
+    ]
+  },
+  "cross validation": {
+    "abbr": [],
+    "aliases": [
+      "cross-validation"
+    ]
+  },
+  "data analysis": {
+    "abbr": [],
+    "aliases": [
+      "data analysis",
+      "data-analysis"
+    ]
+  },
+  "exploratory data analysis": {
+    "abbr": [],
+    "aliases": [
+      "exploratory-data-analysis"
+    ]
+  },
+  "data visualization": {
+    "abbr": [],
+    "aliases": [
+      "data visualization",
+      "data viz",
+      "data-visualization"
+    ]
+  },
+  "data engineering": {
+    "abbr": [],
+    "aliases": [
+      "data engineering",
+      "data-eng",
+      "data-engineering"
+    ]
+  },
+  "data science": {
+    "abbr": [],
+    "aliases": [
+      "data science",
+      "data-sci",
+      "data-science"
+    ]
+  },
+  "statistics": {
+    "abbr": [],
+    "aliases": [
+      "stats"
+    ]
+  },
+  "predictive modeling": {
+    "abbr": [],
+    "aliases": [
+      "pred modeling",
+      "predictive-modeling"
+    ]
+  },
+  "regression": {
+    "abbr": [],
+    "aliases": []
+  },
+  "classification": {
+    "abbr": [],
+    "aliases": []
+  },
+  "clustering": {
+    "abbr": [],
+    "aliases": []
+  },
+  "dimensionality reduction": {
+    "abbr": [],
+    "aliases": [
+      "dimensionality-reduction"
+    ]
+  },
+  "time series": {
+    "abbr": [],
+    "aliases": [
+      "time series analysis",
+      "time-series",
+      "time-series-analysis"
+    ]
+  },
+  "forecasting": {
+    "abbr": [],
+    "aliases": []
+  },
+  "a b testing": {
+    "abbr": [],
+    "aliases": [
+      "a-b-testing",
+      "a/b testing",
+      "ab testing",
+      "split testing"
+    ]
+  },
+  "hypothesis testing": {
+    "abbr": [],
+    "aliases": [
+      "hypothesis-testing"
+    ]
+  },
+  "statistical analysis": {
+    "abbr": [],
+    "aliases": [
+      "statistical modeling",
+      "statistical-analysis"
+    ]
+  },
+  "natural language processing": {
+    "abbr": [
+      "nlp"
+    ],
+    "aliases": [
+      "fasttext",
+      "natural-language-processing"
+    ]
+  },
+  "computer vision": {
+    "abbr": [
+      "cv"
+    ],
+    "aliases": [
+      "computer-vision"
+    ]
+  },
+  "speech recognition": {
+    "abbr": [],
+    "aliases": [
+      "speech-recognition"
+    ]
+  },
+  "text mining": {
+    "abbr": [],
+    "aliases": [
+      "text-mining"
+    ]
+  },
+  "sentiment analysis": {
+    "abbr": [],
+    "aliases": [
+      "sentiment-analysis"
+    ]
+  },
+  "named entity recognition": {
+    "abbr": [
+      "ner"
+    ],
+    "aliases": [
+      "named entity recognition",
+      "named-entity-recognition"
+    ]
+  },
+  "text classification": {
+    "abbr": [],
+    "aliases": [
+      "text-classification"
+    ]
+  },
+  "word embeddings": {
+    "abbr": [],
+    "aliases": [
+      "glove",
+      "word-embeddings",
+      "word2vec"
+    ]
+  },
+  "topic modeling": {
+    "abbr": [],
+    "aliases": [
+      "topic modelling",
+      "topic-modeling",
+      "topic-modelling"
+    ]
+  },
+  "large language models": {
+    "abbr": [
+      "llm",
+      "llms"
+    ],
+    "aliases": [
+      "large language model",
+      "large-language-models"
+    ]
+  },
+  "rag": {
+    "abbr": [],
+    "aliases": [
+      "rag basics",
+      "retrieval augmented generation",
+      "retrieval-augmented-generation"
+    ]
+  },
+  "langchain": {
+    "abbr": [],
+    "aliases": [
+      "lang chain",
+      "lang-chain"
+    ]
+  },
+  "llamaindex": {
+    "abbr": [],
+    "aliases": [
+      "llama index",
+      "llama-index"
+    ]
+  },
+  "openai": {
+    "abbr": [],
+    "aliases": [
+      "open ai",
+      "open-ai"
+    ]
+  },
+  "anthropic": {
+    "abbr": [],
+    "aliases": [
+      "claude"
+    ]
+  },
+  "llama": {
+    "abbr": [],
+    "aliases": [
+      "llama 2",
+      "llama-2",
+      "llama-3",
+      "llama2",
+      "llama3"
+    ]
+  },
+  "mistral": {
+    "abbr": [],
+    "aliases": [
+      "mistral 7b",
+      "mistral-ai"
+    ]
+  },
+  "chatgpt": {
+    "abbr": [],
+    "aliases": [
+      "chatgpt-4"
+    ]
+  },
+  "embedding models": {
+    "abbr": [],
+    "aliases": [
+      "embedding-models"
+    ]
+  },
+  "vector databases": {
+    "abbr": [],
+    "aliases": [
+      "vector-databases"
+    ]
+  },
+  "pinecone": {
+    "abbr": [],
+    "aliases": []
+  },
+  "weaviate": {
+    "abbr": [],
+    "aliases": []
+  },
+  "milvus": {
+    "abbr": [],
+    "aliases": []
+  },
+  "qdrant": {
+    "abbr": [],
+    "aliases": []
+  },
+  "prompt engineering": {
+    "abbr": [],
+    "aliases": [
+      "prompt engineering",
+      "prompt-eng",
+      "prompt-engineering"
+    ]
+  },
+  "fine tuning": {
+    "abbr": [
+      "lora"
+    ],
+    "aliases": [
+      "fine tuning",
+      "fine-tuning",
+      "finetuning",
+      "llm finetuning",
+      "qlora"
+    ]
+  },
+  "ehr systems": {
+    "abbr": [
+      "ehr",
+      "emr"
+    ],
+    "aliases": [
+      "ehr-systems",
+      "electronic medical records",
+      "electronic-medical-records"
+    ]
+  },
+  "epic": {
+    "abbr": [],
+    "aliases": []
+  },
+  "cerner": {
+    "abbr": [],
+    "aliases": []
+  },
+  "meditech": {
+    "abbr": [],
+    "aliases": []
+  },
+  "allscripts": {
+    "abbr": [],
+    "aliases": []
+  },
+  "healthcare data": {
+    "abbr": [],
+    "aliases": [
+      "health data",
+      "healthcare-data",
+      "medical data"
+    ]
+  },
+  "clinical data": {
+    "abbr": [],
+    "aliases": [
+      "clinical notes",
+      "clinical-data"
+    ]
+  },
+  "medical imaging": {
+    "abbr": [
+      "pacs"
+    ],
+    "aliases": [
+      "medical images",
+      "medical-imaging"
+    ]
+  },
+  "dicom": {
+    "abbr": [],
+    "aliases": [
+      "digital imaging"
+    ]
+  },
+  "hl7": {
+    "abbr": [],
+    "aliases": [
+      "health level 7"
+    ]
+  },
+  "fhir": {
+    "abbr": [],
+    "aliases": [
+      "fast healthcare interoperability resources",
+      "hl7-fhir"
+    ]
+  },
+  "hipaa compliance": {
+    "abbr": [],
+    "aliases": [
+      "hipaa-compliance"
+    ]
+  },
+  "healthcare analytics": {
+    "abbr": [],
+    "aliases": [
+      "healthcare-analytics"
+    ]
+  },
+  "clinical workflows": {
+    "abbr": [],
+    "aliases": [
+      "clinical-workflows"
+    ]
+  },
+  "patient data": {
+    "abbr": [],
+    "aliases": [
+      "patient records",
+      "patient-data"
+    ]
+  },
+  "electronic health records": {
+    "abbr": [],
+    "aliases": [
+      "electronic-health-records"
+    ]
+  },
+  "medical terminology": {
+    "abbr": [],
+    "aliases": [
+      "medical-terminology"
+    ]
+  },
+  "icd 10": {
+    "abbr": [],
+    "aliases": [
+      "icd-10"
+    ]
+  },
+  "icd 11": {
+    "abbr": [],
+    "aliases": [
+      "icd-11"
+    ]
+  },
+  "cpt codes": {
+    "abbr": [],
+    "aliases": [
+      "cpt-codes"
+    ]
+  },
+  "snomed ct": {
+    "abbr": [],
+    "aliases": [
+      "snomed-ct"
+    ]
+  },
+  "loinc": {
+    "abbr": [],
+    "aliases": []
+  },
+  "rxnorm": {
+    "abbr": [],
+    "aliases": []
+  },
+  "claims data": {
+    "abbr": [],
+    "aliases": [
+      "claims-data"
+    ]
+  },
+  "revenue cycle": {
+    "abbr": [],
+    "aliases": [
+      "revenue-cycle"
+    ]
+  },
+  "pharmacology": {
+    "abbr": [],
+    "aliases": []
+  },
+  "genomics": {
+    "abbr": [],
+    "aliases": []
+  },
+  "bioinformatics": {
+    "abbr": [],
+    "aliases": []
+  },
+  "clinical trials": {
+    "abbr": [],
+    "aliases": [
+      "clinical-trials"
+    ]
+  },
+  "epidemiology": {
+    "abbr": [],
+    "aliases": []
+  },
+  "public health": {
+    "abbr": [],
+    "aliases": [
+      "public-health"
+    ]
+  },
+  "healthcare apis": {
+    "abbr": [],
+    "aliases": [
+      "healthcare-apis"
+    ]
+  },
+  "telemedicine": {
+    "abbr": [],
+    "aliases": []
+  },
+  "remote patient monitoring": {
+    "abbr": [],
+    "aliases": [
+      "remote-patient-monitoring"
+    ]
+  },
+  "wearable devices": {
+    "abbr": [],
+    "aliases": [
+      "wearable-devices"
+    ]
+  },
+  "health informatics": {
+    "abbr": [],
+    "aliases": [
+      "health-informatics"
+    ]
+  },
+  "clinical decision support": {
+    "abbr": [],
+    "aliases": [
+      "clinical-decision-support"
+    ]
+  },
+  "drug discovery": {
+    "abbr": [],
+    "aliases": [
+      "drug-discovery"
+    ]
+  },
+  "radiology": {
+    "abbr": [],
+    "aliases": []
+  },
+  "pathology": {
+    "abbr": [],
+    "aliases": []
+  },
+  "cardiology": {
+    "abbr": [],
+    "aliases": []
+  },
+  "oncology": {
+    "abbr": [],
+    "aliases": []
+  },
+  "neurology": {
+    "abbr": [],
+    "aliases": []
+  },
+  "medical devices": {
+    "abbr": [],
+    "aliases": [
+      "medical-devices"
+    ]
+  },
+  "fda compliance": {
+    "abbr": [],
+    "aliases": [
+      "fda-compliance"
+    ]
+  },
+  "react": {
+    "abbr": [],
+    "aliases": [
+      "react js",
+      "react.js",
+      "reactjs"
+    ]
+  },
+  "angular": {
+    "abbr": [],
+    "aliases": [
+      "angular js",
+      "angularjs"
+    ]
+  },
+  "vue": {
+    "abbr": [],
+    "aliases": [
+      "vue js",
+      "vue.js",
+      "vuejs"
+    ]
+  },
+  "svelte": {
+    "abbr": [],
+    "aliases": []
+  },
+  "next.js": {
+    "abbr": [],
+    "aliases": [
+      "next js",
+      "nextjs"
+    ]
+  },
+  "nuxt": {
+    "abbr": [],
+    "aliases": [
+      "nuxt js",
+      "nuxtjs"
+    ]
+  },
+  "gatsby": {
+    "abbr": [],
+    "aliases": []
+  },
+  "remix": {
+    "abbr": [],
+    "aliases": []
+  },
+  "astro": {
+    "abbr": [],
+    "aliases": []
+  },
+  "vite": {
+    "abbr": [],
+    "aliases": []
+  },
+  "webpack": {
+    "abbr": [],
+    "aliases": []
+  },
+  "parcel": {
+    "abbr": [],
+    "aliases": []
+  },
+  "rollup": {
+    "abbr": [],
+    "aliases": []
+  },
+  "node.js": {
+    "abbr": [
+      "node"
+    ],
+    "aliases": [
+      "node js",
+      "nodejs"
+    ]
+  },
+  "express": {
+    "abbr": [],
+    "aliases": [
+      "express js",
+      "express.js",
+      "expressjs"
+    ]
+  },
+  "nestjs": {
+    "abbr": [],
+    "aliases": []
+  },
+  "fastapi": {
+    "abbr": [],
+    "aliases": []
+  },
+  "django": {
+    "abbr": [],
+    "aliases": []
+  },
+  "flask": {
+    "abbr": [],
+    "aliases": []
+  },
+  "spring": {
+    "abbr": [],
+    "aliases": []
+  },
+  "spring boot": {
+    "abbr": [],
+    "aliases": [
+      "spring boot",
+      "spring-boot",
+      "springboot"
+    ]
+  },
+  "asp.net": {
+    "abbr": [],
+    "aliases": []
+  },
+  ".net": {
+    "abbr": [],
+    "aliases": [
+      "asp net",
+      "asp.net core",
+      "dot net",
+      "dot-net",
+      "dotnet"
+    ]
+  },
+  "ruby on rails": {
+    "abbr": [
+      "ror"
+    ],
+    "aliases": [
+      "rails",
+      "ruby on rails",
+      "ruby-on-rails"
+    ]
+  },
+  "laravel": {
+    "abbr": [],
+    "aliases": []
+  },
+  "phoenix": {
+    "abbr": [],
+    "aliases": []
+  },
+  "gin": {
+    "abbr": [],
+    "aliases": []
+  },
+  "echo": {
+    "abbr": [],
+    "aliases": []
+  },
+  "fiber": {
+    "abbr": [],
+    "aliases": []
+  },
+  "streamlit": {
+    "abbr": [],
+    "aliases": []
+  },
+  "gradio": {
+    "abbr": [],
+    "aliases": []
+  },
+  "dash": {
+    "abbr": [],
+    "aliases": []
+  },
+  "plotly": {
+    "abbr": [],
+    "aliases": []
+  },
+  "bokeh": {
+    "abbr": [],
+    "aliases": []
+  },
+  "altair": {
+    "abbr": [],
+    "aliases": []
+  },
+  "aws": {
+    "abbr": [],
+    "aliases": [
+      "amazon aws",
+      "amazon web services"
+    ]
+  },
+  "amazon web services": {
+    "abbr": [],
+    "aliases": [
+      "amazon-web-services"
+    ]
+  },
+  "azure": {
+    "abbr": [],
+    "aliases": [
+      "microsoft azure",
+      "ms azure"
+    ]
+  },
+  "gcp": {
+    "abbr": [],
+    "aliases": [
+      "google cloud platform",
+      "google-cloud-platform"
+    ]
+  },
+  "google cloud": {
+    "abbr": [],
+    "aliases": [
+      "google-cloud"
+    ]
+  },
+  "oracle cloud": {
+    "abbr": [],
+    "aliases": [
+      "oracle-cloud"
+    ]
+  },
+  "ibm cloud": {
+    "abbr": [],
+    "aliases": [
+      "ibm-cloud"
+    ]
+  },
+  "digitalocean": {
+    "abbr": [],
+    "aliases": []
+  },
+  "heroku": {
+    "abbr": [],
+    "aliases": []
+  },
+  "vercel": {
+    "abbr": [],
+    "aliases": []
+  },
+  "netlify": {
+    "abbr": [],
+    "aliases": []
+  },
+  "cloudflare": {
+    "abbr": [],
+    "aliases": []
+  },
+  "docker": {
+    "abbr": [],
+    "aliases": []
+  },
+  "kubernetes": {
+    "abbr": [
+      "k8s",
+      "kube"
+    ],
+    "aliases": []
+  },
+  "helm": {
+    "abbr": [],
+    "aliases": []
+  },
+  "istio": {
+    "abbr": [],
+    "aliases": []
+  },
+  "terraform": {
+    "abbr": [],
+    "aliases": []
+  },
+  "pulumi": {
+    "abbr": [],
+    "aliases": []
+  },
+  "cloudformation": {
+    "abbr": [],
+    "aliases": []
+  },
+  "ansible": {
+    "abbr": [],
+    "aliases": []
+  },
+  "puppet": {
+    "abbr": [],
+    "aliases": []
+  },
+  "chef": {
+    "abbr": [],
+    "aliases": []
+  },
+  "vagrant": {
+    "abbr": [],
+    "aliases": []
+  },
+  "jenkins": {
+    "abbr": [],
+    "aliases": []
+  },
+  "ci cd": {
+    "abbr": [
+      "ci cd",
+      "cicd"
+    ],
+    "aliases": [
+      "ci-cd",
+      "ci/cd"
+    ]
+  },
+  "github actions": {
+    "abbr": [],
+    "aliases": [
+      "gh actions",
+      "github action",
+      "github-actions"
+    ]
+  },
+  "gitlab ci": {
+    "abbr": [],
+    "aliases": [
+      "gitlab-ci",
+      "gitlab-ci-cd"
+    ]
+  },
+  "circleci": {
+    "abbr": [],
+    "aliases": [
+      "circle ci",
+      "circle-ci"
+    ]
+  },
+  "travis ci": {
+    "abbr": [],
+    "aliases": [
+      "travis",
+      "travis-ci"
+    ]
+  },
+  "azure devops": {
+    "abbr": [],
+    "aliases": [
+      "azure pipelines",
+      "azure-devops"
+    ]
+  },
+  "argocd": {
+    "abbr": [],
+    "aliases": [
+      "argo cd",
+      "argo-cd"
+    ]
+  },
+  "mongodb": {
+    "abbr": [],
+    "aliases": [
+      "mongo"
+    ]
+  },
+  "postgresql": {
+    "abbr": [
+      "psql"
+    ],
+    "aliases": [
+      "postgres",
+      "postgres sql"
+    ]
+  },
+  "mysql": {
+    "abbr": [],
+    "aliases": [
+      "my sql"
+    ]
+  },
+  "mariadb": {
+    "abbr": [],
+    "aliases": [
+      "maria db"
+    ]
+  },
+  "sqlite": {
+    "abbr": [],
+    "aliases": []
+  },
+  "oracle": {
+    "abbr": [],
+    "aliases": []
+  },
+  "sql server": {
+    "abbr": [],
+    "aliases": [
+      "ms sql",
+      "mssql",
+      "sql-server"
+    ]
+  },
+  "redis": {
+    "abbr": [],
+    "aliases": []
+  },
+  "memcached": {
+    "abbr": [],
+    "aliases": []
+  },
+  "elasticsearch": {
+    "abbr": [],
+    "aliases": [
+      "elastic search",
+      "elastic-search"
+    ]
+  },
+  "opensearch": {
+    "abbr": [],
+    "aliases": [
+      "open search",
+      "open-search"
+    ]
+  },
+  "solr": {
+    "abbr": [],
+    "aliases": []
+  },
+  "cassandra": {
+    "abbr": [],
+    "aliases": []
+  },
+  "dynamodb": {
+    "abbr": [],
+    "aliases": [
+      "dynamo db",
+      "dynamo-db"
+    ]
+  },
+  "firebase": {
+    "abbr": [],
+    "aliases": []
+  },
+  "supabase": {
+    "abbr": [],
+    "aliases": []
+  },
+  "prisma": {
+    "abbr": [],
+    "aliases": []
+  },
+  "drizzle": {
+    "abbr": [],
+    "aliases": []
+  },
+  "chromadb": {
+    "abbr": [],
+    "aliases": [
+      "chroma db",
+      "chroma-db"
+    ]
+  },
+  "faiss": {
+    "abbr": [],
+    "aliases": []
+  },
+  "neo4j": {
+    "abbr": [],
+    "aliases": [
+      "neo4j graph"
+    ]
+  },
+  "graph databases": {
+    "abbr": [],
+    "aliases": [
+      "graph-databases"
+    ]
+  },
+  "timescaledb": {
+    "abbr": [],
+    "aliases": []
+  },
+  "influxdb": {
+    "abbr": [],
+    "aliases": []
+  },
+  "clickhouse": {
+    "abbr": [],
+    "aliases": []
+  },
+  "git": {
+    "abbr": [],
+    "aliases": []
+  },
+  "github": {
+    "abbr": [],
+    "aliases": [
+      "git/github"
+    ]
+  },
+  "gitlab": {
+    "abbr": [],
+    "aliases": []
+  },
+  "bitbucket": {
+    "abbr": [],
+    "aliases": []
+  },
+  "svn": {
+    "abbr": [],
+    "aliases": []
+  },
+  "mercurial": {
+    "abbr": [],
+    "aliases": []
+  },
+  "jupyter": {
+    "abbr": [],
+    "aliases": []
+  },
+  "jupyter notebook": {
+    "abbr": [],
+    "aliases": [
+      "ipython",
+      "jupyter notebooks",
+      "jupyter-notebook"
+    ]
+  },
+  "jupyter lab": {
+    "abbr": [],
+    "aliases": [
+      "jupyter-lab"
+    ]
+  },
+  "google colab": {
+    "abbr": [],
+    "aliases": [
+      "colab",
+      "google-colab"
+    ]
+  },
+  "kaggle": {
+    "abbr": [],
+    "aliases": []
+  },
+  "databricks": {
+    "abbr": [],
+    "aliases": []
+  },
+  "sagemaker": {
+    "abbr": [],
+    "aliases": [
+      "amazon sagemaker",
+      "aws sagemaker"
+    ]
+  },
+  "vertex ai": {
+    "abbr": [],
+    "aliases": [
+      "google vertex ai",
+      "vertex-ai"
+    ]
+  },
+  "azure ml": {
+    "abbr": [],
+    "aliases": [
+      "azure machine learning",
+      "azure-machine-learning",
+      "azure-ml"
+    ]
+  },
+  "mlflow": {
+    "abbr": [],
+    "aliases": [
+      "ml flow"
+    ]
+  },
+  "kubeflow": {
+    "abbr": [],
+    "aliases": []
+  },
+  "weights biases": {
+    "abbr": [],
+    "aliases": [
+      "wandb",
+      "weights and biases",
+      "weights-biases"
+    ]
+  },
+  "neptune ai": {
+    "abbr": [],
+    "aliases": [
+      "neptune-ai"
+    ]
+  },
+  "vscode": {
+    "abbr": [],
+    "aliases": [
+      "visual studio code",
+      "vs code"
+    ]
+  },
+  "intellij": {
+    "abbr": [],
+    "aliases": []
+  },
+  "pycharm": {
+    "abbr": [],
+    "aliases": []
+  },
+  "vim": {
+    "abbr": [],
+    "aliases": []
+  },
+  "neovim": {
+    "abbr": [],
+    "aliases": []
+  },
+  "emacs": {
+    "abbr": [],
+    "aliases": []
+  },
+  "sublime text": {
+    "abbr": [],
+    "aliases": [
+      "sublime-text"
+    ]
+  },
+  "atom": {
+    "abbr": [],
+    "aliases": []
+  },
+  "matplotlib": {
+    "abbr": [],
+    "aliases": []
+  },
+  "seaborn": {
+    "abbr": [],
+    "aliases": []
+  },
+  "tableau": {
+    "abbr": [],
+    "aliases": []
+  },
+  "power bi": {
+    "abbr": [],
+    "aliases": [
+      "power bi",
+      "power-bi",
+      "powerbi"
+    ]
+  },
+  "looker": {
+    "abbr": [],
+    "aliases": []
+  },
+  "metabase": {
+    "abbr": [],
+    "aliases": []
+  },
+  "superset": {
+    "abbr": [],
+    "aliases": []
+  },
+  "d3.js": {
+    "abbr": [],
+    "aliases": []
+  },
+  "grafana": {
+    "abbr": [],
+    "aliases": []
+  },
+  "kibana": {
+    "abbr": [],
+    "aliases": []
+  },
+  "quicksight": {
+    "abbr": [],
+    "aliases": []
+  },
+  "rest api": {
+    "abbr": [],
+    "aliases": [
+      "api rest",
+      "rest api",
+      "rest-api",
+      "restful",
+      "restful-api"
+    ]
+  },
+  "graphql": {
+    "abbr": [],
+    "aliases": [
+      "graph ql"
+    ]
+  },
+  "grpc": {
+    "abbr": [],
+    "aliases": []
+  },
+  "websockets": {
+    "abbr": [],
+    "aliases": []
+  },
+  "soap": {
+    "abbr": [],
+    "aliases": []
+  },
+  "api design": {
+    "abbr": [],
+    "aliases": [
+      "api-design"
+    ]
+  },
+  "api gateway": {
+    "abbr": [],
+    "aliases": [
+      "api-gateway"
+    ]
+  },
+  "swagger": {
+    "abbr": [],
+    "aliases": [
+      "swagger ui"
+    ]
+  },
+  "openapi": {
+    "abbr": [],
+    "aliases": [
+      "open api",
+      "open-api"
+    ]
+  },
+  "postman": {
+    "abbr": [],
+    "aliases": []
+  },
+  "insomnia": {
+    "abbr": [],
+    "aliases": []
+  },
+  "microservices": {
+    "abbr": [],
+    "aliases": []
+  },
+  "monolith": {
+    "abbr": [],
+    "aliases": []
+  },
+  "event driven": {
+    "abbr": [],
+    "aliases": [
+      "event-driven"
+    ]
+  },
+  "message queue": {
+    "abbr": [],
+    "aliases": [
+      "message-queue"
+    ]
+  },
+  "serverless": {
+    "abbr": [],
+    "aliases": []
+  },
+  "lambda": {
+    "abbr": [],
+    "aliases": [
+      "aws lambda",
+      "lambda functions"
+    ]
+  },
+  "cloud functions": {
+    "abbr": [],
+    "aliases": [
+      "cloud run",
+      "cloud-functions",
+      "gcp functions"
+    ]
+  },
+  "azure functions": {
+    "abbr": [],
+    "aliases": [
+      "azure-functions"
+    ]
+  },
+  "data analytics": {
+    "abbr": [],
+    "aliases": [
+      "analytics",
+      "data-analytics"
+    ]
+  },
+  "business intelligence": {
+    "abbr": [
+      "bi"
+    ],
+    "aliases": [
+      "business analytics",
+      "business-intelligence"
+    ]
+  },
+  "generative ai": {
+    "abbr": [],
+    "aliases": [
+      "gen ai",
+      "gen-ai",
+      "genai",
+      "generative ai",
+      "generative-ai"
+    ]
+  },
+  "automation": {
+    "abbr": [],
+    "aliases": []
+  },
+  "rpa": {
+    "abbr": [],
+    "aliases": [
+      "robotic process automation"
+    ]
+  },
+  "uipath": {
+    "abbr": [],
+    "aliases": []
+  },
+  "web scraping": {
+    "abbr": [],
+    "aliases": [
+      "data scraping",
+      "web scrapper",
+      "web-scraping",
+      "web-scrapper"
+    ]
+  },
+  "selenium": {
+    "abbr": [],
+    "aliases": []
+  },
+  "puppeteer": {
+    "abbr": [],
+    "aliases": []
+  },
+  "playwright": {
+    "abbr": [],
+    "aliases": []
+  },
+  "beautiful soup": {
+    "abbr": [
+      "bs4"
+    ],
+    "aliases": [
+      "beautiful soup",
+      "beautiful-soup",
+      "beautifulsoup"
+    ]
+  },
+  "scrapy": {
+    "abbr": [],
+    "aliases": []
+  },
+  "requests": {
+    "abbr": [],
+    "aliases": [
+      "python requests",
+      "requests library"
+    ]
+  },
+  "httpx": {
+    "abbr": [],
+    "aliases": []
+  },
+  "aiohttp": {
+    "abbr": [],
+    "aliases": [
+      "async http"
+    ]
+  },
+  "satellite analysis": {
+    "abbr": [],
+    "aliases": [
+      "satellite-analysis"
+    ]
+  },
+  "geospatial": {
+    "abbr": [],
+    "aliases": []
+  },
+  "gis": {
+    "abbr": [],
+    "aliases": []
+  },
+  "qgis": {
+    "abbr": [],
+    "aliases": []
+  },
+  "arcgis": {
+    "abbr": [],
+    "aliases": []
+  },
+  "ndvi": {
+    "abbr": [],
+    "aliases": []
+  },
+  "remote sensing": {
+    "abbr": [],
+    "aliases": [
+      "remote-sensing"
+    ]
+  },
+  "image classification": {
+    "abbr": [],
+    "aliases": [
+      "image classification",
+      "image-classification"
+    ]
+  },
+  "object detection": {
+    "abbr": [],
+    "aliases": [
+      "object detection",
+      "object-detection"
+    ]
+  },
+  "yolo": {
+    "abbr": [],
+    "aliases": [
+      "yolo v5",
+      "yolo v8",
+      "yolov5",
+      "yolov8"
+    ]
+  },
+  "image segmentation": {
+    "abbr": [],
+    "aliases": [
+      "image segmentation",
+      "image-segmentation",
+      "instance segmentation",
+      "semantic segmentation"
+    ]
+  },
+  "gan": {
+    "abbr": [
+      "gans"
+    ],
+    "aliases": [
+      "generative adversarial network",
+      "generative-adversarial-network"
+    ]
+  },
+  "diffusion models": {
+    "abbr": [],
+    "aliases": [
+      "diffusion model",
+      "diffusion-model",
+      "diffusion-models"
+    ]
+  },
+  "stable diffusion": {
+    "abbr": [
+      "sd",
+      "sdxl"
+    ],
+    "aliases": [
+      "stable-diffusion"
+    ]
+  },
+  "midjourney": {
+    "abbr": [],
+    "aliases": []
+  },
+  "iot": {
+    "abbr": [],
+    "aliases": [
+      "internet of things",
+      "internet-of-things"
+    ]
+  },
+  "embedded systems": {
+    "abbr": [],
+    "aliases": [
+      "embedded-systems"
+    ]
+  },
+  "arduino": {
+    "abbr": [],
+    "aliases": []
+  },
+  "raspberry pi": {
+    "abbr": [
+      "r-pi"
+    ],
+    "aliases": [
+      "raspberry pi",
+      "raspberry-pi"
+    ]
+  },
+  "esp32": {
+    "abbr": [],
+    "aliases": [
+      "esp-32"
+    ]
+  },
+  "mqtt": {
+    "abbr": [],
+    "aliases": []
+  },
+  "modbus": {
+    "abbr": [],
+    "aliases": []
+  },
+  "plc": {
+    "abbr": [],
+    "aliases": []
+  },
+  "algorithms": {
+    "abbr": [],
+    "aliases": []
+  },
+  "data structures": {
+    "abbr": [],
+    "aliases": [
+      "data-structures"
+    ]
+  },
+  "system design": {
+    "abbr": [],
+    "aliases": [
+      "system architecture",
+      "system-design"
+    ]
+  },
+  "software architecture": {
+    "abbr": [],
+    "aliases": [
+      "clean architecture",
+      "software design",
+      "software-architecture"
+    ]
+  },
+  "design patterns": {
+    "abbr": [],
+    "aliases": [
+      "design pattern",
+      "design-patterns"
+    ]
+  },
+  "solid principles": {
+    "abbr": [],
+    "aliases": [
+      "solid",
+      "solid-principles"
+    ]
+  },
+  "clean code": {
+    "abbr": [],
+    "aliases": [
+      "clean-code"
+    ]
+  },
+  "tdd": {
+    "abbr": [],
+    "aliases": [
+      "test driven development",
+      "test-driven-development"
+    ]
+  },
+  "bdd": {
+    "abbr": [],
+    "aliases": [
+      "behavior driven development",
+      "behavior-driven-development"
+    ]
+  },
+  "ddd": {
+    "abbr": [],
+    "aliases": [
+      "domain driven design",
+      "domain-driven-design"
+    ]
+  },
+  "agile": {
+    "abbr": [],
+    "aliases": [
+      "agile methodology",
+      "agile-methodology"
+    ]
+  },
+  "scrum": {
+    "abbr": [],
+    "aliases": [
+      "scrum master",
+      "scrum methodology"
+    ]
+  },
+  "kanban": {
+    "abbr": [],
+    "aliases": [
+      "kanban board"
+    ]
+  },
+  "lean": {
+    "abbr": [],
+    "aliases": []
+  },
+  "jira": {
+    "abbr": [],
+    "aliases": []
+  },
+  "confluence": {
+    "abbr": [],
+    "aliases": []
+  },
+  "trello": {
+    "abbr": [],
+    "aliases": []
+  },
+  "asana": {
+    "abbr": [],
+    "aliases": []
+  },
+  "notion": {
+    "abbr": [],
+    "aliases": []
+  },
+  "slack": {
+    "abbr": [],
+    "aliases": []
+  },
+  "teams": {
+    "abbr": [],
+    "aliases": []
+  },
+  "zoom": {
+    "abbr": [],
+    "aliases": []
+  },
+  "linux": {
+    "abbr": [
+      "rhel"
+    ],
+    "aliases": [
+      "centos",
+      "debian",
+      "linux os",
+      "red hat",
+      "ubuntu"
+    ]
+  },
+  "unix": {
+    "abbr": [],
+    "aliases": []
+  },
+  "windows": {
+    "abbr": [],
+    "aliases": []
+  },
+  "macos": {
+    "abbr": [],
+    "aliases": []
+  },
+  "shell scripting": {
+    "abbr": [
+      "zsh"
+    ],
+    "aliases": [
+      "bash script",
+      "shell script",
+      "shell-scripting"
+    ]
+  },
+  "networking": {
+    "abbr": [],
+    "aliases": []
+  },
+  "tcp ip": {
+    "abbr": [],
+    "aliases": [
+      "tcp-ip"
+    ]
+  },
+  "dns": {
+    "abbr": [],
+    "aliases": []
+  },
+  "load balancing": {
+    "abbr": [],
+    "aliases": [
+      "load-balancing"
+    ]
+  },
+  "nginx": {
+    "abbr": [],
+    "aliases": []
+  },
+  "apache": {
+    "abbr": [],
+    "aliases": []
+  },
+  "haproxy": {
+    "abbr": [],
+    "aliases": []
+  },
+  "security": {
+    "abbr": [],
+    "aliases": [
+      "information security",
+      "infosec"
+    ]
+  },
+  "cybersecurity": {
+    "abbr": [],
+    "aliases": []
+  },
+  "penetration testing": {
+    "abbr": [],
+    "aliases": [
+      "ethical hacking",
+      "pen testing",
+      "pen-testing",
+      "penetration-testing"
+    ]
+  },
+  "oauth": {
+    "abbr": [],
+    "aliases": []
+  },
+  "oauth2": {
+    "abbr": [],
+    "aliases": [
+      "oauth 2",
+      "oauth 2.0"
+    ]
+  },
+  "openid": {
+    "abbr": [],
+    "aliases": []
+  },
+  "jwt": {
+    "abbr": [],
+    "aliases": [
+      "json web token",
+      "json-web-token"
+    ]
+  },
+  "saml": {
+    "abbr": [],
+    "aliases": []
+  },
+  "encryption": {
+    "abbr": [],
+    "aliases": []
+  },
+  "ssl tls": {
+    "abbr": [],
+    "aliases": [
+      "https",
+      "ssl-tls",
+      "ssl/tls"
+    ]
+  },
+  "firewall": {
+    "abbr": [],
+    "aliases": []
+  },
+  "waf": {
+    "abbr": [],
+    "aliases": [
+      "web application firewall"
+    ]
+  },
+  "siem": {
+    "abbr": [],
+    "aliases": [
+      "security information and event management",
+      "security-information-event-management"
+    ]
+  },
+  "blockchain": {
+    "abbr": [],
+    "aliases": []
+  },
+  "ethereum": {
+    "abbr": [],
+    "aliases": []
+  },
+  "solidity": {
+    "abbr": [],
+    "aliases": []
+  },
+  "smart contracts": {
+    "abbr": [],
+    "aliases": [
+      "smart-contracts"
+    ]
+  },
+  "web3": {
+    "abbr": [],
+    "aliases": []
+  },
+  "nft": {
+    "abbr": [],
+    "aliases": []
+  },
+  "defi": {
+    "abbr": [],
+    "aliases": []
+  },
+  "excel": {
+    "abbr": [],
+    "aliases": []
+  },
+  "vba": {
+    "abbr": [],
+    "aliases": []
+  },
+  "power query": {
+    "abbr": [],
+    "aliases": [
+      "power-query"
+    ]
+  },
+  "power automate": {
+    "abbr": [],
+    "aliases": [
+      "power-automate"
+    ]
+  },
+  "microsoft 365": {
+    "abbr": [],
+    "aliases": [
+      "microsoft-365"
+    ]
+  },
+  "google workspace": {
+    "abbr": [],
+    "aliases": [
+      "google-workspace"
+    ]
+  },
+  "sap": {
+    "abbr": [],
+    "aliases": []
+  },
+  "salesforce": {
+    "abbr": [],
+    "aliases": []
+  },
+  "hubspot": {
+    "abbr": [],
+    "aliases": []
+  },
+  "zendesk": {
+    "abbr": [],
+    "aliases": []
+  },
+  "crm": {
+    "abbr": [],
+    "aliases": []
+  },
+  "erp": {
+    "abbr": [],
+    "aliases": []
+  },
+  "unit testing": {
+    "abbr": [],
+    "aliases": [
+      "unit test",
+      "unit tests",
+      "unit-testing"
+    ]
+  },
+  "integration testing": {
+    "abbr": [],
+    "aliases": [
+      "integration test",
+      "integration tests",
+      "integration-testing"
+    ]
+  },
+  "e2e testing": {
+    "abbr": [],
+    "aliases": [
+      "e2e test",
+      "e2e-testing",
+      "end to end testing"
+    ]
+  },
+  "pytest": {
+    "abbr": [],
+    "aliases": []
+  },
+  "unittest": {
+    "abbr": [],
+    "aliases": []
+  },
+  "jest": {
+    "abbr": [],
+    "aliases": []
+  },
+  "mocha": {
+    "abbr": [],
+    "aliases": []
+  },
+  "chai": {
+    "abbr": [],
+    "aliases": []
+  },
+  "cypress": {
+    "abbr": [],
+    "aliases": [
+      "cypress testing"
+    ]
+  },
+  "playwright testing": {
+    "abbr": [],
+    "aliases": [
+      "playwright-testing"
+    ]
+  },
+  "testng": {
+    "abbr": [],
+    "aliases": []
+  },
+  "junit": {
+    "abbr": [],
+    "aliases": []
+  },
+  "continuous integration": {
+    "abbr": [],
+    "aliases": [
+      "continuous-integration"
+    ]
+  },
+  "continuous deployment": {
+    "abbr": [],
+    "aliases": [
+      "continuous-deployment"
+    ]
+  },
+  "devops": {
+    "abbr": [],
+    "aliases": [
+      "dev ops",
+      "devops engineer"
+    ]
+  },
+  "sre": {
+    "abbr": [],
+    "aliases": [
+      "site reliability",
+      "sre engineer"
+    ]
+  },
+  "observability": {
+    "abbr": [],
+    "aliases": []
+  },
+  "monitoring": {
+    "abbr": [],
+    "aliases": []
+  },
+  "logging": {
+    "abbr": [],
+    "aliases": []
+  },
+  "tracing": {
+    "abbr": [],
+    "aliases": []
+  },
+  "prometheus": {
+    "abbr": [],
+    "aliases": []
+  },
+  "datadog": {
+    "abbr": [],
+    "aliases": []
+  },
+  "newrelic": {
+    "abbr": [],
+    "aliases": []
+  },
+  "splunk": {
+    "abbr": [],
+    "aliases": [
+      "splunk siem"
+    ]
+  },
+  "elk stack": {
+    "abbr": [],
+    "aliases": [
+      "elk-stack"
+    ]
+  },
+  "mlops": {
+    "abbr": [],
+    "aliases": [
+      "machine learning operations",
+      "ml ops"
+    ]
+  },
+  "data pipelines": {
+    "abbr": [],
+    "aliases": [
+      "data pipeline",
+      "data-pipeline",
+      "data-pipelines"
+    ]
+  },
+  "etl": {
+    "abbr": [],
+    "aliases": [
+      "etl pipeline",
+      "etl-pipeline"
+    ]
+  },
+  "elt": {
+    "abbr": [],
+    "aliases": [
+      "elt pipeline",
+      "elt-pipeline"
+    ]
+  },
+  "apache spark": {
+    "abbr": [],
+    "aliases": [
+      "apache-spark"
+    ]
+  },
+  "spark": {
+    "abbr": [],
+    "aliases": [
+      "apache spark",
+      "apache-spark",
+      "pyspark"
+    ]
+  },
+  "hadoop": {
+    "abbr": [],
+    "aliases": []
+  },
+  "hive": {
+    "abbr": [],
+    "aliases": []
+  },
+  "pig": {
+    "abbr": [],
+    "aliases": []
+  },
+  "presto": {
+    "abbr": [],
+    "aliases": []
+  },
+  "trino": {
+    "abbr": [],
+    "aliases": []
+  },
+  "airflow": {
+    "abbr": [],
+    "aliases": [
+      "apache airflow",
+      "apache-airflow"
+    ]
+  },
+  "prefect": {
+    "abbr": [],
+    "aliases": []
+  },
+  "dagster": {
+    "abbr": [],
+    "aliases": []
+  },
+  "luigi": {
+    "abbr": [],
+    "aliases": []
+  },
+  "kafka": {
+    "abbr": [],
+    "aliases": [
+      "apache kafka",
+      "apache-kafka"
+    ]
+  },
+  "confluent": {
+    "abbr": [],
+    "aliases": []
+  },
+  "rabbitmq": {
+    "abbr": [],
+    "aliases": []
+  },
+  "activemq": {
+    "abbr": [],
+    "aliases": []
+  },
+  "sqs": {
+    "abbr": [],
+    "aliases": []
+  },
+  "sns": {
+    "abbr": [],
+    "aliases": []
+  },
+  "pubsub": {
+    "abbr": [],
+    "aliases": []
+  },
+  "kinesis": {
+    "abbr": [],
+    "aliases": []
+  },
+  "dbt": {
+    "abbr": [],
+    "aliases": []
+  },
+  "fivetran": {
+    "abbr": [],
+    "aliases": []
+  },
+  "airbyte": {
+    "abbr": [],
+    "aliases": []
+  },
+  "stitch": {
+    "abbr": [],
+    "aliases": []
+  },
+  "snowflake": {
+    "abbr": [],
+    "aliases": []
+  },
+  "redshift": {
+    "abbr": [],
+    "aliases": []
+  },
+  "bigquery": {
+    "abbr": [],
+    "aliases": []
+  },
+  "synapse": {
+    "abbr": [],
+    "aliases": []
+  },
+  "athena": {
+    "abbr": [],
+    "aliases": []
+  },
+  "ai tool proficiency": {
+    "abbr": [],
+    "aliases": [
+      "ai-tool-proficiency"
+    ]
+  },
+  "glue": {
+    "abbr": [],
+    "aliases": []
+  },
+  "data lake": {
+    "abbr": [],
+    "aliases": [
+      "data lakehouse",
+      "data-lake",
+      "lakehouse"
+    ]
+  },
+  "data warehouse": {
+    "abbr": [
+      "dwh"
+    ],
+    "aliases": [
+      "data warehousing",
+      "data-warehouse"
+    ]
+  },
+  "data mesh": {
+    "abbr": [],
+    "aliases": [
+      "data-mesh"
+    ]
+  },
+  "data governance": {
+    "abbr": [],
+    "aliases": [
+      "data-governance"
+    ]
+  },
+  "data quality": {
+    "abbr": [],
+    "aliases": [
+      "data-quality"
+    ]
+  },
+  "communication": {
+    "abbr": [],
+    "aliases": [
+      "verbal communication",
+      "written communication"
+    ]
+  },
+  "leadership": {
+    "abbr": [],
+    "aliases": [
+      "people management",
+      "team lead",
+      "tech lead",
+      "technical leadership"
+    ]
+  },
+  "project management": {
+    "abbr": [
+      "pm"
+    ],
+    "aliases": [
+      "project manager",
+      "project-management"
+    ]
+  },
+  "problem solving": {
+    "abbr": [],
+    "aliases": [
+      "problem-solving"
+    ]
+  },
+  "critical thinking": {
+    "abbr": [],
+    "aliases": [
+      "critical-thinking"
+    ]
+  },
+  "teamwork": {
+    "abbr": [],
+    "aliases": []
+  },
+  "collaboration": {
+    "abbr": [],
+    "aliases": []
+  },
+  "presentation": {
+    "abbr": [],
+    "aliases": [
+      "presentations"
+    ]
+  },
+  "public speaking": {
+    "abbr": [],
+    "aliases": [
+      "public speaking",
+      "public-speaking"
+    ]
+  },
+  "negotiation": {
+    "abbr": [],
+    "aliases": []
+  },
+  "conflict resolution": {
+    "abbr": [],
+    "aliases": [
+      "conflict-resolution"
+    ]
+  },
+  "time management": {
+    "abbr": [],
+    "aliases": [
+      "time-management"
+    ]
+  },
+  "adaptability": {
+    "abbr": [],
+    "aliases": []
+  },
+  "creativity": {
+    "abbr": [],
+    "aliases": []
+  },
+  "analytical thinking": {
+    "abbr": [],
+    "aliases": [
+      "analytical-thinking"
+    ]
+  },
+  "attention to detail": {
+    "abbr": [],
+    "aliases": [
+      "attention-to-detail"
+    ]
+  },
+  "stakeholder management": {
+    "abbr": [],
+    "aliases": [
+      "stakeholder management",
+      "stakeholder-management"
+    ]
+  },
+  "mentoring": {
+    "abbr": [],
+    "aliases": []
+  },
+  "coaching": {
+    "abbr": [],
+    "aliases": []
+  }
+}

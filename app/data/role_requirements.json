@@ -1,0 +1,151 @@
+{
+  "data_science_analyst": {
+    "title": "Data Science / Data Analyst",
+    "skills": {
+      "python": {"frequency": 0.90, "requirement_level": "critical", "avg_proficiency_needed": 0.80},
+      "sql": {"frequency": 0.85, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "pandas": {"frequency": 0.80, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "numpy": {"frequency": 0.70, "requirement_level": "important", "avg_proficiency_needed": 0.65},
+      "machine-learning": {"frequency": 0.70, "requirement_level": "important", "avg_proficiency_needed": 0.65},
+      "data-visualization": {"frequency": 0.65, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "tableau": {"frequency": 0.50, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "power-bi": {"frequency": 0.45, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "statistics": {"frequency": 0.60, "requirement_level": "critical", "avg_proficiency_needed": 0.65},
+      "excel": {"frequency": 0.55, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "r": {"frequency": 0.40, "requirement_level": "important", "avg_proficiency_needed": 0.50},
+      "scikit-learn": {"frequency": 0.55, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "deep-learning": {"frequency": 0.35, "requirement_level": "emerging", "avg_proficiency_needed": 0.50},
+      "tensorflow": {"frequency": 0.35, "requirement_level": "emerging", "avg_proficiency_needed": 0.50},
+      "aws": {"frequency": 0.40, "requirement_level": "important", "avg_proficiency_needed": 0.50}
+    }
+  },
+  "frontend_developer": {
+    "title": "Frontend Developer",
+    "skills": {
+      "javascript": {"frequency": 0.95, "requirement_level": "critical", "avg_proficiency_needed": 0.85},
+      "html": {"frequency": 0.90, "requirement_level": "critical", "avg_proficiency_needed": 0.80},
+      "css": {"frequency": 0.90, "requirement_level": "critical", "avg_proficiency_needed": 0.80},
+      "react": {"frequency": 0.75, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "typescript": {"frequency": 0.65, "requirement_level": "important", "avg_proficiency_needed": 0.65},
+      "vue.js": {"frequency": 0.35, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "angular": {"frequency": 0.35, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "next.js": {"frequency": 0.50, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "tailwindcss": {"frequency": 0.45, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "git": {"frequency": 0.80, "requirement_level": "critical", "avg_proficiency_needed": 0.70},
+      "responsive-design": {"frequency": 0.70, "requirement_level": "important", "avg_proficiency_needed": 0.65},
+      "rest-api": {"frequency": 0.60, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "webpack": {"frequency": 0.40, "requirement_level": "emerging", "avg_proficiency_needed": 0.50},
+      "testing": {"frequency": 0.45, "requirement_level": "important", "avg_proficiency_needed": 0.55}
+    }
+  },
+  "backend_developer": {
+    "title": "Backend Developer",
+    "skills": {
+      "python": {"frequency": 0.75, "requirement_level": "critical", "avg_proficiency_needed": 0.80},
+      "java": {"frequency": 0.55, "requirement_level": "important", "avg_proficiency_needed": 0.70},
+      "node.js": {"frequency": 0.60, "requirement_level": "important", "avg_proficiency_needed": 0.70},
+      "sql": {"frequency": 0.85, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "postgresql": {"frequency": 0.60, "requirement_level": "important", "avg_proficiency_needed": 0.65},
+      "mongodb": {"frequency": 0.45, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "rest-api": {"frequency": 0.80, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "docker": {"frequency": 0.65, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "kubernetes": {"frequency": 0.40, "requirement_level": "emerging", "avg_proficiency_needed": 0.50},
+      "aws": {"frequency": 0.60, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "git": {"frequency": 0.85, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "microservices": {"frequency": 0.50, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "redis": {"frequency": 0.40, "requirement_level": "important", "avg_proficiency_needed": 0.50},
+      "ci/cd": {"frequency": 0.55, "requirement_level": "important", "avg_proficiency_needed": 0.55}
+    }
+  },
+  "fullstack_developer": {
+    "title": "Full Stack Developer",
+    "skills": {
+      "javascript": {"frequency": 0.90, "requirement_level": "critical", "avg_proficiency_needed": 0.80},
+      "python": {"frequency": 0.65, "requirement_level": "important", "avg_proficiency_needed": 0.70},
+      "react": {"frequency": 0.70, "requirement_level": "critical", "avg_proficiency_needed": 0.70},
+      "node.js": {"frequency": 0.70, "requirement_level": "critical", "avg_proficiency_needed": 0.70},
+      "sql": {"frequency": 0.75, "requirement_level": "critical", "avg_proficiency_needed": 0.70},
+      "html": {"frequency": 0.85, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "css": {"frequency": 0.85, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "typescript": {"frequency": 0.55, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "mongodb": {"frequency": 0.50, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "git": {"frequency": 0.85, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "docker": {"frequency": 0.50, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "aws": {"frequency": 0.50, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "rest-api": {"frequency": 0.75, "requirement_level": "critical", "avg_proficiency_needed": 0.70}
+    }
+  },
+  "machine_learning_engineer": {
+    "title": "Machine Learning Engineer",
+    "skills": {
+      "python": {"frequency": 0.95, "requirement_level": "critical", "avg_proficiency_needed": 0.85},
+      "machine-learning": {"frequency": 0.95, "requirement_level": "critical", "avg_proficiency_needed": 0.85},
+      "tensorflow": {"frequency": 0.70, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "pytorch": {"frequency": 0.65, "requirement_level": "critical", "avg_proficiency_needed": 0.70},
+      "deep-learning": {"frequency": 0.75, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "scikit-learn": {"frequency": 0.70, "requirement_level": "critical", "avg_proficiency_needed": 0.70},
+      "pandas": {"frequency": 0.75, "requirement_level": "critical", "avg_proficiency_needed": 0.70},
+      "numpy": {"frequency": 0.75, "requirement_level": "critical", "avg_proficiency_needed": 0.70},
+      "natural-language-processing": {"frequency": 0.50, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "computer-vision": {"frequency": 0.45, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "sql": {"frequency": 0.55, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "docker": {"frequency": 0.50, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "aws": {"frequency": 0.55, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "mlops": {"frequency": 0.40, "requirement_level": "emerging", "avg_proficiency_needed": 0.50}
+    }
+  },
+  "devops_engineer": {
+    "title": "DevOps Engineer",
+    "skills": {
+      "docker": {"frequency": 0.90, "requirement_level": "critical", "avg_proficiency_needed": 0.80},
+      "kubernetes": {"frequency": 0.80, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "aws": {"frequency": 0.85, "requirement_level": "critical", "avg_proficiency_needed": 0.80},
+      "linux": {"frequency": 0.85, "requirement_level": "critical", "avg_proficiency_needed": 0.80},
+      "ci/cd": {"frequency": 0.85, "requirement_level": "critical", "avg_proficiency_needed": 0.80},
+      "terraform": {"frequency": 0.65, "requirement_level": "important", "avg_proficiency_needed": 0.65},
+      "ansible": {"frequency": 0.50, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "jenkins": {"frequency": 0.55, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "python": {"frequency": 0.60, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "bash": {"frequency": 0.75, "requirement_level": "critical", "avg_proficiency_needed": 0.70},
+      "git": {"frequency": 0.85, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "monitoring": {"frequency": 0.55, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "azure": {"frequency": 0.45, "requirement_level": "important", "avg_proficiency_needed": 0.50},
+      "google-cloud": {"frequency": 0.40, "requirement_level": "important", "avg_proficiency_needed": 0.50}
+    }
+  },
+  "healthcare_data_analyst": {
+    "title": "Healthcare Data Analyst",
+    "skills": {
+      "python": {"frequency": 0.80, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "sql": {"frequency": 0.90, "requirement_level": "critical", "avg_proficiency_needed": 0.80},
+      "healthcare-data": {"frequency": 0.85, "requirement_level": "critical", "avg_proficiency_needed": 0.75},
+      "ehr-systems": {"frequency": 0.70, "requirement_level": "critical", "avg_proficiency_needed": 0.70},
+      "hipaa-compliance": {"frequency": 0.65, "requirement_level": "critical", "avg_proficiency_needed": 0.65},
+      "data-visualization": {"frequency": 0.65, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "tableau": {"frequency": 0.55, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "excel": {"frequency": 0.70, "requirement_level": "important", "avg_proficiency_needed": 0.65},
+      "statistics": {"frequency": 0.60, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "hl7": {"frequency": 0.40, "requirement_level": "important", "avg_proficiency_needed": 0.50},
+      "fhir": {"frequency": 0.35, "requirement_level": "emerging", "avg_proficiency_needed": 0.45},
+      "machine-learning": {"frequency": 0.40, "requirement_level": "emerging", "avg_proficiency_needed": 0.50},
+      "sas": {"frequency": 0.35, "requirement_level": "important", "avg_proficiency_needed": 0.45}
+    }
+  },
+  "mobile_developer": {
+    "title": "Mobile Developer",
+    "skills": {
+      "swift": {"frequency": 0.50, "requirement_level": "critical", "avg_proficiency_needed": 0.70},
+      "kotlin": {"frequency": 0.50, "requirement_level": "critical", "avg_proficiency_needed": 0.70},
+      "react-native": {"frequency": 0.55, "requirement_level": "important", "avg_proficiency_needed": 0.65},
+      "flutter": {"frequency": 0.45, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "ios-development": {"frequency": 0.50, "requirement_level": "critical", "avg_proficiency_needed": 0.65},
+      "android-development": {"frequency": 0.50, "requirement_level": "critical", "avg_proficiency_needed": 0.65},
+      "javascript": {"frequency": 0.55, "requirement_level": "important", "avg_proficiency_needed": 0.60},
+      "typescript": {"frequency": 0.45, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "rest-api": {"frequency": 0.70, "requirement_level": "critical", "avg_proficiency_needed": 0.65},
+      "git": {"frequency": 0.80, "requirement_level": "critical", "avg_proficiency_needed": 0.70},
+      "ui/ux": {"frequency": 0.50, "requirement_level": "important", "avg_proficiency_needed": 0.55},
+      "firebase": {"frequency": 0.45, "requirement_level": "important", "avg_proficiency_needed": 0.50}
+    }
+  }
+}

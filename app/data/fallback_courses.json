@@ -1,0 +1,310 @@
+{
+    "sql": [
+        {
+            "course_name": "SQL for Data Science",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/learn/sql-for-data-science",
+            "description": "Learn SQL basics for data analysis and querying databases",
+            "rating": 4.6,
+            "duration": "4 weeks",
+            "cost": "Free (audit) / $49 (certificate)"
+        },
+        {
+            "course_name": "Introduction to Databases and SQL",
+            "platform": "edX",
+            "url": "https://www.edx.org/learn/sql",
+            "description": "Comprehensive SQL course covering database fundamentals",
+            "rating": 4.5,
+            "duration": "5 weeks",
+            "cost": "Free (audit) / $99 (certificate)"
+        },
+        {
+            "course_name": "The Complete SQL Bootcamp",
+            "platform": "Udemy",
+            "url": "https://www.udemy.com/course/the-complete-sql-bootcamp/",
+            "description": "Go from zero to hero in SQL! Learn PostgreSQL",
+            "rating": 4.7,
+            "duration": "9 hours",
+            "cost": "$15-90"
+        }
+    ],
+    "python": [
+        {
+            "course_name": "Python for Everybody Specialization",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/specializations/python",
+            "description": "Learn Python programming from scratch",
+            "rating": 4.8,
+            "duration": "8 months",
+            "cost": "Free (audit) / $49/month (certificate)"
+        },
+        {
+            "course_name": "100 Days of Code: Python Pro Bootcamp",
+            "platform": "Udemy",
+            "url": "https://www.udemy.com/course/100-days-of-code/",
+            "description": "Master Python by building 100 projects",
+            "rating": 4.7,
+            "duration": "60 hours",
+            "cost": "$15-90"
+        },
+        {
+            "course_name": "Introduction to Computer Science and Programming Using Python",
+            "platform": "edX",
+            "url": "https://www.edx.org/course/introduction-to-computer-science-and-programming-7",
+            "description": "MIT's intro to CS using Python",
+            "rating": 4.9,
+            "duration": "9 weeks",
+            "cost": "Free (audit) / $75 (certificate)"
+        }
+    ],
+    "machine-learning": [
+        {
+            "course_name": "Machine Learning Specialization",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/specializations/machine-learning-introduction",
+            "description": "Learn ML fundamentals from Andrew Ng",
+            "rating": 4.9,
+            "duration": "3 months",
+            "cost": "Free (audit) / $49/month (certificate)"
+        },
+        {
+            "course_name": "Machine Learning A-Z",
+            "platform": "Udemy",
+            "url": "https://www.udemy.com/course/machinelearning/",
+            "description": "Hands-On Python & R In Data Science",
+            "rating": 4.5,
+            "duration": "44 hours",
+            "cost": "$15-90"
+        },
+        {
+            "course_name": "Machine Learning Fundamentals",
+            "platform": "edX",
+            "url": "https://www.edx.org/learn/machine-learning",
+            "description": "UC San Diego's machine learning course",
+            "rating": 4.6,
+            "duration": "10 weeks",
+            "cost": "Free (audit) / $149 (certificate)"
+        }
+    ],
+    "deep-learning": [
+        {
+            "course_name": "Deep Learning Specialization",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/specializations/deep-learning",
+            "description": "Master Deep Learning from Andrew Ng",
+            "rating": 4.9,
+            "duration": "5 months",
+            "cost": "Free (audit) / $49/month (certificate)"
+        },
+        {
+            "course_name": "Practical Deep Learning for Coders",
+            "platform": "fast.ai",
+            "url": "https://course.fast.ai/",
+            "description": "Top-down practical approach to deep learning",
+            "rating": 4.9,
+            "duration": "7 weeks",
+            "cost": "Free"
+        }
+    ],
+    "tensorflow": [
+        {
+            "course_name": "TensorFlow Developer Professional Certificate",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/professional-certificates/tensorflow-in-practice",
+            "description": "Build ML models with TensorFlow",
+            "rating": 4.7,
+            "duration": "4 months",
+            "cost": "Free (audit) / $49/month (certificate)"
+        }
+    ],
+    "pytorch": [
+        {
+            "course_name": "Deep Learning with PyTorch",
+            "platform": "Udacity",
+            "url": "https://www.udacity.com/course/deep-learning-pytorch--ud188",
+            "description": "Learn to build deep learning models with PyTorch",
+            "rating": 4.6,
+            "duration": "2 months",
+            "cost": "Free"
+        }
+    ],
+    "tableau": [
+        {
+            "course_name": "Data Visualization with Tableau Specialization",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/specializations/data-visualization",
+            "description": "Master Tableau for business intelligence",
+            "rating": 4.6,
+            "duration": "5 months",
+            "cost": "Free (audit) / $49/month (certificate)"
+        },
+        {
+            "course_name": "Tableau A-Z: Hands-On Tableau Training",
+            "platform": "Udemy",
+            "url": "https://www.udemy.com/course/tableau10/",
+            "description": "Complete Tableau training from basics to advanced",
+            "rating": 4.6,
+            "duration": "8 hours",
+            "cost": "$15-90"
+        }
+    ],
+    "power-bi": [
+        {
+            "course_name": "Microsoft Power BI Data Analyst",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/professional-certificates/microsoft-power-bi-data-analyst",
+            "description": "Prepare for Microsoft PL-300 certification",
+            "rating": 4.6,
+            "duration": "5 months",
+            "cost": "Free (audit) / $49/month (certificate)"
+        }
+    ],
+    "data-analysis": [
+        {
+            "course_name": "Google Data Analytics Professional Certificate",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/professional-certificates/google-data-analytics",
+            "description": "Gain job-ready skills for data analytics",
+            "rating": 4.8,
+            "duration": "6 months",
+            "cost": "Free (audit) / $49/month (certificate)"
+        },
+        {
+            "course_name": "IBM Data Analyst Professional Certificate",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/professional-certificates/ibm-data-analyst",
+            "description": "Become a data analyst with IBM",
+            "rating": 4.6,
+            "duration": "5 months",
+            "cost": "Free (audit) / $49/month (certificate)"
+        }
+    ],
+    "nlp": [
+        {
+            "course_name": "Natural Language Processing Specialization",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/specializations/natural-language-processing",
+            "description": "Master NLP techniques with DeepLearning.AI",
+            "rating": 4.6,
+            "duration": "4 months",
+            "cost": "Free (audit) / $49/month (certificate)"
+        },
+        {
+            "course_name": "Natural Language Processing with Transformers",
+            "platform": "Hugging Face",
+            "url": "https://huggingface.co/course",
+            "description": "Learn to use transformers for NLP",
+            "rating": 4.9,
+            "duration": "Self-paced",
+            "cost": "Free"
+        }
+    ],
+    "healthcare-data": [
+        {
+            "course_name": "Health Informatics on FHIR",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/learn/fhir",
+            "description": "Learn FHIR standard for healthcare data",
+            "rating": 4.5,
+            "duration": "4 weeks",
+            "cost": "Free (audit) / $49 (certificate)"
+        },
+        {
+            "course_name": "AI for Healthcare",
+            "platform": "Udacity",
+            "url": "https://www.udacity.com/course/ai-for-healthcare--nd320",
+            "description": "Apply AI to healthcare problems",
+            "rating": 4.6,
+            "duration": "4 months",
+            "cost": "$399/month"
+        }
+    ],
+    "hipaa": [
+        {
+            "course_name": "HIPAA Training Course",
+            "platform": "Udemy",
+            "url": "https://www.udemy.com/topic/hipaa/",
+            "description": "Complete HIPAA compliance training for healthcare",
+            "rating": 4.5,
+            "duration": "3 hours",
+            "cost": "$19.99"
+        }
+    ],
+    "pandas": [
+        {
+            "course_name": "Data Analysis with Python",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/learn/data-analysis-with-python",
+            "description": "Learn Pandas, NumPy for data analysis",
+            "rating": 4.7,
+            "duration": "5 weeks",
+            "cost": "Free (audit) / $49 (certificate)"
+        }
+    ],
+    "statistics": [
+        {
+            "course_name": "Statistics with Python Specialization",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/specializations/statistics-with-python",
+            "description": "Learn statistics using Python",
+            "rating": 4.6,
+            "duration": "3 months",
+            "cost": "Free (audit) / $49/month (certificate)"
+        }
+    ],
+    "r": [
+        {
+            "course_name": "Data Science: R Basics",
+            "platform": "edX",
+            "url": "https://www.edx.org/course/data-science-r-basics",
+            "description": "Learn R programming for data science",
+            "rating": 4.7,
+            "duration": "8 weeks",
+            "cost": "Free (audit) / $49 (certificate)"
+        }
+    ],
+    "aws": [
+        {
+            "course_name": "AWS Cloud Practitioner Essentials",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/learn/aws-cloud-practitioner-essentials",
+            "description": "Prepare for AWS Cloud Practitioner certification",
+            "rating": 4.7,
+            "duration": "6 weeks",
+            "cost": "Free (audit) / $49 (certificate)"
+        }
+    ],
+    "docker": [
+        {
+            "course_name": "Docker for Beginners",
+            "platform": "Udemy",
+            "url": "https://www.udemy.com/course/learn-docker/",
+            "description": "Learn Docker containerization from scratch",
+            "rating": 4.7,
+            "duration": "5 hours",
+            "cost": "$15-90"
+        }
+    ],
+    "git": [
+        {
+            "course_name": "Version Control with Git",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/learn/version-control-with-git",
+            "description": "Master Git version control",
+            "rating": 4.7,
+            "duration": "4 weeks",
+            "cost": "Free (audit) / $49 (certificate)"
+        }
+    ],
+    "excel": [
+        {
+            "course_name": "Excel Skills for Business Specialization",
+            "platform": "Coursera",
+            "url": "https://www.coursera.org/specializations/excel",
+            "description": "Master Excel from basics to advanced",
+            "rating": 4.9,
+            "duration": "6 months",
+            "cost": "Free (audit) / $49/month (certificate)"
+        }
+    ]
+}

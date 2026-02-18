@@ -1,0 +1,512 @@
+{
+  "domains": [
+    {
+      "id": "data-analyst",
+      "name": "Data Analyst",
+      "description": "Transform raw data into actionable insights",
+      "icon": "📊",
+      "color": "#3b82f6",
+      "estimatedDuration": "6-9 months",
+      "milestones": [
+        {
+          "id": "da-foundations",
+          "name": "Foundations",
+          "description": "Build essential data skills",
+          "order": 1,
+          "estimatedWeeks": 4,
+          "skills": ["Excel", "Basic Statistics", "Data Literacy"],
+          "courses": [
+            {"name": "Excel for Data Analysis", "platform": "Coursera", "url": "https://coursera.org/excel-data-analysis"},
+            {"name": "Statistics Foundations", "platform": "LinkedIn Learning", "url": "https://linkedin.com/learning/statistics"}
+          ]
+        },
+        {
+          "id": "da-sql",
+          "name": "SQL Mastery",
+          "description": "Master database querying",
+          "order": 2,
+          "estimatedWeeks": 6,
+          "prerequisites": ["da-foundations"],
+          "skills": ["SQL", "Database Design", "Query Optimization"],
+          "courses": [
+            {"name": "SQL for Data Science", "platform": "Coursera", "url": "https://coursera.org/sql-data-science"},
+            {"name": "Advanced SQL", "platform": "DataCamp", "url": "https://datacamp.com/advanced-sql"}
+          ]
+        },
+        {
+          "id": "da-python",
+          "name": "Python for Analysis",
+          "description": "Learn Python for data manipulation",
+          "order": 3,
+          "estimatedWeeks": 8,
+          "prerequisites": ["da-sql"],
+          "skills": ["Python", "Pandas", "NumPy", "Data Cleaning"],
+          "courses": [
+            {"name": "Python for Data Analysis", "platform": "Coursera", "url": "https://coursera.org/python-data"},
+            {"name": "Pandas Fundamentals", "platform": "DataCamp", "url": "https://datacamp.com/pandas"}
+          ]
+        },
+        {
+          "id": "da-visualization",
+          "name": "Data Visualization",
+          "description": "Create compelling visualizations",
+          "order": 4,
+          "estimatedWeeks": 6,
+          "prerequisites": ["da-python"],
+          "skills": ["Tableau", "Power BI", "Matplotlib", "Data Storytelling"],
+          "courses": [
+            {"name": "Tableau Fundamentals", "platform": "Coursera", "url": "https://coursera.org/tableau"},
+            {"name": "Data Visualization with Python", "platform": "edX", "url": "https://edx.org/data-viz-python"}
+          ]
+        },
+        {
+          "id": "da-advanced",
+          "name": "Advanced Analytics",
+          "description": "Statistical analysis and machine learning basics",
+          "order": 5,
+          "estimatedWeeks": 8,
+          "prerequisites": ["da-visualization"],
+          "skills": ["Statistical Analysis", "A/B Testing", "Regression", "Machine Learning Basics"],
+          "courses": [
+            {"name": "Statistics for Data Science", "platform": "Coursera", "url": "https://coursera.org/stats"},
+            {"name": "Intro to Machine Learning", "platform": "Kaggle", "url": "https://kaggle.com/learn/ml"}
+          ]
+        },
+        {
+          "id": "da-capstone",
+          "name": "Portfolio Projects",
+          "description": "Build real-world projects",
+          "order": 6,
+          "estimatedWeeks": 4,
+          "prerequisites": ["da-advanced"],
+          "skills": ["Project Management", "Business Communication", "Portfolio Development"],
+          "courses": [
+            {"name": "Data Analytics Capstone", "platform": "Google", "url": "https://coursera.org/google-da-capstone"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "software-developer",
+      "name": "Software Developer",
+      "description": "Build applications and systems",
+      "icon": "💻",
+      "color": "#22c55e",
+      "estimatedDuration": "9-12 months",
+      "milestones": [
+        {
+          "id": "sd-fundamentals",
+          "name": "Programming Fundamentals",
+          "description": "Core programming concepts",
+          "order": 1,
+          "estimatedWeeks": 6,
+          "skills": ["Programming Basics", "Problem Solving", "Git"],
+          "courses": [
+            {"name": "CS50: Introduction to Computer Science", "platform": "edX", "url": "https://edx.org/cs50"},
+            {"name": "Git and GitHub", "platform": "Udemy", "url": "https://udemy.com/git-github"}
+          ]
+        },
+        {
+          "id": "sd-dsa",
+          "name": "Data Structures & Algorithms",
+          "description": "Master fundamental DSA",
+          "order": 2,
+          "estimatedWeeks": 10,
+          "prerequisites": ["sd-fundamentals"],
+          "skills": ["Arrays", "Linked Lists", "Trees", "Sorting", "Searching", "Dynamic Programming"],
+          "courses": [
+            {"name": "Data Structures and Algorithms", "platform": "Coursera", "url": "https://coursera.org/dsa"},
+            {"name": "LeetCode Patterns", "platform": "LeetCode", "url": "https://leetcode.com"}
+          ]
+        },
+        {
+          "id": "sd-webdev",
+          "name": "Web Development",
+          "description": "Frontend and backend development",
+          "order": 3,
+          "estimatedWeeks": 12,
+          "prerequisites": ["sd-dsa"],
+          "skills": ["HTML", "CSS", "JavaScript", "React", "Node.js", "REST APIs"],
+          "courses": [
+            {"name": "The Web Developer Bootcamp", "platform": "Udemy", "url": "https://udemy.com/web-dev-bootcamp"},
+            {"name": "Full Stack Open", "platform": "University of Helsinki", "url": "https://fullstackopen.com"}
+          ]
+        },
+        {
+          "id": "sd-databases",
+          "name": "Databases",
+          "description": "Database design and management",
+          "order": 4,
+          "estimatedWeeks": 6,
+          "prerequisites": ["sd-webdev"],
+          "skills": ["SQL", "PostgreSQL", "MongoDB", "Database Design", "ORM"],
+          "courses": [
+            {"name": "Database Management Essentials", "platform": "Coursera", "url": "https://coursera.org/database-essentials"},
+            {"name": "MongoDB University", "platform": "MongoDB", "url": "https://university.mongodb.com"}
+          ]
+        },
+        {
+          "id": "sd-system-design",
+          "name": "System Design",
+          "description": "Design scalable systems",
+          "order": 5,
+          "estimatedWeeks": 8,
+          "prerequisites": ["sd-databases"],
+          "skills": ["System Design", "Scalability", "Microservices", "Caching", "Load Balancing"],
+          "courses": [
+            {"name": "System Design Interview", "platform": "Educative", "url": "https://educative.io/system-design"},
+            {"name": "Designing Data-Intensive Applications", "platform": "Book", "url": "https://dataintensive.net"}
+          ]
+        },
+        {
+          "id": "sd-devops",
+          "name": "DevOps & Deployment",
+          "description": "CI/CD and cloud deployment",
+          "order": 6,
+          "estimatedWeeks": 6,
+          "prerequisites": ["sd-system-design"],
+          "skills": ["Docker", "Kubernetes", "CI/CD", "AWS", "Linux"],
+          "courses": [
+            {"name": "Docker and Kubernetes", "platform": "Udemy", "url": "https://udemy.com/docker-kubernetes"},
+            {"name": "AWS Certified Developer", "platform": "AWS", "url": "https://aws.amazon.com/certification"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "data-scientist",
+      "name": "Data Scientist",
+      "description": "Apply ML and statistics to solve complex problems",
+      "icon": "🧠",
+      "color": "#8b5cf6",
+      "estimatedDuration": "12-18 months",
+      "milestones": [
+        {
+          "id": "ds-math",
+          "name": "Mathematics Foundation",
+          "description": "Linear algebra, calculus, and statistics",
+          "order": 1,
+          "estimatedWeeks": 8,
+          "skills": ["Linear Algebra", "Calculus", "Probability", "Statistics"],
+          "courses": [
+            {"name": "Mathematics for Machine Learning", "platform": "Coursera", "url": "https://coursera.org/math-ml"},
+            {"name": "Statistics and Probability", "platform": "Khan Academy", "url": "https://khanacademy.org/statistics"}
+          ]
+        },
+        {
+          "id": "ds-python",
+          "name": "Python for Data Science",
+          "description": "Python programming and data manipulation",
+          "order": 2,
+          "estimatedWeeks": 8,
+          "prerequisites": ["ds-math"],
+          "skills": ["Python", "Pandas", "NumPy", "Scikit-learn", "Jupyter"],
+          "courses": [
+            {"name": "Python for Data Science", "platform": "DataCamp", "url": "https://datacamp.com/python-ds"},
+            {"name": "Data Science with Python", "platform": "Coursera", "url": "https://coursera.org/python-ds"}
+          ]
+        },
+        {
+          "id": "ds-ml",
+          "name": "Machine Learning",
+          "description": "Core ML algorithms and techniques",
+          "order": 3,
+          "estimatedWeeks": 12,
+          "prerequisites": ["ds-python"],
+          "skills": ["Supervised Learning", "Unsupervised Learning", "Feature Engineering", "Model Evaluation"],
+          "courses": [
+            {"name": "Machine Learning by Andrew Ng", "platform": "Coursera", "url": "https://coursera.org/ml-andrew-ng"},
+            {"name": "Hands-On Machine Learning", "platform": "Book", "url": "https://homl.info"}
+          ]
+        },
+        {
+          "id": "ds-deep-learning",
+          "name": "Deep Learning",
+          "description": "Neural networks and deep learning",
+          "order": 4,
+          "estimatedWeeks": 10,
+          "prerequisites": ["ds-ml"],
+          "skills": ["Neural Networks", "TensorFlow", "PyTorch", "CNNs", "RNNs", "Transformers"],
+          "courses": [
+            {"name": "Deep Learning Specialization", "platform": "Coursera", "url": "https://coursera.org/deep-learning"},
+            {"name": "Fast.ai Practical Deep Learning", "platform": "Fast.ai", "url": "https://fast.ai"}
+          ]
+        },
+        {
+          "id": "ds-nlp",
+          "name": "NLP & Computer Vision",
+          "description": "Specialized AI domains",
+          "order": 5,
+          "estimatedWeeks": 10,
+          "prerequisites": ["ds-deep-learning"],
+          "skills": ["NLP", "Computer Vision", "Hugging Face", "LLMs", "Prompt Engineering"],
+          "courses": [
+            {"name": "NLP Specialization", "platform": "Coursera", "url": "https://coursera.org/nlp"},
+            {"name": "CS231n: Computer Vision", "platform": "Stanford", "url": "https://cs231n.stanford.edu"}
+          ]
+        },
+        {
+          "id": "ds-mlops",
+          "name": "MLOps & Production",
+          "description": "Deploy and maintain ML systems",
+          "order": 6,
+          "estimatedWeeks": 8,
+          "prerequisites": ["ds-nlp"],
+          "skills": ["MLflow", "Model Deployment", "A/B Testing", "Model Monitoring", "Data Pipelines"],
+          "courses": [
+            {"name": "MLOps Specialization", "platform": "Coursera", "url": "https://coursera.org/mlops"},
+            {"name": "Made With ML", "platform": "Made With ML", "url": "https://madewithml.com"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "healthcare-it",
+      "name": "Healthcare IT Analyst",
+      "description": "Technology solutions for healthcare",
+      "icon": "🏥",
+      "color": "#ef4444",
+      "estimatedDuration": "6-9 months",
+      "milestones": [
+        {
+          "id": "hi-foundations",
+          "name": "Healthcare Foundations",
+          "description": "Healthcare industry basics",
+          "order": 1,
+          "estimatedWeeks": 4,
+          "skills": ["Healthcare Systems", "Medical Terminology", "Healthcare Workflows"],
+          "courses": [
+            {"name": "Healthcare Informatics", "platform": "Coursera", "url": "https://coursera.org/health-informatics"},
+            {"name": "Medical Terminology", "platform": "edX", "url": "https://edx.org/medical-terminology"}
+          ]
+        },
+        {
+          "id": "hi-compliance",
+          "name": "Compliance & Security",
+          "description": "HIPAA and healthcare regulations",
+          "order": 2,
+          "estimatedWeeks": 4,
+          "prerequisites": ["hi-foundations"],
+          "skills": ["HIPAA", "Healthcare Compliance", "Data Privacy", "Security"],
+          "courses": [
+            {"name": "HIPAA Compliance Training", "platform": "LinkedIn Learning", "url": "https://linkedin.com/learning/hipaa"},
+            {"name": "Healthcare Data Security", "platform": "Coursera", "url": "https://coursera.org/health-data-security"}
+          ]
+        },
+        {
+          "id": "hi-ehr",
+          "name": "EHR Systems",
+          "description": "Electronic Health Records",
+          "order": 3,
+          "estimatedWeeks": 6,
+          "prerequisites": ["hi-compliance"],
+          "skills": ["EHR", "Epic", "Cerner", "HL7", "FHIR"],
+          "courses": [
+            {"name": "EHR Fundamentals", "platform": "Coursera", "url": "https://coursera.org/ehr"},
+            {"name": "HL7 FHIR Fundamentals", "platform": "HL7", "url": "https://hl7.org/fhir/training"}
+          ]
+        },
+        {
+          "id": "hi-analytics",
+          "name": "Healthcare Analytics",
+          "description": "Data analysis in healthcare",
+          "order": 4,
+          "estimatedWeeks": 8,
+          "prerequisites": ["hi-ehr"],
+          "skills": ["Healthcare Analytics", "Clinical Data", "SQL", "Tableau", "Python"],
+          "courses": [
+            {"name": "Healthcare Data Analytics", "platform": "Coursera", "url": "https://coursera.org/healthcare-analytics"},
+            {"name": "Clinical Data Science", "platform": "edX", "url": "https://edx.org/clinical-data-science"}
+          ]
+        },
+        {
+          "id": "hi-ai",
+          "name": "AI in Healthcare",
+          "description": "Machine learning for healthcare",
+          "order": 5,
+          "estimatedWeeks": 8,
+          "prerequisites": ["hi-analytics"],
+          "skills": ["Machine Learning", "Clinical NLP", "Medical Imaging", "Predictive Analytics"],
+          "courses": [
+            {"name": "AI for Healthcare", "platform": "Coursera", "url": "https://coursera.org/ai-healthcare"},
+            {"name": "Deep Learning for Healthcare", "platform": "MIT", "url": "https://mlhc.mit.edu"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cloud-engineer",
+      "name": "Cloud Engineer",
+      "description": "Design and manage cloud infrastructure",
+      "icon": "☁️",
+      "color": "#f59e0b",
+      "estimatedDuration": "9-12 months",
+      "milestones": [
+        {
+          "id": "ce-fundamentals",
+          "name": "Cloud Fundamentals",
+          "description": "Cloud computing basics",
+          "order": 1,
+          "estimatedWeeks": 4,
+          "skills": ["Cloud Computing", "Virtualization", "Networking Basics"],
+          "courses": [
+            {"name": "Cloud Computing Fundamentals", "platform": "Coursera", "url": "https://coursera.org/cloud-computing"},
+            {"name": "CompTIA Cloud+", "platform": "CompTIA", "url": "https://comptia.org/cloud"}
+          ]
+        },
+        {
+          "id": "ce-aws",
+          "name": "AWS Core Services",
+          "description": "Master AWS fundamentals",
+          "order": 2,
+          "estimatedWeeks": 8,
+          "prerequisites": ["ce-fundamentals"],
+          "skills": ["AWS", "EC2", "S3", "VPC", "IAM", "Lambda"],
+          "courses": [
+            {"name": "AWS Cloud Practitioner", "platform": "AWS", "url": "https://aws.amazon.com/certification/cloud-practitioner"},
+            {"name": "AWS Solutions Architect", "platform": "Udemy", "url": "https://udemy.com/aws-saa"}
+          ]
+        },
+        {
+          "id": "ce-iac",
+          "name": "Infrastructure as Code",
+          "description": "Automate infrastructure",
+          "order": 3,
+          "estimatedWeeks": 6,
+          "prerequisites": ["ce-aws"],
+          "skills": ["Terraform", "CloudFormation", "Ansible", "Infrastructure Automation"],
+          "courses": [
+            {"name": "Terraform Associate", "platform": "HashiCorp", "url": "https://hashicorp.com/terraform"},
+            {"name": "Infrastructure as Code", "platform": "Udemy", "url": "https://udemy.com/iac"}
+          ]
+        },
+        {
+          "id": "ce-containers",
+          "name": "Containers & Orchestration",
+          "description": "Docker and Kubernetes",
+          "order": 4,
+          "estimatedWeeks": 8,
+          "prerequisites": ["ce-iac"],
+          "skills": ["Docker", "Kubernetes", "Container Security", "Helm"],
+          "courses": [
+            {"name": "Docker and Kubernetes", "platform": "Udemy", "url": "https://udemy.com/docker-kubernetes"},
+            {"name": "CKA Certification", "platform": "Linux Foundation", "url": "https://training.linuxfoundation.org/cka"}
+          ]
+        },
+        {
+          "id": "ce-devops",
+          "name": "DevOps Practices",
+          "description": "CI/CD and automation",
+          "order": 5,
+          "estimatedWeeks": 6,
+          "prerequisites": ["ce-containers"],
+          "skills": ["CI/CD", "Jenkins", "GitLab CI", "GitHub Actions", "Monitoring"],
+          "courses": [
+            {"name": "DevOps Engineering", "platform": "Coursera", "url": "https://coursera.org/devops"},
+            {"name": "CI/CD Pipeline Course", "platform": "Udemy", "url": "https://udemy.com/cicd"}
+          ]
+        },
+        {
+          "id": "ce-security",
+          "name": "Cloud Security",
+          "description": "Secure cloud architectures",
+          "order": 6,
+          "estimatedWeeks": 6,
+          "prerequisites": ["ce-devops"],
+          "skills": ["Cloud Security", "Identity Management", "Encryption", "Compliance"],
+          "courses": [
+            {"name": "AWS Security Specialty", "platform": "AWS", "url": "https://aws.amazon.com/certification/security"},
+            {"name": "Cloud Security Fundamentals", "platform": "Coursera", "url": "https://coursera.org/cloud-security"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cybersecurity",
+      "name": "Cybersecurity Analyst",
+      "description": "Protect systems and data from threats",
+      "icon": "🔐",
+      "color": "#ec4899",
+      "estimatedDuration": "9-12 months",
+      "milestones": [
+        {
+          "id": "cs-fundamentals",
+          "name": "Security Fundamentals",
+          "description": "Core security concepts",
+          "order": 1,
+          "estimatedWeeks": 6,
+          "skills": ["Network Security", "CIA Triad", "Security Principles", "Linux"],
+          "courses": [
+            {"name": "CompTIA Security+", "platform": "CompTIA", "url": "https://comptia.org/security"},
+            {"name": "Cybersecurity Fundamentals", "platform": "Coursera", "url": "https://coursera.org/cybersecurity"}
+          ]
+        },
+        {
+          "id": "cs-networking",
+          "name": "Network Security",
+          "description": "Secure network infrastructure",
+          "order": 2,
+          "estimatedWeeks": 6,
+          "prerequisites": ["cs-fundamentals"],
+          "skills": ["Firewalls", "IDS/IPS", "VPN", "Network Analysis", "Wireshark"],
+          "courses": [
+            {"name": "Network Security", "platform": "Coursera", "url": "https://coursera.org/network-security"},
+            {"name": "CompTIA Network+", "platform": "CompTIA", "url": "https://comptia.org/network"}
+          ]
+        },
+        {
+          "id": "cs-ethical-hacking",
+          "name": "Ethical Hacking",
+          "description": "Penetration testing basics",
+          "order": 3,
+          "estimatedWeeks": 10,
+          "prerequisites": ["cs-networking"],
+          "skills": ["Penetration Testing", "Kali Linux", "Metasploit", "Web Security", "OWASP"],
+          "courses": [
+            {"name": "Ethical Hacking", "platform": "Udemy", "url": "https://udemy.com/ethical-hacking"},
+            {"name": "OSCP Preparation", "platform": "Offensive Security", "url": "https://offensive-security.com/oscp"}
+          ]
+        },
+        {
+          "id": "cs-soc",
+          "name": "Security Operations",
+          "description": "SOC analyst skills",
+          "order": 4,
+          "estimatedWeeks": 8,
+          "prerequisites": ["cs-ethical-hacking"],
+          "skills": ["SIEM", "Incident Response", "Threat Hunting", "Log Analysis", "Splunk"],
+          "courses": [
+            {"name": "SOC Analyst Training", "platform": "Cybrary", "url": "https://cybrary.it/soc"},
+            {"name": "Splunk Fundamentals", "platform": "Splunk", "url": "https://splunk.com/training"}
+          ]
+        },
+        {
+          "id": "cs-compliance",
+          "name": "Governance & Compliance",
+          "description": "Security frameworks and compliance",
+          "order": 5,
+          "estimatedWeeks": 6,
+          "prerequisites": ["cs-soc"],
+          "skills": ["ISO 27001", "NIST", "GDPR", "Risk Management", "Audit"],
+          "courses": [
+            {"name": "GRC Fundamentals", "platform": "Coursera", "url": "https://coursera.org/grc"},
+            {"name": "CISM Preparation", "platform": "ISACA", "url": "https://isaca.org/cism"}
+          ]
+        },
+        {
+          "id": "cs-advanced",
+          "name": "Advanced Security",
+          "description": "Specialized security skills",
+          "order": 6,
+          "estimatedWeeks": 8,
+          "prerequisites": ["cs-compliance"],
+          "skills": ["Malware Analysis", "Digital Forensics", "Cloud Security", "Zero Trust"],
+          "courses": [
+            {"name": "Malware Analysis", "platform": "SANS", "url": "https://sans.org/malware"},
+            {"name": "Digital Forensics", "platform": "Coursera", "url": "https://coursera.org/forensics"}
+          ]
+        }
+      ]
+    }
+  ]
+}

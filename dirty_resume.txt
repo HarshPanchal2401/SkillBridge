@@ -1,0 +1,24 @@
+Yashvi Patel
+Gujarat, India
+yashvi.patel@email.com
+www.linkedin.com/in/yashvi-patel
+
+Skills:
+- Python (Advanced)
+- SQL [Proficient]
+- R programming
+- Business Intelligence
+- Exploratory Data Analysis
+- Data Visualization (Power BI)
+- Machine Learning
+- Communication
+- Windows (Operating System)
+- Leadership
+
+Experience:
+January 2020 - Present
+Working as a Data Analyst. Used Business Intelligence and Exploratory Data Analysis for Data Visualization.
+
+Noise: resume_filename.pdf
+---
+Extra noise here.
