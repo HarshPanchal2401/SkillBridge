@@ -226,9 +226,14 @@ def get_recommended_courses(
         
         gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements)
         
-        # Get skills to improve (critical + important gaps)
-        skills_to_improve = [g['skill'] for g in gap_result['critical_gaps'][:3]]
-        skills_to_improve += [g['skill'] for g in gap_result['important_gaps'][:2]]
+        # Get skills to improve (prioritize critical gaps)
+        critical_gaps = [g['skill'] for g in gap_result['critical_gaps']]
+        important_gaps = [g['skill'] for g in gap_result['important_gaps']]
+        
+        # Take top 3 critical and top 2 important
+        skills_to_improve = critical_gaps[:3]
+        if len(skills_to_improve) < 5:
+            skills_to_improve += important_gaps[:(5 - len(skills_to_improve))]
         
         # Get course recommendations for each skill
         recommendations = []
@@ -236,7 +241,7 @@ def get_recommended_courses(
             courses = course_recommender.search_courses_for_skill(skill, max_courses_per_skill)
             recommendations.append({
                 'skill': skill,
-                'gap_priority': 'critical' if skill in [g['skill'] for g in gap_result['critical_gaps']] else 'important',
+                'gap_priority': 'critical' if skill in critical_gaps else 'important',
                 'courses': courses
             })
         

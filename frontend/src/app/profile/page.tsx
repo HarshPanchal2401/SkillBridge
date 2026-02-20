@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth';
 import { api, Skill } from '../../lib/api';
-import { MainLayout } from '@/components/layout/Sidebar';
 import {
     User,
     Mail,
@@ -24,7 +23,8 @@ import {
     Layers,
     ChevronRight,
     SearchCode,
-    ArrowUpRight
+    ArrowUpRight,
+    Award
 } from 'lucide-react';
 
 export default function ProfilePage() {
@@ -98,10 +98,9 @@ export default function ProfilePage() {
             await refreshUser();
             setMessage({
                 type: 'success',
-                text: 'Resume uploaded! Extracting skills...',
+                text: 'Resume uploaded! Extracting intelligence...',
             });
 
-            // Automatically extract skills after successful upload
             setExtracting(true);
             try {
                 const result = await api.extractAllSkills(userId);
@@ -109,12 +108,12 @@ export default function ProfilePage() {
                 await refreshUser();
                 setMessage({
                     type: 'success',
-                    text: `Resume analyzed! Found ${result.total_skills} skills in your profile.`,
+                    text: `Profile analyzed! Found ${result.total_skills} skills in your repository.`,
                 });
             } catch (extractError: any) {
                 setMessage({
                     type: 'error',
-                    text: extractError.message || 'Resume uploaded but failed to extract skills. Try clicking "Sync Intelligence".',
+                    text: extractError.message || 'Resume uploaded but failed to extract skills. Try syncing manually.',
                 });
             } finally {
                 setExtracting(false);
@@ -147,14 +146,12 @@ export default function ProfilePage() {
 
     if (authLoading) {
         return (
-            <MainLayout>
+            <>
                 <div className="flex flex-col items-center justify-center h-[70vh] space-y-4">
-                    <div className="relative">
-                        <div className="w-16 h-16 border-4 border-indigo-100 rounded-full animate-pulse"></div>
-                        <div className="absolute inset-0 w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent"></div>
+                    <p className="text-gray-400 text-sm animate-pulse">Loading identity...</p>
                 </div>
-            </MainLayout>
+            </>
         );
     }
 
@@ -183,80 +180,54 @@ export default function ProfilePage() {
     });
 
     return (
-        <MainLayout>
-            <div className="max-w-5xl mx-auto space-y-10 pb-12 animate-fade-in px-4 md:px-6">
-
-                {/* Profile Hero Section */}
-                <div className="relative bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-gray-100 overflow-hidden">
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-50 rounded-full mix-blend-multiply filter blur-3xl opacity-40 -mr-20 -mt-20"></div>
-
-                    <div className="relative flex flex-col lg:flex-row items-center justify-between gap-12">
-                        <div className="flex-1 space-y-6 text-center lg:text-left">
-                            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-full text-sm font-semibold shadow-sm">
-                                <User size={14} />
-                                Personal Identity
-                            </div>
-                            <h1 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight tracking-tight">
-                                Refine Your <span className="bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">Professional Profile</span>
-                            </h1>
-                            <p className="text-lg text-gray-500 max-w-xl leading-relaxed">
-                                Keep your information sharp and your resume updated. Our AI uses this data to map your entire career trajectory.
-                            </p>
+        <>
+            <div className="space-y-8 animate-fade-in">
+                {/* Minimal Header */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+                    <div>
+                        <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-green-50 text-green-700 rounded-lg text-[11px] font-bold uppercase tracking-wider mb-3">
+                            <User size={12} />
+                            Professional Identity
                         </div>
+                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+                            Personal Profile
+                        </h1>
+                        <p className="text-gray-500 mt-1">
+                            Refine your repository of metadata and career artifacts.
+                        </p>
+                    </div>
 
-                        {/* Profile Completion Card */}
-                        <div className="bg-gray-900 rounded-[2rem] p-8 text-white w-64 md:w-72 shadow-2xl relative group overflow-hidden">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-600 rounded-full blur-3xl opacity-20"></div>
-                            <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest mb-4">Onboarding</h3>
-                            <div className="flex items-end gap-2 mb-4">
-                                <span className="text-5xl font-black tracking-tighter">{Math.round(profile?.profile_completion || 0)}%</span>
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] pb-3">Status</span>
-                            </div>
-                            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-indigo-500 rounded-full transition-all duration-1000"
-                                    style={{ width: `${profile?.profile_completion || 0}%` }}
-                                />
-                            </div>
-                            <p className="mt-4 text-[10px] font-bold text-gray-400 leading-relaxed uppercase tracking-tighter">
-                                Complete your profile to unlock full market analysis.
-                            </p>
-                        </div>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={handleSave}
+                            disabled={loading}
+                            className="px-6 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-800 transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-70"
+                        >
+                            {loading ? <RefreshCw className="animate-spin" size={16} /> : 'Save Changes'}
+                        </button>
                     </div>
                 </div>
 
                 {message && (
-                    <div className={`p-5 rounded-2xl flex items-center justify-between shadow-lg border-2 animate-slide-down 
+                    <div className={`p-4 rounded-xl flex items-center justify-between border-2 animate-slide-down 
                         ${message.type === 'success' ? 'bg-green-50 border-green-100 text-green-800' : 'bg-red-50 border-red-100 text-red-800'}`}>
-                        <div className="flex items-center gap-4">
-                            <div className={`p-2 rounded-xl ${message.type === 'success' ? 'bg-green-100' : 'bg-red-100'}`}>
-                                {message.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-                            </div>
-                            <span className="font-bold text-sm tracking-tight">{message.text}</span>
+                        <div className="flex items-center gap-3">
+                            {message.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
+                            <span className="font-bold text-sm">{message.text}</span>
                         </div>
-                        <button onClick={() => setMessage(null)} className="text-xs font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity">Dismiss</button>
+                        <button onClick={() => setMessage(null)} className="text-[10px] font-black uppercase tracking-widest opacity-50 hover:opacity-100 transition-opacity">Dismiss</button>
                     </div>
                 )}
 
                 <div className="grid lg:grid-cols-12 gap-8">
-
-                    {/* Main Forms Section */}
+                    {/* Left: Core Information */}
                     <div className="lg:col-span-8 space-y-8">
-
-                        {/* Information Grid */}
-                        <div className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-gray-100 space-y-10">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Core Repository</h2>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={loading}
-                                    className="px-8 py-3 bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-800 active:scale-95 transition-all shadow-lg disabled:opacity-50"
-                                >
-                                    {loading ? 'Processing...' : 'Sync Changes'}
-                                </button>
-                            </div>
-
-                            <div className="grid md:grid-cols-2 gap-8">
+                        <div className="card-simple">
+                            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-8 border-b border-gray-50 pb-4 flex items-center gap-2">
+                                <Layers size={16} className="text-green-600" />
+                                Core Repository
+                            </h2>
+                            <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
                                 {[
                                     { id: 'name', label: 'Identity', icon: User, placeholder: 'John Doe' },
                                     { id: 'education', label: 'Degree', icon: GraduationCap, placeholder: 'Master of Science' },
@@ -264,8 +235,8 @@ export default function ProfilePage() {
                                     { id: 'location', label: 'Territory', icon: MapPin, placeholder: 'San Francisco, CA' },
                                     { id: 'target_role', label: 'Ambition', icon: Target, placeholder: 'Lead Backend Engineer' },
                                 ].map((field) => (
-                                    <div key={field.id} className="space-y-2 group">
-                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2 group-focus-within:text-indigo-600 transition-colors">
+                                    <div key={field.id} className="space-y-1.5 group">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2 group-focus-within:text-green-600 transition-colors">
                                             <field.icon size={12} />
                                             {field.label}
                                         </label>
@@ -273,7 +244,7 @@ export default function ProfilePage() {
                                             type="text"
                                             value={(formData as any)[field.id]}
                                             onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
-                                            className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl outline-none transition-all text-gray-900 font-bold placeholder:font-medium placeholder:text-gray-300 shadow-sm"
+                                            className="w-full px-4 py-2.5 bg-gray-50 border border-transparent focus:border-green-500 focus:bg-white rounded-xl outline-none transition-all text-sm font-bold text-gray-900 placeholder:text-gray-300"
                                             placeholder={field.placeholder}
                                         />
                                     </div>
@@ -281,74 +252,90 @@ export default function ProfilePage() {
                             </div>
                         </div>
 
-                        {/* Resume Management Area */}
-                        <div className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-gray-100 flex flex-col md:flex-row gap-10">
-                            <div className="flex-1 space-y-6">
-                                <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Resume Intelligence</h2>
-                                <p className="text-gray-500 text-sm leading-relaxed">
-                                    Our NLP engine will parse your resume to identify technical competencies, industry exposure, and career growth potential.
+                        {/* Resume Area */}
+                        <div className="card-simple flex flex-col md:flex-row gap-8 items-start">
+                            <div className="flex-1 space-y-4">
+                                <h2 className="text-sm font-bold text-gray-900 uppercase tracking-widest border-b border-gray-50 pb-4 flex items-center gap-2">
+                                    <FileText size={16} className="text-green-600" />
+                                    Resume Analytics
+                                </h2>
+                                <p className="text-xs text-gray-500 leading-relaxed">
+                                    Our NLP engine parses your artifacts to map technical competencies and career growth potential.
                                 </p>
 
                                 {user?.has_resume ? (
-                                    <div className="bg-emerald-50 rounded-[1.5rem] p-6 border border-emerald-100 relative group">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-emerald-500">
-                                                <FileText size={24} />
+                                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between group">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-white rounded-lg shadow-sm flex items-center justify-center text-green-600">
+                                                <FileText size={20} />
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-[10px] font-black text-emerald-600 bg-white px-2 py-0.5 rounded-full inline-block mb-1">Active Artifact</p>
-                                                <p className="text-sm font-black text-gray-900 truncate" title={user.resume_filename}>{user.resume_filename || 'DefaultResume.pdf'}</p>
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold text-gray-900 truncate max-w-[150px]" title={user.resume_filename}>{user.resume_filename || 'DefaultResume.pdf'}</p>
+                                                <p className="text-[9px] font-bold text-green-600 uppercase tracking-tighter">Active Artifact</p>
                                             </div>
                                         </div>
-                                        <div className="mt-6 flex flex-wrap gap-2">
+                                        <div className="flex items-center gap-2">
                                             <button
                                                 onClick={handleExtractAllSkills}
                                                 disabled={extracting}
-                                                className="px-6 py-2.5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-800 transition-all flex items-center gap-2"
+                                                className="px-3 py-1.5 bg-gray-900 text-white text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-gray-800 transition-all flex items-center gap-1.5"
                                             >
-                                                <Sparkles size={14} className={extracting ? 'animate-spin' : ''} />
-                                                {extracting ? 'Analyzing...' : 'Sync Intelligence'}
+                                                {extracting ? <RefreshCw className="animate-spin" size={12} /> : <Sparkles size={12} />}
+                                                Sync
                                             </button>
-                                            <label className="px-6 py-2.5 bg-white text-gray-900 border border-gray-200 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-gray-50 transition-all cursor-pointer">
-                                                Swap Files
+                                            <label className="p-2 text-gray-400 hover:text-green-600 cursor-pointer transition-colors">
+                                                <Upload size={16} />
                                                 <input type="file" className="hidden" onChange={handleResumeUpload} accept=".pdf,.doc,.docx,.txt" />
                                             </label>
                                         </div>
                                     </div>
                                 ) : (
-                                    <label className="block p-12 border-4 border-dashed border-gray-100 rounded-[2rem] text-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/50 transition-all group">
-                                        <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                                            <Upload className="text-gray-400 group-hover:text-indigo-500 transition-colors" size={32} />
-                                        </div>
-                                        <span className="text-sm font-black text-gray-900 uppercase tracking-widest">Connect Resume</span>
-                                        <p className="mt-2 text-xs text-gray-400 font-bold">PDF, DOCX, TXT accepted (Max 10MB)</p>
+                                    <label className="block p-8 border-2 border-dashed border-gray-100 rounded-2xl text-center cursor-pointer hover:border-green-500 hover:bg-green-50/10 transition-all group">
+                                        <Upload className="text-gray-300 mx-auto mb-3 group-hover:text-green-600" size={24} />
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Upload Resume</p>
                                         <input type="file" className="hidden" onChange={handleResumeUpload} accept=".pdf,.doc,.docx,.txt" />
                                     </label>
                                 )}
                             </div>
+
+                            {/* Completion Indicator */}
+                            <div className="w-full md:w-56 bg-gray-50 border border-gray-100 rounded-2xl p-6 text-gray-900 space-y-6 shadow-sm">
+                                <div className="space-y-1">
+                                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Profile Status</h3>
+                                    <p className="text-4xl font-bold tracking-tight text-gray-900">{Math.round(profile?.profile_completion || 0)}%</p>
+                                </div>
+                                <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-green-500 rounded-full transition-all duration-1000"
+                                        style={{ width: `${profile?.profile_completion || 0}%` }}
+                                    />
+                                </div>
+                                <p className="text-[9px] font-bold text-gray-500 uppercase leading-relaxed tracking-tight">
+                                    Closing this gap unlocks advanced market analysis.
+                                </p>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Sidebar: Social & Skill Snapshot */}
-                    <div className="lg:col-span-4 space-y-8">
-
-                        {/* Social Repository */}
-                        <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100 space-y-6">
-                            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest px-1">Integrations</h3>
+                    {/* Right: Social & Intelligence */}
+                    <div className="lg:col-span-4 space-y-6">
+                        {/* Integrations */}
+                        <div className="card-simple">
+                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 px-1">Social Signals</h3>
                             <div className="space-y-4">
                                 {[
-                                    { id: 'github_url', label: 'GitHub', icon: Github, color: 'bg-gray-900', placeholder: 'github.com/profile' },
-                                    { id: 'linkedin_url', label: 'LinkedIn', icon: Linkedin, color: 'bg-blue-600', placeholder: 'linkedin.com/in/profile' },
+                                    { id: 'github_url', label: 'GitHub', icon: Github, color: 'text-gray-900', bg: 'bg-gray-50', placeholder: 'github.com/profile' },
+                                    { id: 'linkedin_url', label: 'LinkedIn', icon: Linkedin, color: 'text-blue-600', bg: 'bg-blue-50', placeholder: 'linkedin.com/in/profile' },
                                 ].map((social) => (
                                     <div key={social.id} className="relative group">
-                                        <div className={`absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 ${social.color} text-white rounded-xl flex items-center justify-center shadow-lg transition-transform group-focus-within:scale-110`}>
-                                            <social.icon size={20} />
+                                        <div className={`absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 ${social.bg} ${social.color} rounded-lg flex items-center justify-center shadow-sm transition-transform group-focus-within:scale-110`}>
+                                            <social.icon size={16} />
                                         </div>
                                         <input
                                             type="url"
                                             value={(formData as any)[social.id]}
                                             onChange={(e) => setFormData({ ...formData, [social.id]: e.target.value })}
-                                            className="w-full pl-16 pr-4 py-4 bg-gray-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl outline-none transition-all text-xs font-bold text-gray-900"
+                                            className="w-full pl-14 pr-4 py-2.5 bg-gray-50 border border-transparent focus:border-green-500 focus:bg-white rounded-xl outline-none transition-all text-[11px] font-bold text-gray-900"
                                             placeholder={social.placeholder}
                                         />
                                     </div>
@@ -356,54 +343,50 @@ export default function ProfilePage() {
                             </div>
                         </div>
 
-                        {/* Extracted Intelligence (Skills) */}
-                        <div className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100 flex flex-col items-center">
-                            <h3 className="w-full text-sm font-black text-gray-400 uppercase tracking-widest mb-6 flex items-center justify-between">
-                                Intelligence
-                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-lg">{skills.length} Nodes</span>
-                            </h3>
+                        {/* Skill Signals Snapshot */}
+                        <div className="card-simple">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Intelligence</h3>
+                                <div className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded-lg uppercase tracking-wider">{skills.length} Nodes</div>
+                            </div>
 
                             {skills.length > 0 ? (
-                                <div className="w-full space-y-6">
+                                <div className="space-y-6">
                                     {Object.entries(skillsBySource).map(([source, sourceSkills], i) => (
                                         <div key={source} className="space-y-3">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
-                                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">{source}</span>
+                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{source}</span>
                                             </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                {sourceSkills.slice(0, 10).map((skill) => (
-                                                    <div key={skill.id} className="group relative">
-                                                        <span className="px-3 py-1.5 bg-gray-50 hover:bg-white hover:shadow-md border border-gray-100 rounded-xl text-[10px] font-black text-gray-700 transition-all cursor-default">
-                                                            {skill.skill_name}
-                                                        </span>
-                                                    </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {sourceSkills.slice(0, 8).map((skill) => (
+                                                    <span key={skill.id} className="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-bold text-gray-600 cursor-default hover:bg-white hover:border-green-100 transition-all">
+                                                        {skill.skill_name}
+                                                    </span>
                                                 ))}
-                                                {sourceSkills.length > 10 && (
-                                                    <span className="text-[10px] font-black text-gray-400 py-1.5">+ {sourceSkills.length - 10} more</span>
+                                                {sourceSkills.length > 8 && (
+                                                    <span className="text-[10px] font-bold text-gray-400 px-1">+ {sourceSkills.length - 8}</span>
                                                 )}
                                             </div>
                                         </div>
                                     ))}
                                     <button
                                         onClick={() => router.push('/skills')}
-                                        className="w-full py-4 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                        className="w-full py-3 bg-gray-50 text-gray-500 hover:text-green-600 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border border-transparent hover:border-green-100"
                                     >
-                                        View Full Analysis
+                                        Full Skill Analysis
                                     </button>
                                 </div>
                             ) : (
-                                <div className="text-center py-10 opacity-30">
-                                    <SearchCode size={48} className="mx-auto mb-4" />
-                                    <p className="text-xs font-bold uppercase tracking-widest">No signals found</p>
+                                <div className="text-center py-8">
+                                    <Award size={32} className="mx-auto mb-3 text-gray-200" />
+                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Inert Profile</p>
                                 </div>
                             )}
                         </div>
-
                     </div>
                 </div>
-
             </div>
-        </MainLayout>
+        </>
     );
 }

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
-import { Mail, User, GraduationCap, Target, MapPin, AlertCircle, Sparkles, Building } from 'lucide-react';
+import { Mail, User, GraduationCap, Target, MapPin, AlertCircle, Sparkles, Building, Briefcase, RefreshCw, ArrowRight } from 'lucide-react';
 
 export default function RegisterPage() {
     const [formData, setFormData] = useState({
@@ -57,63 +57,59 @@ export default function RegisterPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-6">
-            {/* Background decorations */}
-            <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute -top-40 -right-40 w-80 h-80 bg-green-500/20 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-20 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl"></div>
-            </div>
-
-            <div className="relative w-full max-w-lg">
+        <div className="min-h-screen bg-[#F9FAFB] flex flex-col items-center justify-center p-6 animate-fade-in">
+            <div className="w-full max-w-xl space-y-8">
                 {/* Logo */}
-                <div className="text-center mb-8">
-                    <Link href="/" className="inline-flex items-center gap-2">
-                        <div className="w-12 h-12 bg-gradient-to-r from-green-400 to-emerald-500 rounded-xl flex items-center justify-center">
-                            <Sparkles className="text-white" size={28} />
+                <div className="text-center">
+                    <Link href="/" className="inline-flex items-center gap-2 group">
+                        <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                            <Sparkles className="text-white" size={20} />
                         </div>
-                        <span className="text-3xl font-bold text-white">SkillPath</span>
+                        <span className="text-2xl font-bold text-gray-900 tracking-tight">SkillBridge</span>
                     </Link>
                 </div>
 
-                {/* Card */}
-                <div className="bg-gray-800/50 backdrop-blur-xl border border-gray-700 rounded-2xl p-8">
-                    <h1 className="text-2xl font-bold text-white text-center mb-2">Create Account</h1>
-                    <p className="text-gray-400 text-center mb-8">Start your career journey in healthcare</p>
+                {/* Form Card */}
+                <div className="bg-white border border-gray-100 rounded-[2.5rem] p-8 md:p-12 shadow-sm border-b-4 border-b-green-500">
+                    <div className="text-center mb-10">
+                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Create Your Identity</h1>
+                        <p className="text-gray-400 text-sm mt-1">Start your career journey with AI insights</p>
+                    </div>
 
                     {error && (
-                        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center gap-3 text-red-400">
-                            <AlertCircle size={20} />
-                            <span className="text-sm">{error}</span>
+                        <div className="mb-8 p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-700">
+                            <AlertCircle size={18} className="shrink-0" />
+                            <span className="text-xs font-bold leading-relaxed">{error}</span>
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                    <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Name & Email Row */}
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Full Name *</label>
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Full Name *</label>
                                 <div className="relative">
-                                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
                                     <input
                                         type="text"
                                         value={formData.name}
                                         onChange={(e) => updateField('name', e.target.value)}
-                                        className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors"
+                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent focus:border-green-500 rounded-xl text-sm font-bold text-gray-900 placeholder:text-gray-300 outline-none transition-all"
                                         placeholder="John Doe"
                                         required
                                     />
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Email *</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Email *</label>
                                 <div className="relative">
-                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
                                     <input
                                         type="email"
                                         value={formData.email}
                                         onChange={(e) => updateField('email', e.target.value)}
-                                        className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors"
-                                        placeholder="you@example.com"
+                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent focus:border-green-500 rounded-xl text-sm font-bold text-gray-900 placeholder:text-gray-300 outline-none transition-all"
+                                        placeholder="you@email.com"
                                         required
                                     />
                                 </div>
@@ -121,60 +117,60 @@ export default function RegisterPage() {
                         </div>
 
                         {/* Education Row */}
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Education</label>
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Degree</label>
                                 <div className="relative">
-                                    <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                                    <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
                                     <input
                                         type="text"
                                         value={formData.education}
                                         onChange={(e) => updateField('education', e.target.value)}
-                                        className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors"
-                                        placeholder="B.Tech in Computer Science"
+                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent focus:border-green-500 rounded-xl text-sm font-bold text-gray-900 placeholder:text-gray-300 outline-none transition-all"
+                                        placeholder="B.S. Computer Science"
                                     />
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">University</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">University</label>
                                 <div className="relative">
-                                    <Building className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                                    <Building className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
                                     <input
                                         type="text"
                                         value={formData.university}
                                         onChange={(e) => updateField('university', e.target.value)}
-                                        className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors"
-                                        placeholder="MIT"
+                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent focus:border-green-500 rounded-xl text-sm font-bold text-gray-900 placeholder:text-gray-300 outline-none transition-all"
+                                        placeholder="Stanford University"
                                     />
                                 </div>
                             </div>
                         </div>
 
-                        {/* Location & Target Role */}
-                        <div className="grid md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Location</label>
+                        {/* Location & Role */}
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Location</label>
                                 <div className="relative">
-                                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
                                     <input
                                         type="text"
                                         value={formData.location}
                                         onChange={(e) => updateField('location', e.target.value)}
-                                        className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors"
-                                        placeholder="New York, USA"
+                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent focus:border-green-500 rounded-xl text-sm font-bold text-gray-900 placeholder:text-gray-300 outline-none transition-all"
+                                        placeholder="San Francisco, CA"
                                     />
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Target Role</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Target Role</label>
                                 <div className="relative">
-                                    <Target className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                                    <Target className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
                                     <input
                                         type="text"
                                         value={formData.target_role}
                                         onChange={(e) => updateField('target_role', e.target.value)}
-                                        className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors"
-                                        placeholder="Healthcare Data Analyst"
+                                        className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent focus:border-green-500 rounded-xl text-sm font-bold text-gray-900 placeholder:text-gray-300 outline-none transition-all"
+                                        placeholder="Backend Engineer"
                                     />
                                 </div>
                             </div>
@@ -183,27 +179,33 @@ export default function RegisterPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-green-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full py-4 mt-4 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-800 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                         >
                             {loading ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                    Creating account...
-                                </span>
+                                <RefreshCw className="animate-spin" size={18} />
                             ) : (
-                                'Create Account'
+                                <>
+                                    Create Identity
+                                    <ArrowRight size={18} />
+                                </>
                             )}
                         </button>
                     </form>
 
                     <div className="mt-8 text-center">
-                        <p className="text-gray-400">
+                        <p className="text-gray-400 text-xs font-medium">
                             Already have an account?{' '}
-                            <Link href="/login" className="text-green-400 hover:text-green-300 font-medium">
-                                Sign in
+                            <Link href="/login" className="text-green-600 hover:text-green-700 font-bold ml-1">
+                                Sign In
                             </Link>
                         </p>
                     </div>
+                </div>
+
+                <div className="text-center">
+                    <p className="text-gray-400 text-[10px] uppercase tracking-widest font-bold">
+                        &copy; 2026 SkillBridge Intelligence Systems
+                    </p>
                 </div>
             </div>
         </div>

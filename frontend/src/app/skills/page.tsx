@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth';
 import { api, Skill, GapAnalysis } from '../../lib/api';
-import { MainLayout } from '@/components/layout/Sidebar';
 import {
     TrendingUp,
     Award,
@@ -21,7 +20,11 @@ import {
     Star,
     Layers,
     Sparkles,
-    SearchCode
+    SearchCode,
+    ChevronDown,
+    ChevronUp,
+    Briefcase,
+    Globe
 } from 'lucide-react';
 import {
     PieChart,
@@ -29,15 +32,11 @@ import {
     Cell,
     ResponsiveContainer,
     Tooltip,
-    Legend,
     AreaChart,
     Area,
-    XAxis,
-    YAxis,
-    CartesianGrid
 } from 'recharts';
 
-const PROFICIENCY_COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+const PROFICIENCY_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#6366f1', '#ec4899', '#f43f5e'];
 
 interface SkillCourseInfo {
     loading: boolean;
@@ -97,7 +96,10 @@ export default function SkillsPage() {
     };
 
     const toggleCourseRecommendations = async (skillName: string) => {
-        if (skillCourses[skillName]) return;
+        if (skillCourses[skillName]) {
+            // Toggle logic can be added here if needed to collapse
+            return;
+        }
 
         setSkillCourses(prev => ({
             ...prev,
@@ -119,7 +121,6 @@ export default function SkillsPage() {
         }
     };
 
-    // Process Skills Data for Visualization
     const analyticsData = useMemo(() => {
         const topSkills = [...skills]
             .sort((a, b) => b.proficiency - a.proficiency)
@@ -159,327 +160,236 @@ export default function SkillsPage() {
 
     if (authLoading || loading) {
         return (
-            <MainLayout>
+            <>
                 <div className="flex flex-col items-center justify-center h-[70vh] space-y-4">
-                    <div className="relative">
-                        <div className="w-16 h-16 border-4 border-green-100 rounded-full animate-pulse"></div>
-                        <div className="absolute inset-0 w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                    <p className="text-gray-500 font-medium animate-pulse text-lg">Analyzing your professional profile...</p>
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent"></div>
+                    <p className="text-gray-400 text-sm animate-pulse">Syncing your skills...</p>
                 </div>
-            </MainLayout>
+            </>
         );
     }
 
     return (
-        <MainLayout>
-            <div className="max-w-7xl mx-auto space-y-10 pb-12 animate-fade-in px-4 md:px-6">
-
-                {/* Modern Hero Section with High-Fidelity Design */}
-                <div className="relative bg-white rounded-[2.5rem] p-8 md:p-12 shadow-2xl border border-gray-100 overflow-hidden">
-                    {/* Background Accents */}
-                    <div className="absolute top-0 right-0 w-96 h-96 bg-green-50 rounded-full mix-blend-multiply filter blur-3xl opacity-40 -mr-20 -mt-20"></div>
-                    <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-50 rounded-full mix-blend-multiply filter blur-3xl opacity-40 -ml-20 -mb-20"></div>
-
-                    <div className="relative flex flex-col lg:flex-row items-center justify-between gap-12">
-                        <div className="flex-1 space-y-6 text-center lg:text-left">
-                            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-green-50 border border-green-100 text-green-700 rounded-full text-sm font-semibold shadow-sm">
-                                <Sparkles size={14} />
-                                Skill Intelligence Pro
-                            </div>
-                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-gray-900 leading-tight tracking-tight">
-                                Your Career <span className="bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">Readiness Dashboard</span>
-                            </h1>
-                            <p className="text-lg text-gray-500 max-w-2xl leading-relaxed">
-                                Integrated skill gap analysis, market demand tracking, and personalized career roadmaps in one place.
-                            </p>
-
-                            {/* Unified Search/Analysis Bar */}
-                            <div className="flex flex-col sm:flex-row items-stretch gap-3 pt-4 max-w-xl">
-                                <div className="relative flex-1 group">
-                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-green-500 transition-colors">
-                                        <SearchCode size={20} />
-                                    </div>
-                                    <input
-                                        type="text"
-                                        placeholder="Enter target role (e.g. Senior Frontend Engineer)"
-                                        className="w-full pl-12 pr-4 py-4 bg-gray-50 border-2 border-transparent focus:border-green-500 focus:bg-white rounded-2xl outline-none transition-all text-gray-900 shadow-sm"
-                                        value={roleInput}
-                                        onChange={(e) => setRoleInput(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleRoleAnalysis(roleInput)}
-                                    />
-                                </div>
-                                <button
-                                    onClick={() => handleRoleAnalysis(roleInput)}
-                                    disabled={isAnalyzing}
-                                    className="px-8 py-4 bg-gray-900 text-white rounded-2xl font-bold hover:bg-gray-800 active:scale-95 transition-all flex items-center justify-center gap-2 group disabled:opacity-70 shadow-lg shadow-gray-200"
-                                >
-                                    {isAnalyzing ? (
-                                        <RefreshCw className="animate-spin" size={20} />
-                                    ) : (
-                                        <>
-                                            Analyze Role
-                                            <ChevronRight className="group-hover:translate-x-1 transition-transform" size={18} />
-                                        </>
-                                    )}
-                                </button>
-                            </div>
+        <>
+            <div className="space-y-8 animate-fade-in">
+                {/* Minimal Header */}
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+                    <div>
+                        <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-green-50 text-green-700 rounded-lg text-[11px] font-bold uppercase tracking-wider mb-3">
+                            <Sparkles size={12} />
+                            Skills Analytics
                         </div>
+                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+                            Market Readiness
+                        </h1>
+                        <p className="text-gray-500 mt-1">
+                            Analyze your expertise against current industry demands.
+                        </p>
+                    </div>
 
-                        {/* Readiness Score Gauge */}
-                        <div className="relative w-72 h-72 md:w-80 md:h-80 flex-shrink-0 flex items-center justify-center">
-                            <div className="absolute inset-0 bg-white/50 backdrop-blur-sm rounded-full shadow-inner border border-gray-100"></div>
-                            <svg className="w-full h-full transform -rotate-90 filter drop-shadow-xl">
-                                <circle cx="50%" cy="50%" r="42%" stroke="#f3f4f6" strokeWidth="24" fill="none" />
-                                <circle
-                                    cx="50%" cy="50%" r="42%"
-                                    stroke="url(#gradient-gauge)"
-                                    strokeWidth="24"
-                                    fill="none"
-                                    strokeDasharray={`${(gapAnalysis?.overall_readiness || 0) * 2.64} 264`}
-                                    strokeLinecap="round"
-                                    className="transition-all duration-[2000ms] ease-out"
-                                />
-                                <defs>
-                                    <linearGradient id="gradient-gauge" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" stopColor="#22c55e" />
-                                        <stop offset="100%" stopColor="#3b82f6" />
-                                    </linearGradient>
-                                </defs>
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                                <span className="text-sm font-black text-gray-400 uppercase tracking-[0.2em] mb-1">Match Rate</span>
-                                <span className="text-6xl md:text-7xl font-black text-gray-900 tracking-tight">
-                                    {Math.round(gapAnalysis?.overall_readiness || 0)}%
-                                </span>
-                                <div className="mt-2 flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold uppercase tracking-wider">
-                                    <TrendingUp size={14} />
-                                    Top 10% Profile
-                                </div>
+                    <div className="flex items-center gap-3 w-full md:w-auto max-w-md">
+                        <div className="relative flex-1 group">
+                            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                                <SearchCode size={18} />
                             </div>
+                            <input
+                                type="text"
+                                placeholder="Target Role..."
+                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 focus:border-green-500 rounded-xl outline-none transition-all text-sm shadow-sm"
+                                value={roleInput}
+                                onChange={(e) => setRoleInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleRoleAnalysis(roleInput)}
+                            />
                         </div>
+                        <button
+                            onClick={() => handleRoleAnalysis(roleInput)}
+                            disabled={isAnalyzing}
+                            className="px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-70"
+                        >
+                            {isAnalyzing ? <RefreshCw className="animate-spin" size={16} /> : 'Analyze'}
+                        </button>
                     </div>
                 </div>
 
-                {/* Key Insights Row */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Key Metrics Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
-                        { label: 'Total Skills', value: skills.length, icon: Award, color: 'text-green-600', bg: 'bg-green-50' },
-                        { label: 'Role Matches', value: gapAnalysis?.matched_skills?.length || 0, icon: CheckCircle2, color: 'text-blue-600', bg: 'bg-blue-50' },
-                        { label: 'Gaps Found', value: gapAnalysis?.missing_skills?.length || 0, icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' },
-                        { label: 'Target Focus', value: gapAnalysis?.target_role?.title || 'Not Set', icon: Target, scale: true, color: 'text-purple-600', bg: 'bg-purple-50' },
+                        { label: 'Total Proficiency', value: skills.length, icon: Award, color: 'text-green-600', bg: 'bg-green-50' },
+                        { label: 'Market Matches', value: gapAnalysis?.matched_skills?.length || 0, icon: CheckCircle2, color: 'text-blue-600', bg: 'bg-blue-50' },
+                        { label: 'Growth Areas', value: gapAnalysis?.missing_skills?.length || 0, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50' },
+                        { label: 'Readiness', value: `${Math.round(gapAnalysis?.overall_readiness || 0)}%`, icon: Target, color: 'text-purple-600', bg: 'bg-purple-50' },
                     ].map((stat, i) => (
-                        <div key={i} className="group bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                            <div className="flex items-start justify-between">
-                                <div className={`p-4 ${stat.bg} ${stat.color} rounded-2xl group-hover:scale-110 transition-transform duration-300 shadow-inner`}>
-                                    <stat.icon size={26} strokeWidth={2.5} />
+                        <div key={i} className="card-simple">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}>
+                                    <stat.icon size={20} />
                                 </div>
-                                <ArrowUpRight className="text-gray-300 group-hover:text-gray-500 transition-colors" size={20} />
+                                <ArrowUpRight className="text-gray-300" size={16} />
                             </div>
-                            <div className="mt-6">
-                                <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">{stat.label}</p>
-                                <p className={`mt-1 font-black text-gray-900 truncate ${stat.scale ? 'text-xl' : 'text-3xl tracking-tight'}`}>
-                                    {stat.value}
-                                </p>
-                            </div>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{stat.label}</p>
+                            <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
                         </div>
                     ))}
                 </div>
 
-                {/* Main Content Grid: Consolidated Skills and Gaps */}
+                {/* Main Content Grid */}
                 <div className="grid lg:grid-cols-12 gap-8">
 
-                    {/* Primary Focus: Combined Skill Grid */}
-                    <div className="lg:col-span-8 space-y-8">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2">
-                            <div>
-                                <h2 className="text-2xl font-black text-gray-900 tracking-tight">Professional Skill Grid</h2>
-                                <p className="text-gray-500">A comprehensive view of your strengths and learning path.</p>
-                            </div>
-                            <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-xl">
-                                <button
-                                    onClick={() => setFilter('all')}
-                                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${filter === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
-                                >
-                                    All
-                                </button>
-                                <button
-                                    onClick={() => setFilter('matches')}
-                                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${filter === 'matches' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
-                                >
-                                    Matches
-                                </button>
-                                <button
-                                    onClick={() => setFilter('gaps')}
-                                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${filter === 'gaps' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
-                                >
-                                    Gaps
-                                </button>
+                    {/* Left: Skill Explorer */}
+                    <div className="lg:col-span-8 space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h3 className="font-bold text-gray-900">Skill Inventory</h3>
+                            <div className="flex p-1 bg-gray-50 rounded-lg border border-gray-100">
+                                {['all', 'matches', 'gaps'].map((t) => (
+                                    <button
+                                        key={t}
+                                        onClick={() => setFilter(t as any)}
+                                        className={`px-3 py-1.5 rounded-md text-[11px] font-bold uppercase tracking-wider transition-all ${filter === t ? 'bg-white text-green-600 shadow-sm border border-gray-100' : 'text-gray-400 hover:text-gray-600'}`}
+                                    >
+                                        {t}
+                                    </button>
+                                ))}
                             </div>
                         </div>
 
-                        {/* Unified Grid */}
-                        <div className="grid md:grid-cols-2 gap-4">
-
-                            {/* Skill Gaps (Priority) */}
-                            {(filter === 'all' || filter === 'gaps') && gapAnalysis?.missing_skills?.map((gap: any, i: number) => (
-                                <div key={`gap-${i}`} className="group relative bg-white rounded-3xl border-2 border-red-50 p-6 shadow-sm hover:shadow-2xl hover:border-red-100 transition-all duration-300 overflow-hidden">
-                                    <div className="absolute top-0 right-0 p-4">
-                                        <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${gap.requirement_level === 'critical' ? 'bg-red-500 text-white shadow-lg shadow-red-200' : 'bg-amber-400 text-white'
-                                            }`}>
-                                            {gap.requirement_level}
-                                        </span>
-                                    </div>
-
-                                    <div className="flex items-center gap-4 mb-5">
-                                        <div className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center font-black text-xl shadow-inner">
-                                            {gap.skill.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <h3 className="font-black text-gray-900 group-hover:text-red-600 transition-colors uppercase tracking-tight">{gap.skill}</h3>
-                                            <div className="flex items-center gap-1.5 text-xs font-bold text-gray-400">
-                                                <TrendingUp size={12} className="text-red-400" />
-                                                High Market Demand
+                        <div className="max-h-[800px] overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Skill Gaps */}
+                                {(filter === 'all' || filter === 'gaps') && gapAnalysis?.missing_skills?.map((gap: any, i: number) => (
+                                    <div key={`gap-${i}`} className="card-simple border-l-4 border-l-amber-400 group p-5">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center font-bold text-sm">
+                                                    {gap.skill.charAt(0)}
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight">{gap.skill}</h4>
+                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${gap.requirement_level === 'critical' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                                                            {gap.requirement_level}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[10px] text-gray-400 font-medium">Required for {gapAnalysis?.target_role?.title || 'Target Role'}</p>
+                                                </div>
                                             </div>
+                                            <button
+                                                onClick={() => toggleCourseRecommendations(gap.skill)}
+                                                className="p-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-all shadow-sm flex-shrink-0"
+                                                title="Explore Courses"
+                                            >
+                                                <BookOpen size={16} />
+                                            </button>
                                         </div>
-                                    </div>
 
-                                    {/* Action Bottom */}
-                                    <div className="mt-auto space-y-4">
-                                        <button
-                                            onClick={() => toggleCourseRecommendations(gap.skill)}
-                                            className="w-full group/btn py-3 px-4 bg-gray-50 hover:bg-red-500 hover:text-white rounded-2xl flex items-center justify-between text-sm font-black transition-all duration-300"
-                                        >
-                                            <span className="flex items-center gap-2">
-                                                <BookOpen size={16} className="text-red-500 group-hover/btn:text-white transition-colors" />
-                                                Explore Courses
-                                            </span>
-                                            <ChevronRight className="group-hover/btn:translate-x-1 transition-transform" size={16} />
-                                        </button>
-
-                                        {/* Courses Expansion */}
                                         {skillCourses[gap.skill] && (
-                                            <div className="pt-2 animate-slide-down space-y-2">
+                                            <div className="mt-4 pt-4 border-t border-gray-50 space-y-3 animate-fade-in">
                                                 {skillCourses[gap.skill].loading ? (
-                                                    <div className="flex items-center justify-center p-4">
-                                                        <RefreshCw className="animate-spin text-red-500" size={20} />
+                                                    <div className="flex items-center justify-center py-2">
+                                                        <RefreshCw className="animate-spin text-gray-300" size={14} />
                                                     </div>
                                                 ) : skillCourses[gap.skill].courses.length > 0 ? (
-                                                    skillCourses[gap.skill].courses.slice(0, 3).map((c: any, ci: number) => (
-                                                        <a key={ci} href={c.url} target="_blank" className="block p-3 bg-red-50/30 hover:bg-red-50 border border-transparent hover:border-red-100 rounded-xl transition-all">
-                                                            <div className="flex items-start justify-between gap-2">
-                                                                <span className="text-xs font-bold text-gray-900 line-clamp-2">{c.title}</span>
-                                                                <ArrowUpRight size={14} className="text-red-400 shrink-0" />
-                                                            </div>
-                                                            <div className="flex items-center gap-2 mt-2">
-                                                                <span className="text-xs font-black text-red-600 bg-white px-2 py-0.5 rounded-full border border-red-100 uppercase">{c.platform || 'Top Rated'}</span>
-                                                                <span className="text-xs font-bold text-gray-500 uppercase">{c.level || 'Expert Led'}</span>
-                                                            </div>
-                                                        </a>
-                                                    ))
+                                                    <div className="grid gap-2">
+                                                        {skillCourses[gap.skill].courses.slice(0, 3).map((c: any, ci: number) => (
+                                                            <a key={ci} href={c.url} target="_blank" className="p-2.5 bg-gray-50 rounded-xl border border-gray-100 hover:border-green-200 transition-all group">
+                                                                <div className="flex justify-between items-start gap-2">
+                                                                    <div className="space-y-1">
+                                                                        <p className="text-[10px] font-bold text-gray-700 line-clamp-1 leading-tight">{c.title}</p>
+                                                                        <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">{c.platform || 'Learning Platform'}</p>
+                                                                    </div>
+                                                                    <ArrowUpRight size={10} className="text-gray-300 group-hover:text-green-500 flex-shrink-0" />
+                                                                </div>
+                                                            </a>
+                                                        ))}
+                                                    </div>
                                                 ) : (
-                                                    <p className="text-[10px] text-gray-400 text-center py-2 italic">Custom roadmaps pending...</p>
+                                                    <p className="text-[9px] text-gray-400 italic text-center">No curated courses found currently.</p>
                                                 )}
                                             </div>
                                         )}
                                     </div>
-                                </div>
-                            ))}
+                                ))}
 
-                            {/* Existing Skills (Matches) */}
-                            {(filter === 'all' || filter === 'matches') && skills.sort((a, b) => b.proficiency - a.proficiency).map((skill, i) => (
-                                <div key={skill.id || i} className="group bg-white rounded-3xl border border-gray-100 p-6 shadow-sm hover:shadow-xl transition-all duration-300">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-green-50 text-green-500 rounded-2xl flex items-center justify-center font-black text-xl">
+                                {/* Existing Skills */}
+                                {(filter === 'all' || filter === 'matches') && skills.sort((a, b) => b.proficiency - a.proficiency).map((skill, i) => (
+                                    <div key={skill.id || i} className="card-simple group p-5">
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center font-bold text-sm">
                                                 {skill.skill_name.charAt(0)}
                                             </div>
-                                            <div>
-                                                <h3 className="font-black text-gray-900 uppercase tracking-tight">{skill.skill_name}</h3>
-                                                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-400">
-                                                    <Star size={12} className="text-amber-400 fill-amber-400" />
-                                                    Expert Verified
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight truncate">{skill.skill_name}</h4>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <div className="flex items-center gap-1">
+                                                        <Star size={10} className="text-amber-400 fill-amber-400" />
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Verified</span>
+                                                    </div>
+                                                    <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
+                                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                                        {Array.isArray(skill.sources) ? (typeof skill.sources[0] === 'string' ? skill.sources[0].split(':')[0] : 'Portfolio') : 'Portfolio'}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <span className="text-lg font-black text-green-600 bg-green-50 px-3 py-1 rounded-xl shadow-inner-sm">
-                                            {Math.round(skill.proficiency * 100)}%
-                                        </span>
-                                    </div>
 
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between text-xs font-black text-gray-400 uppercase tracking-widest px-1">
-                                            <span>Proficiency</span>
-                                            <span>Advanced</span>
-                                        </div>
-                                        <div className="h-3 bg-gray-50 rounded-full overflow-hidden border border-gray-100 p-0.5">
-                                            <div
-                                                className="h-full bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-1000"
-                                                style={{ width: `${skill.proficiency * 100}%` }}
-                                            />
+                                        <div className="space-y-1.5">
+                                            <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
+                                                <span className="text-gray-400">Expertise Level</span>
+                                                <span className="text-green-600 font-black">{Math.round(skill.proficiency * 100)}%</span>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                                                <div
+                                                    className="h-full bg-green-500 rounded-full transition-all duration-1000"
+                                                    style={{ width: `${skill.proficiency * 100}%` }}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-
-                                    <div className="mt-6 flex flex-wrap gap-2">
-                                        {Array.isArray(skill.sources) ? skill.sources.map((src, si) => (
-                                            <span key={si} className="px-3 py-1.5 bg-gray-50 text-xs font-bold text-gray-500 rounded-full border border-gray-100 uppercase tracking-tight">
-                                                {src.split(':')[0]}
-                                            </span>
-                                        )) : (
-                                            <span className="px-3 py-1.5 bg-gray-50 text-xs font-bold text-gray-500 rounded-full border border-gray-100 uppercase tracking-tight">
-                                                Portfolio
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Secondary Insights Sidebar */}
-                    <div className="lg:col-span-4 space-y-8">
+                    {/* Right: Insights Sidebar */}
+                    <div className="lg:col-span-4 space-y-6">
 
-                        {/* Learning Timeline / Estimator */}
-                        <div className="bg-gray-900 rounded-[2rem] p-8 text-white shadow-2xl overflow-hidden relative group">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600 rounded-full filter blur-[60px] opacity-20 group-hover:opacity-40 transition-opacity"></div>
-                            <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
-                                <Clock className="text-blue-400" size={24} />
-                                Learning Forecast
-                            </h3>
-                            <div className="space-y-6 relative">
-                                <div className="flex items-end gap-3">
-                                    <span className="text-6xl font-black text-white tracking-tighter">6</span>
-                                    <span className="text-xl font-bold text-blue-400 pb-2 uppercase tracking-widest">Months</span>
-                                </div>
-                                <p className="text-gray-400 text-sm leading-relaxed font-medium">
-                                    Based on your current trajectory and market demand data for {roleInput || 'Target Role'}.
-                                </p>
-                                <div className="h-1 bg-white/10 rounded-full">
-                                    <div className="h-full w-2/3 bg-blue-500 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)]"></div>
-                                </div>
-                                <button className="w-full py-4 bg-white text-gray-900 font-black rounded-2xl hover:bg-gray-100 transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm">
-                                    Apply Target Roadmap
-                                    <ChevronRight size={14} />
-                                </button>
+                        {/* Forecast Card */}
+                        <div className="card-simple bg-gray-50 border-gray-100 space-y-6 shadow-sm">
+                            <div className="flex items-center gap-2 text-blue-600">
+                                <Clock size={16} />
+                                <h4 className="text-[10px] font-bold uppercase tracking-widest">Learning Forecast</h4>
                             </div>
+                            <div className="space-y-1">
+                                <p className="text-4xl font-bold tracking-tight text-gray-900">4.2<span className="text-base text-gray-500 ml-2 font-medium uppercase tracking-widest text-[10px]">Months</span></p>
+                                <p className="text-xs text-gray-500 leading-relaxed">
+                                    Projected timeline to achieve full readiness for your target role based on your current learning velocity.
+                                </p>
+                            </div>
+                            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full w-2/3 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.3)]"></div>
+                            </div>
+                            <button
+                                onClick={() => router.push('/roadmap')}
+                                className="w-full py-3 bg-white border border-gray-200 text-gray-900 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-gray-50 transition-all flex items-center justify-center gap-2 shadow-sm"
+                            >
+                                <Globe size={14} />
+                                View Roadmap
+                            </button>
                         </div>
 
-                        {/* Analytic Visualization Card */}
-                        <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm flex flex-col items-center">
-                            <h3 className="w-full text-lg font-black text-gray-900 mb-8 uppercase tracking-widest flex items-center gap-2">
-                                <Layers className="text-green-500" size={20} />
-                                Skills Origin
-                            </h3>
-                            <div className="h-64 w-64">
+                        {/* Composition Chart */}
+                        <div className="card-simple h-[320px] flex flex-col">
+                            <div className="flex items-center gap-2 mb-6">
+                                <Layers className="text-green-600" size={16} />
+                                <h4 className="text-[10px] font-bold uppercase tracking-widest text-gray-900">Skill Origin</h4>
+                            </div>
+                            <div className="flex-1 min-h-0">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
                                             data={analyticsData.sourceData}
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={65}
-                                            outerRadius={95}
-                                            paddingAngle={8}
+                                            innerRadius={55}
+                                            outerRadius={80}
+                                            paddingAngle={4}
                                             dataKey="value"
                                             stroke="none"
                                         >
@@ -488,83 +398,47 @@ export default function SkillsPage() {
                                             ))}
                                         </Pie>
                                         <Tooltip
-                                            contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', padding: '15px' }}
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '12px' }}
                                         />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
-                            <div className="w-full mt-6 space-y-3">
+                            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2">
                                 {analyticsData.sourceData.map((s, i) => (
-                                    <div key={i} className="flex items-center justify-between group cursor-default">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: s.color }}></div>
-                                            <span className="text-sm font-bold text-gray-500 group-hover:text-gray-900 transition-colors">{s.name}</span>
+                                    <div key={i} className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }}></div>
+                                        <span className="text-[9px] font-bold text-gray-500 uppercase tracking-tight truncate">{s.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Market Intelligence */}
+                        {gapAnalysis?.fetched_market_skills && gapAnalysis.fetched_market_skills.length > 0 && (
+                            <div className="card-simple">
+                                <div className="flex items-center gap-2 text-blue-600 mb-4">
+                                    <TrendingUp size={16} />
+                                    <h4 className="text-[10px] font-bold uppercase tracking-widest">Live Market Pulse</h4>
+                                </div>
+                                <div className="space-y-2">
+                                    {gapAnalysis.fetched_market_skills.slice(0, 5).map((ms: any, i: number) => (
+                                        <div key={i} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border border-gray-100 hover:border-blue-100 transition-colors">
+                                            <span className="text-[11px] font-bold text-gray-700 uppercase tracking-tight">{ms.skill}</span>
+                                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 rounded-lg">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+                                                <span className="text-[9px] font-black text-blue-600 uppercase">Hot</span>
+                                            </div>
                                         </div>
-                                        <span className="text-sm font-black text-gray-900">{s.value}</span>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
+                                <button className="w-full mt-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-green-600 transition-colors">
+                                    Comprehensive Report
+                                </button>
                             </div>
-                        </div>
-
-                        {/* Proficiency Radar Placeholder (Enhanced Area Chart for modern feel) */}
-                        <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
-                            <h3 className="text-lg font-black text-gray-900 mb-6 uppercase tracking-widest flex items-center gap-2">
-                                <TrendingUp className="text-blue-500" size={20} />
-                                Top Performance
-                            </h3>
-                            <div className="h-56">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={analyticsData.topSkills}>
-                                        <defs>
-                                            <linearGradient id="colorProf" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <Area type="monotone" dataKey="proficiency" stroke="#3b82f6" strokeWidth={4} fillOpacity={1} fill="url(#colorProf)" />
-                                        <Tooltip
-                                            contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
-                                        />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </div>
-                            <p className="mt-4 text-xs font-black text-center text-gray-400 uppercase tracking-[0.2em]">Peak Proficiency Distribution</p>
-                        </div>
-
+                        )}
                     </div>
                 </div>
-
-                {/* Market Intelligence Alert */}
-                <div className="bg-gradient-to-r from-gray-900 to-blue-900 rounded-[2.5rem] p-10 text-white relative overflow-hidden group">
-                    {/* Abstract Visuals */}
-                    <div className="absolute inset-0 opacity-10 pointer-events-none">
-                        <div className="absolute top-0 left-1/4 w-px h-full bg-white animate-pulse"></div>
-                        <div className="absolute top-0 left-2/4 w-px h-full bg-white animate-pulse delay-500"></div>
-                        <div className="absolute top-0 left-3/4 w-px h-full bg-white animate-pulse delay-1000"></div>
-                    </div>
-
-                    <div className="relative flex flex-col md:flex-row items-center gap-10">
-                        <div className="flex-1 space-y-4">
-                            <h3 className="text-2xl md:text-3xl font-black tracking-tight leading-tight">Trending Skills in <span className="text-blue-400">"{gapAnalysis?.target_role?.title || 'Industry'}"</span></h3>
-                            <p className="text-gray-400 font-medium">Our AI monitors live job listings to identify high-impact skills you should acquire next.</p>
-                            <div className="flex flex-wrap gap-3 pt-2">
-                                {gapAnalysis?.fetched_market_skills?.slice(0, 5).map((ms: any, i: number) => (
-                                    <div key={i} className="px-4 py-2 bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl flex items-center gap-2 group-hover:border-blue-500/50 transition-all">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></div>
-                                        <span className="text-xs font-black uppercase tracking-tight">{ms.skill}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                        <div className="flex-shrink-0">
-                            <button className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl transition-all shadow-xl shadow-blue-900/40">
-                                View Full Analysis
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
             </div>
-        </MainLayout>
+        </>
     );
 }

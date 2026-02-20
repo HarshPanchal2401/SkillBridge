@@ -162,44 +162,40 @@ class SkillExtractor:
         
         return False
     
-    def extract_skills_from_resume(self, resume_text: str, use_ats: bool = True) -> List[str]:
+    def extract_skills_from_resume(self, resume_text: str, use_ats: bool = True, file_path: Optional[str] = None) -> List[str]:
         """
         Extract and score skills from resume to find the most relevant ones.
         
         Args:
             resume_text: The resume text to extract skills from
             use_ats: If True, use ATS-style extraction (recommended)
+            file_path: Optional path to the resume file (for better PDF extraction)
         
         Returns:
-            List of canonical skill names, ranked by relevance
+            List of canonical skill names or skill objects
         """
-        if not resume_text:
+        if not resume_text and not file_path:
             return []
         
+        # If file_path is provided and it's a PDF, we might want to get better text
+        current_text = resume_text
+        if file_path and file_path.lower().endswith('.pdf') and self.priority_extractor:
+            try:
+                print(f"📄 Extracting text from PDF file using pdfplumber: {file_path}")
+                pdf_text = self.priority_extractor.extract_resume_text(file_path)
+                if pdf_text and len(pdf_text) > (len(resume_text) if resume_text else 0):
+                    current_text = pdf_text
+            except Exception as e:
+                print(f"⚠️ PDF extraction with pdfplumber failed: {e}")
+
         # Try Priority Extractor (User's Logic) - HIGHEST PRIORITY
         try:
             print("🔍 Running Priority skill extraction...")
-            # We need the file path for pdfplumber, but here we only have text.
-            # If we don't have the file path, we can't use pdfplumber directly on the text.
-            # However, the user's logic `extract_skills` takes `resume_text` as input.
-            # The `extract_resume_text` method in PrioritySkillExtractor uses pdfplumber,
-            # but the actual matching logic `extract_skills` works on text.
-            # So we can pass the text we already have.
-            
             if self.priority_extractor:
-                priority_skills = self.priority_extractor.extract_skills(resume_text)
-                if priority_skills and len(priority_skills) > 5:
+                priority_skills = self.priority_extractor.extract_skills(current_text)
+                if priority_skills and len(priority_skills) > 3:
                     print(f"✅ Priority Extractor found {len(priority_skills)} skills")
-                    # Return rich objects including priority and evidence
-                    return [
-                        {
-                            'name': s['skill'], 
-                            'priority': s['priority'], 
-                            'confidence': s['confidence'],
-                            'source': 'priority'
-                        } 
-                        for s in priority_skills
-                    ]
+                    return priority_skills
                 else:
                     print("⚠️ Priority Extractor found few skills, falling back...")
         except Exception as e:

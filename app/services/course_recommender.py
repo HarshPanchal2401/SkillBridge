@@ -220,12 +220,30 @@ class CourseRecommender:
         if skill_lower in fallback_db:
             courses = fallback_db[skill_lower][:max_results]
         else:
-            # Try partial match
+            # Try partial match (and broader categories)
             courses = []
             for key, course_list in fallback_db.items():
                 if skill_lower in key or key in skill_lower:
                     courses.extend(course_list[:max_results])
-                    break
+                    if len(courses) >= max_results:
+                        break
+            
+            # If still no courses, try very broad categories if it's a tech skill
+            if not courses:
+                tech_keywords = ['java', 'python', 'script', 'web', 'dev', 'data', 'cloud', 'ai', 'ml', 'system']
+                for kw in tech_keywords:
+                    if kw in skill_lower:
+                        broad_key = 'software-engineering' if kw in ['java', 'python', 'script', 'system'] else \
+                                    'web-development' if kw in ['web', 'dev'] else \
+                                    'data-science' if kw in ['data', 'ai', 'ml'] else \
+                                    'cloud-computing'
+                        if broad_key in fallback_db:
+                            courses.extend(fallback_db[broad_key][:max_results])
+                            break
+            
+            # If still absolutely nothing, return general software engineering
+            if not courses and 'software-engineering' in fallback_db:
+                courses = fallback_db['software-engineering'][:max_results]
         
         # Add skill_targeted field and metadata
         result_courses = []

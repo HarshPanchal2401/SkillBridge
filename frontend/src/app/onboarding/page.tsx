@@ -13,6 +13,9 @@ import {
     Sparkles,
     Upload,
     FileText,
+    RefreshCw,
+    MapPin,
+    User
 } from 'lucide-react';
 
 export default function OnboardingPage() {
@@ -43,7 +46,6 @@ export default function OnboardingPage() {
 
     const handleNext = async () => {
         if (step < 3) {
-            // Save profile data on step 1
             if (step === 1 && userId) {
                 setLoading(true);
                 try {
@@ -57,7 +59,6 @@ export default function OnboardingPage() {
             }
             setStep(step + 1);
         } else {
-            // Final step - upload resume and extract skills
             setLoading(true);
             try {
                 if (resumeFile && userId) {
@@ -85,110 +86,107 @@ export default function OnboardingPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-6">
-            <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute -top-40 -right-40 w-80 h-80 bg-green-500/20 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-20 -left-40 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl"></div>
-            </div>
-
-            <div className="relative w-full max-w-lg">
-                <div className="text-center mb-8">
+        <div className="min-h-screen bg-[#F9FAFB] flex flex-col items-center justify-center p-6 animate-fade-in text-gray-900">
+            <div className="w-full max-w-xl space-y-12">
+                {/* Logo & Progress */}
+                <div className="text-center space-y-8">
                     <div className="inline-flex items-center gap-2">
-                        <div className="w-12 h-12 bg-gradient-to-r from-green-400 to-emerald-500 rounded-xl flex items-center justify-center">
-                            <Sparkles className="text-white" size={28} />
+                        <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center shadow-sm">
+                            <Sparkles className="text-white" size={20} />
                         </div>
-                        <span className="text-3xl font-bold text-white">SkillPath</span>
+                        <span className="text-2xl font-bold tracking-tight">SkillBridge</span>
+                    </div>
+
+                    <div className="flex items-center justify-center gap-2 max-w-sm mx-auto">
+                        {[1, 2, 3].map((s) => (
+                            <div key={s} className="flex-1 flex items-center">
+                                <div className={`h-1.5 rounded-full transition-all duration-500 ${s <= step ? 'flex-1 bg-green-500' : 'w-4 bg-gray-200 opacity-50'}`} />
+                                {s < 3 && <div className="w-2" />}
+                            </div>
+                        ))}
                     </div>
                 </div>
 
-                {/* Progress Steps */}
-                <div className="flex items-center justify-center gap-2 mb-8">
-                    {[1, 2, 3].map((s) => (
-                        <div key={s} className={`flex items-center ${s < 3 ? 'flex-1' : ''}`}>
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center font-medium transition-colors ${s < step ? 'bg-green-500 text-white' : s === step ? 'bg-green-500/20 border-2 border-green-500 text-green-400' : 'bg-gray-700 text-gray-500'
-                                }`}>
-                                {s < step ? <CheckCircle size={20} /> : s}
-                            </div>
-                            {s < 3 && <div className={`flex-1 h-1 mx-2 rounded ${s < step ? 'bg-green-500' : 'bg-gray-700'}`} />}
-                        </div>
-                    ))}
-                </div>
-
-                <div className="bg-gray-800/50 backdrop-blur-xl border border-gray-700 rounded-2xl p-8">
-                    <h1 className="text-2xl font-bold text-white text-center mb-2">
-                        {step === 1 && 'Complete Your Profile'}
-                        {step === 2 && 'Set Your Goals'}
-                        {step === 3 && 'Upload Your Resume'}
-                    </h1>
-                    <p className="text-gray-400 text-center mb-8">
-                        {step === 1 && 'Tell us about your background'}
-                        {step === 2 && 'What role are you targeting?'}
-                        {step === 3 && 'We\'ll analyze it to extract your skills'}
-                    </p>
+                {/* Main Card */}
+                <div className="bg-white border border-gray-100 rounded-[2.5rem] p-8 md:p-12 shadow-sm">
+                    <div className="mb-10">
+                        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+                            {step === 1 && 'Professional Context'}
+                            {step === 2 && 'Career Ambition'}
+                            {step === 3 && 'Skill Repository'}
+                        </h1>
+                        <p className="text-gray-400 text-sm mt-1">
+                            {step === 1 && 'Define your educational foundation'}
+                            {step === 2 && 'Identify your target role for analysis'}
+                            {step === 3 && 'Connect your resume/CV artifact'}
+                        </p>
+                    </div>
 
                     {step === 1 && (
                         <div className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Education</label>
-                                <div className="relative">
-                                    <GraduationCap className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
-                                    <input
-                                        type="text"
-                                        value={formData.education}
-                                        onChange={(e) => setFormData({ ...formData, education: e.target.value })}
-                                        className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
-                                        placeholder="B.Tech in Computer Science"
-                                    />
-                                </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2">
+                                    <GraduationCap size={12} />
+                                    Education
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.education}
+                                    onChange={(e) => setFormData({ ...formData, education: e.target.value })}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-green-500 rounded-xl text-sm font-bold text-gray-900 placeholder:text-gray-300 outline-none transition-all"
+                                    placeholder="B.S. Computer Science"
+                                />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">University</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">University</label>
                                 <input
                                     type="text"
                                     value={formData.university}
                                     onChange={(e) => setFormData({ ...formData, university: e.target.value })}
-                                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
-                                    placeholder="MIT, Stanford, etc."
+                                    className="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-green-500 rounded-xl text-sm font-bold text-gray-900 placeholder:text-gray-300 outline-none transition-all"
+                                    placeholder="Stanford, MIT, etc."
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Location</label>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2">
+                                    <MapPin size={12} />
+                                    Location
+                                </label>
                                 <input
                                     type="text"
                                     value={formData.location}
                                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
-                                    placeholder="New York, USA"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-green-500 rounded-xl text-sm font-bold text-gray-900 placeholder:text-gray-300 outline-none transition-all"
+                                    placeholder="San Francisco, CA"
                                 />
                             </div>
                         </div>
                     )}
 
                     {step === 2 && (
-                        <div className="space-y-6">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">Target Role</label>
-                                <div className="relative">
-                                    <Target className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
-                                    <input
-                                        type="text"
-                                        value={formData.target_role}
-                                        onChange={(e) => setFormData({ ...formData, target_role: e.target.value })}
-                                        className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
-                                        placeholder="Healthcare Data Analyst"
-                                    />
-                                </div>
-                                <p className="text-xs text-gray-500 mt-2">This helps us provide targeted skill gap analysis and recommendations</p>
+                        <div className="space-y-8">
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2">
+                                    <Target size={12} />
+                                    Target Role
+                                </label>
+                                <input
+                                    type="text"
+                                    value={formData.target_role}
+                                    onChange={(e) => setFormData({ ...formData, target_role: e.target.value })}
+                                    className="w-full px-4 py-3 bg-gray-50 border border-transparent focus:border-green-500 rounded-xl text-sm font-bold text-gray-900 placeholder:text-gray-300 outline-none transition-all"
+                                    placeholder="e.g. Backend Engineer"
+                                />
                             </div>
+
                             <div className="grid grid-cols-2 gap-3">
-                                {['Data Analyst', 'ML Engineer', 'Software Developer', 'Healthcare IT'].map((role) => (
+                                {['Software Engineer', 'Data Scientist', 'Product Manager', 'UX Designer'].map((role) => (
                                     <button
                                         key={role}
-                                        type="button"
                                         onClick={() => setFormData({ ...formData, target_role: role })}
-                                        className={`p-3 rounded-xl border text-sm font-medium transition-all ${formData.target_role === role
-                                            ? 'border-green-500 bg-green-500/10 text-green-400'
-                                            : 'border-gray-600 bg-gray-700/30 text-gray-300 hover:border-gray-500'
+                                        className={`p-3 rounded-xl border text-[11px] font-bold uppercase tracking-wider transition-all ${formData.target_role === role
+                                            ? 'bg-green-600 text-white border-green-600'
+                                            : 'bg-gray-50 text-gray-500 border-transparent hover:bg-gray-100'
                                             }`}
                                     >
                                         {role}
@@ -199,52 +197,44 @@ export default function OnboardingPage() {
                     )}
 
                     {step === 3 && (
-                        <div className="space-y-6">
+                        <div className="space-y-6 text-center">
                             <label className="block cursor-pointer">
-                                <div className={`p-8 border-2 border-dashed rounded-xl text-center transition-all ${resumeFile ? 'border-green-500 bg-green-500/10' : 'border-gray-600 hover:border-gray-500'
-                                    }`}>
+                                <div className={`p-10 border-2 border-dashed rounded-[2rem] transition-all hover:bg-green-50/10 ${resumeFile ? 'border-green-500 bg-green-50/20' : 'border-gray-100 bg-gray-50'}`}>
                                     {resumeFile ? (
-                                        <div className="flex flex-col items-center gap-2">
-                                            <FileText className="text-green-400" size={40} />
-                                            <p className="text-white font-medium">{resumeFile.name}</p>
-                                            <p className="text-sm text-gray-400">Click to change file</p>
+                                        <div className="space-y-2">
+                                            <FileText className="text-green-600 mx-auto" size={40} />
+                                            <p className="text-[11px] font-bold text-gray-900 uppercase tracking-widest truncate max-w-xs mx-auto">{resumeFile.name}</p>
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center gap-2">
-                                            <Upload className="text-gray-400" size={40} />
-                                            <p className="text-white font-medium">Upload your resume</p>
-                                            <p className="text-sm text-gray-400">PDF, DOCX, or TXT (max 5MB)</p>
+                                        <div className="space-y-2">
+                                            <Upload className="text-gray-300 mx-auto" size={40} />
+                                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Connect Artifact</p>
                                         </div>
                                     )}
                                 </div>
-                                <input
-                                    type="file"
-                                    accept=".pdf,.docx,.doc,.txt"
-                                    onChange={handleFileChange}
-                                    className="hidden"
-                                />
+                                <input type="file" className="hidden" onChange={handleFileChange} accept=".pdf,.docx,.doc,.txt" />
                             </label>
-                            <p className="text-center text-gray-400 text-sm">
-                                We&apos;ll use AI to extract your skills from your resume
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                                AI Skills extraction will occur automatically.
                             </p>
                         </div>
                     )}
 
-                    <div className="flex gap-4 mt-8">
+                    <div className="flex gap-4 mt-12">
                         {step > 1 && (
-                            <button type="button" onClick={handleBack} className="flex-1 py-3 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-600 flex items-center justify-center gap-2">
-                                <ChevronLeft size={20} /> Back
+                            <button onClick={handleBack} className="flex-1 py-4 bg-gray-50 text-gray-400 rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-gray-100 transition-all flex items-center justify-center gap-2">
+                                <ChevronLeft size={16} /> Back
                             </button>
                         )}
-                        <button type="button" onClick={handleNext} disabled={loading} className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2">
-                            {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : step === 3 ? 'Complete Setup' : <><span>Continue</span><ChevronRight size={20} /></>}
+                        <button onClick={handleNext} disabled={loading} className="flex-1 py-4 bg-gray-900 text-white rounded-xl font-bold text-[11px] uppercase tracking-widest hover:shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-all">
+                            {loading ? <RefreshCw className="animate-spin" size={16} /> : step === 3 ? 'Sync IQ' : <>Continue <ChevronRight size={16} /></>}
                         </button>
                     </div>
                 </div>
 
-                <div className="mt-6 text-center">
-                    <button onClick={() => router.push('/dashboard')} className="text-gray-500 hover:text-gray-400 text-sm">
-                        Skip for now
+                <div className="text-center">
+                    <button onClick={() => router.push('/dashboard')} className="text-gray-400 hover:text-gray-200 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors">
+                        Inert Onboarding / Skip
                     </button>
                 </div>
             </div>

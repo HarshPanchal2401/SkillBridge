@@ -348,20 +348,20 @@ def extract_user_skills(user_id: int):
         print("🤖 Extracting skills from resume...")
         
         # Get skill names first (this handles the HF/Gemini/NLP logic internally now)
-        skill_names = services.skill_extractor.extract_skills_from_resume(resume_text)
+        skill_names = services.skill_extractor.extract_skills_from_resume(resume_text, file_path=resume_path)
         
         # Calculate proficiency for each skill
         skills_data = []
         for skill_item in skill_names:
             # Handle both string (legacy) and dict (priority extractor) formats
             if isinstance(skill_item, dict):
-                skill = skill_item['name']
+                skill = skill_item.get('skill', skill_item.get('name'))
                 # Use priority as base for proficiency, but maybe cap/adjust
                 # Priority 1.0 (Skills section) -> 1.0 proficiency? 
                 # Let's trust the priority extractor's judgment or verify with text
                 prof = skill_item.get('priority', 0.5)
                 conf = skill_item.get('confidence', 0.8)
-                source_tag = skill_item.get('source', 'resume')
+                source_tag = skill_item.get('source', 'priority')
                 
                 # If source is priority, we want to tag it specially
                 source_id = 'priority:0' if source_tag == 'priority' else 'resume:0'
@@ -504,16 +504,16 @@ def extract_all_skills(user_id: int):
             cursor.execute("DELETE FROM user_skills WHERE user_id = ?", (user_id,))
             
             # Extract skills from resume using unified extractor
-            skill_names = services.skill_extractor.extract_skills_from_resume(resume_text)
+            skill_names = services.skill_extractor.extract_skills_from_resume(resume_text, file_path=resume_path)
             
             skills_data = []
             skills_data = []
             for skill_item in skill_names:
                 if isinstance(skill_item, dict):
-                    skill = skill_item['name']
+                    skill = skill_item.get('skill', skill_item.get('name'))
                     prof = skill_item.get('priority', 0.5)
                     conf = skill_item.get('confidence', 0.8)
-                    source_tag = skill_item.get('source', 'resume')
+                    source_tag = skill_item.get('source', 'priority')
                     source_id = 'priority:0' if source_tag == 'priority' else 'resume:0'
                 else:
                     skill = skill_item

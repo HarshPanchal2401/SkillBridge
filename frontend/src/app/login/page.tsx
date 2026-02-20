@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
-import { Mail, AlertCircle, Sparkles, ArrowRight } from 'lucide-react';
+import { Mail, AlertCircle, Sparkles, ArrowRight, RefreshCw } from 'lucide-react';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
@@ -42,61 +42,57 @@ export default function LoginPage() {
 
     if (authLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-500 border-t-transparent"></div>
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent"></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-6">
-            {/* Background decorations */}
-            <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute -top-40 -right-40 w-80 h-80 bg-green-500/20 rounded-full blur-3xl"></div>
-                <div className="absolute bottom-20 -left-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl"></div>
-            </div>
-
-            <div className="relative w-full max-w-md">
+        <div className="min-h-screen bg-[#F9FAFB] flex flex-col items-center justify-center p-6 animate-fade-in">
+            <div className="w-full max-w-md space-y-8">
                 {/* Logo */}
-                <div className="text-center mb-8">
-                    <Link href="/" className="inline-flex items-center gap-2">
-                        <div className="w-12 h-12 bg-gradient-to-r from-green-400 to-emerald-500 rounded-xl flex items-center justify-center">
-                            <Sparkles className="text-white" size={28} />
+                <div className="text-center">
+                    <Link href="/" className="inline-flex items-center gap-2 group">
+                        <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                            <Sparkles className="text-white" size={20} />
                         </div>
-                        <span className="text-3xl font-bold text-white">SkillPath</span>
+                        <span className="text-2xl font-bold text-gray-900 tracking-tight">SkillBridge</span>
                     </Link>
                 </div>
 
-                {/* Card */}
-                <div className="bg-gray-800/50 backdrop-blur-xl border border-gray-700 rounded-2xl p-8">
-                    <h1 className="text-2xl font-bold text-white text-center mb-2">Welcome Back</h1>
-                    <p className="text-gray-400 text-center mb-8">Enter your email to continue</p>
+                {/* Form Card */}
+                <div className="bg-white border border-gray-100 rounded-[2rem] p-8 md:p-10 shadow-sm border-b-4 border-b-green-500">
+                    <div className="text-center mb-8">
+                        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Welcome Back</h1>
+                        <p className="text-gray-400 text-sm mt-1">Access your professional repository</p>
+                    </div>
 
                     {error && (
-                        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-3 text-red-400">
-                            <AlertCircle size={20} className="shrink-0 mt-0.5" />
-                            <div className="text-sm">
+                        <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-700">
+                            <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                            <div className="text-xs font-bold leading-relaxed">
                                 <p>{error}</p>
                                 {error.includes('No account found') && (
-                                    <Link href="/register" className="block mt-2 text-green-400 hover:text-green-300 font-medium">
-                                        Create an account →
+                                    <Link href="/register" className="block mt-1 text-green-600 hover:text-green-700 underline">
+                                        Create a new account
                                     </Link>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Email Address</label>
                             <div className="relative">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" size={18} />
                                 <input
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="w-full pl-12 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-colors"
-                                    placeholder="you@example.com"
+                                    className="w-full pl-12 pr-4 py-3 bg-gray-50 border border-transparent focus:border-green-500 focus:bg-white rounded-xl text-sm font-bold text-gray-900 placeholder:text-gray-300 outline-none transition-all"
+                                    placeholder="your@email.com"
                                     required
                                     autoFocus
                                 />
@@ -106,37 +102,40 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-semibold hover:shadow-lg hover:shadow-green-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold text-xs uppercase tracking-[0.2em] hover:bg-gray-800 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                         >
                             {loading ? (
-                                <>
-                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                    Signing in...
-                                </>
+                                <RefreshCw className="animate-spin" size={18} />
                             ) : (
                                 <>
-                                    Continue
-                                    <ArrowRight size={20} />
+                                    Enter Dashboard
+                                    <ArrowRight size={18} />
                                 </>
                             )}
                         </button>
                     </form>
 
                     <div className="mt-8 text-center">
-                        <p className="text-gray-400">
+                        <p className="text-gray-400 text-xs font-medium">
                             Don&apos;t have an account?{' '}
-                            <Link href="/register" className="text-green-400 hover:text-green-300 font-medium">
-                                Create one
+                            <Link href="/register" className="text-green-600 hover:text-green-700 font-bold ml-1">
+                                Create Identity
                             </Link>
                         </p>
                     </div>
 
-                    {/* Info note */}
-                    <div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
-                        <p className="text-blue-300 text-sm text-center">
-                            💡 Simply enter the email you used to register. No password required.
+                    {/* Helper Note */}
+                    <div className="mt-10 p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
+                        <p className="text-blue-600 text-[10px] font-bold text-center leading-relaxed">
+                            💡 NO PASSWORD REQUIRED. ENTER YOUR EMAIL TO GENERATE A SECURE SESSION LINK.
                         </p>
                     </div>
+                </div>
+
+                <div className="text-center">
+                    <p className="text-gray-400 text-[10px] uppercase tracking-widest font-bold">
+                        &copy; 2026 SkillBridge Intelligence Systems
+                    </p>
                 </div>
             </div>
         </div>
