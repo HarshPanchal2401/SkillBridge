@@ -56,7 +56,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (storedProfile) {
             setProfile(JSON.parse(storedProfile));
         }
-        setLoading(false);
+
+        // Validate user session with backend
+        refreshUser().finally(() => {
+            setLoading(false);
+        });
     }, []);
 
     const login = async (email: string) => {
@@ -193,6 +197,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 } catch (e) {
                     // Ignore profile fetch errors
                 }
+            } else if (res.status === 404) {
+                // If user doesn't exist anymore (e.g. DB reset), log them out
+                console.warn('Session user not found in database, logging out...');
+                logout();
             }
         } catch (error) {
             console.error('Failed to refresh user:', error);

@@ -114,7 +114,8 @@ class JobFetcher:
                             'job_description': job.get('description'),
                             'job_posted_at_datetime_utc': str(job.get('date_posted', '')),
                             'job_apply_link': job.get('job_url'),
-                            'job_employment_type': job.get('job_type', 'Full-time')
+                            'job_employment_type': job.get('job_type', 'Full-time'),
+                            'site': job.get('site', 'unknown')
                         })
                     jobs_list = normalized_jobs
                 else:
@@ -158,7 +159,8 @@ class JobFetcher:
                 'salary': None, # JobSpy often doesn't get salary
                 'url': job.get('job_apply_link', '#'),
                 'employment_type': job.get('job_employment_type', 'Full-time'),
-                'logo': None
+                'logo': None,
+                'source': job.get('site', 'unknown').capitalize()
             })
             
         return self._clean_data(extracted)
@@ -170,7 +172,7 @@ class JobFetcher:
         return str(date_val).split(' ')[0] # Keep it simple
 
     def _generate_mock_jobs(self, title: str, location: str, count: int) -> List[Dict]:
-        """Generate realistic mock jobs for fallback."""
+        """Generate realistic mock jobs for fallback with diverse sources."""
         mock_jobs = []
         
         companies = [
@@ -179,30 +181,33 @@ class JobFetcher:
             "FinTech Global", "EduTech Pioneers", "RetailNext"
         ]
         
-        titles = [
-            title, 
-            f"Senior {title}", 
-            f"Junior {title}", 
-            f"{title} Lead", 
-            f"{title} II"
-        ]
+        sources = ["indeed", "glassdoor", "linkedin"]
         
         for i in range(count):
-            job_title = random.choice(titles)
+            site = random.choice(sources)
             company = random.choice(companies)
+            job_title = f"{title} at {company}"
             
+            # Create source-specific links
+            if site == "indeed":
+                apply_link = f"https://www.indeed.com/jobs?q={title.replace(' ', '+')}"
+            elif site == "glassdoor":
+                apply_link = f"https://www.glassdoor.com/Job/jobs.htm?sc.keyword={title.replace(' ', '%20')}"
+            else:
+                apply_link = "https://www.linkedin.com/jobs"
+                
             mock_jobs.append({
-                'job_id': f"mock-{random.randint(1000, 9999)}",
+                'job_id': f"mock-{site}-{random.randint(1000, 9999)}",
                 'job_title': job_title,
                 'employer_name': company,
                 'job_city': location,
-                'job_country': "USA",
-                'job_description': f"We are looking for a talented {job_title} to join our team at {company}. "
-                                   f"You will be working on cutting-edge projects in {location}. "
-                                   "Requirements: Python, SQL, Cloud experience, communication skills.",
-                'job_posted_at_datetime_utc': datetime.now().isoformat(),
-                'job_apply_link': "https://www.linkedin.com/jobs", # Generic link
-                'job_employment_type': "Full-time"
+                'job_country': "India" if "india" in location.lower() else "USA",
+                'job_description': f"We are looking for a talented {title} to join our team at {company}. "
+                                   f"This role is based in {location} and involves working on {site} projects.",
+                'job_posted_at_datetime_utc': (datetime.now() - timedelta(days=random.randint(0, 5))).isoformat(),
+                'job_apply_link': apply_link,
+                'job_employment_type': "Full-time",
+                'site': site
             })
             
         return mock_jobs

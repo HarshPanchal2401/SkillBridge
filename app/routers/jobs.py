@@ -32,6 +32,10 @@ def search_jobs(
         ge=1,
         le=100,
         description="Number of jobs to fetch"
+    ),
+    refresh: bool = Query(
+        default=False,
+        description="Bypass cache and fetch fresh results"
     )
 ):
     """
@@ -54,7 +58,7 @@ def search_jobs(
     job_fetcher = services.linkedin_fetcher
     
     try:
-        jobs_data = job_fetcher.fetch_jobs(title, location, limit)
+        jobs_data = job_fetcher.fetch_jobs(title, location, limit, use_cache=not refresh)
         jobs = job_fetcher.get_job_details(jobs_data)
         
         logger.info(f"Searched jobs: '{title}' in '{location}' - found {len(jobs)}")
@@ -296,7 +300,11 @@ def get_trending_skills(
 @router.get("/recommendations/{user_id}")
 def get_job_recommendations(
     user_id: int,
-    limit: int = 10
+    limit: int = 10,
+    refresh: bool = Query(
+        default=False,
+        description="Bypass cache and fetch fresh results"
+    )
 ):
     """
     Get job recommendations based on user's target role.
@@ -332,7 +340,7 @@ def get_job_recommendations(
         job_fetcher = services.linkedin_fetcher
         
         try:
-            jobs_data = job_fetcher.fetch_jobs(target_role, location, limit)
+            jobs_data = job_fetcher.fetch_jobs(target_role, location, limit, use_cache=not refresh)
             jobs = job_fetcher.get_job_details(jobs_data)
             
             return {

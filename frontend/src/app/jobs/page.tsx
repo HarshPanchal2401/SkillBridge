@@ -27,6 +27,7 @@ interface Job {
     posted_date: string;
     url: string;
     employment_type: string;
+    source?: string;
 }
 
 export default function JobsPage() {
@@ -47,12 +48,12 @@ export default function JobsPage() {
         }
     }, [user, authLoading, userId]);
 
-    const loadInitialRecommendations = async () => {
+    const loadInitialRecommendations = async (refresh: boolean = false) => {
         if (!userId) return;
         setLoading(true);
         setError(null);
         try {
-            const result = await api.getJobRecommendations(userId);
+            const result = await api.getJobRecommendations(userId, refresh);
             setJobs(result.jobs || []);
             setTargetRole(result.target_role || '');
             setSearchLocation(result.location || '');
@@ -64,7 +65,7 @@ export default function JobsPage() {
         }
     };
 
-    const handleSearch = async (e?: React.FormEvent) => {
+    const handleSearch = async (e?: React.FormEvent, refresh: boolean = true) => {
         if (e) e.preventDefault();
         if (!targetRole.trim()) return;
 
@@ -72,7 +73,7 @@ export default function JobsPage() {
         setError(null);
         setIsSearching(true);
         try {
-            const result = await api.searchJobs(targetRole, searchLocation || 'United States');
+            const result = await api.searchJobs(targetRole, searchLocation || 'United States', refresh);
             setJobs(result.jobs || []);
         } catch (err: any) {
             console.error('Search failed:', err);
@@ -188,9 +189,16 @@ export default function JobsPage() {
                                     <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 group-hover:text-green-600 group-hover:bg-green-50 transition-colors">
                                         <Building size={20} />
                                     </div>
-                                    <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 bg-gray-50 px-2 py-0.5 rounded-lg group-hover:bg-green-50 group-hover:text-green-600 transition-colors">
-                                        {job.employment_type || 'Full-time'}
-                                    </span>
+                                    <div className="flex gap-2">
+                                        {job.source && (
+                                            <span className="text-[9px] font-bold uppercase tracking-widest text-green-600 bg-green-50 px-2 py-0.5 rounded-lg border border-green-100">
+                                                {job.source}
+                                            </span>
+                                        )}
+                                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 bg-gray-50 px-2 py-0.5 rounded-lg group-hover:bg-green-50 group-hover:text-green-600 transition-colors">
+                                            {job.employment_type || 'Full-time'}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <h3 className="text-lg font-bold text-gray-900 leading-tight mb-1 line-clamp-2">

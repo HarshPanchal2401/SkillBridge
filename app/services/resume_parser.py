@@ -11,7 +11,7 @@ class ResumeParser:
     def __init__(self):
         # Section headers to identify different parts
         self.section_patterns = {
-            'experience': r'(experience|work\s+experience|professional\s+experience|employment\s+history|career\s+history)',
+            'experience': r'(experience|work\s+experience|professional\s+experience|employment\s+history|career\s+history|experience/internship|internships|internship)',
             'education': r'(education|academic\s+background|qualifications|academic\s+record)',
             'projects': r'(projects|personal\s+projects|academic\s+projects|selected\s+projects)',
             'skills': r'(skills|technical\s+skills|core\s+competencies|expertise|technologies|tools)',
@@ -125,16 +125,48 @@ class ResumeParser:
             if not line or len(line) < 3:
                 continue
             
+            # Exclude lines that are just section headers (case insensitive)
+            if line.lower() in ['projects', 'personal projects', 'technical projects', 'experience', 'experience/internship', 'education', 'skills', 'certifications', 'about me']:
+                continue
+            
+            # Exclude all caps lines (likely section headers)
+            if line.isupper() and len(line) > 3:
+                continue
+
             # Check if line has date pattern (project header)
             date_match = re.search(r'(\w{3,9}/\d{4}|\w+\s+\d{4})\s*[-–—]\s*(\w{3,9}/\d{4}|\w+\s+\d{4}|present|current)', line, re.IGNORECASE)
             
-            if date_match and not line.startswith('•') and not line.startswith('-'):
+            # Heuristic for project header without date:
+            # - Short line (under 80 chars)
+            # - Not a bullet point
+            # - No colon (colons often indicate skill lists like "Skills: Python")
+            # - Doesn't start with common action verbs
+            # - Has title-case words
+            # - Likely contains project-y words
+            is_potential_header = False
+            if not date_match and not line.startswith('•') and not line.startswith('-') and len(line) < 80 and ':' not in line:
+                action_verbs = ['built', 'developed', 'created', 'implemented', 'designed', 'contributed', 'managed', 'led', 'worked', 'gained', 'integrated', 'preprocessed']
+                first_word = line.split()[0].lower() if line.split() else ""
+                
+                project_keywords = ['system', 'app', 'tool', 'platform', 'analyzer', 'bot', 'website', 'application', 'model', 'recognition']
+                lower_line = line.lower()
+                has_proj_word = any(pw in lower_line for pw in project_keywords)
+
+                if first_word not in action_verbs and any(c.isupper() for c in line) and has_proj_word:
+                    is_potential_header = True
+
+            if (date_match or is_potential_header) and not line.startswith('•') and not line.startswith('-'):
                 # Save previous project
                 if current_project and current_project['project_name']:
                     projects.append(current_project)
                 
-                # Extract project name (everything before date)
-                project_name = line.split(date_match.group(0))[0].strip()
+                # Extract project name
+                if date_match:
+                    project_name = line.split(date_match.group(0))[0].strip()
+                    if not project_name: 
+                         project_name = line
+                else:
+                    project_name = line
                 
                 current_project = {
                     'project_name': project_name,

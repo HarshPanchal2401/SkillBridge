@@ -28,6 +28,35 @@ SOFT_SKILLS = {
 }
 
 
+def _is_similar_project(cursor, user_id: int, project_name: str, github_link: str = None) -> bool:
+    """Check if a project with similar name or same GitHub link already exists."""
+    # 1. Check exact GitHub link if provided
+    if github_link:
+        cursor.execute(
+            "SELECT id FROM projects WHERE user_id = ? AND github_link = ?",
+            (user_id, github_link)
+        )
+        if cursor.fetchone():
+            return True
+            
+    # 2. Check name similarity
+    cursor.execute(
+        "SELECT project_name FROM projects WHERE user_id = ?",
+        (user_id,)
+    )
+    existing_projects = cursor.fetchall()
+    
+    name_norm = project_name.lower().strip()
+    for row in existing_projects:
+        existing_name = row['project_name'].lower().strip()
+        # Use SequenceMatcher for fuzzy matching
+        similarity = SequenceMatcher(None, name_norm, existing_name).ratio()
+        if similarity > 0.85:
+            return True
+            
+    return False
+
+
 def is_technical_skill(skill_name: str) -> bool:
     """Check if a skill is technical (not a soft skill)."""
     normalized = skill_name.lower().strip().replace(' ', '-')
@@ -436,11 +465,43 @@ def extract_user_skills(user_id: int):
             }
         
         print(f"💾 Saved {len(saved_skills)} skills to database")
+
+        # 6. Extract and save projects from resume if not already present
+        # Import ResumeParser here to avoid circular imports if any
+        from app.services.resume_parser import ResumeParser
+        parser = ResumeParser()
+        sections = parser.split_into_sections(resume_text)
+        projects_text = sections.get('projects', resume_text)
+        
+        resume_projects = parser.extract_projects(projects_text)
+        
+        projects_added = 0
+        for proj in resume_projects:
+            if not _is_similar_project(cursor, user_id, proj['project_name'], proj.get('github_link')):
+                tech_stack_json = json.dumps(proj.get('tech_stack', []))
+                cursor.execute('''
+                    INSERT INTO projects 
+                    (user_id, project_name, description, tech_stack, role, github_link, deployed_link, project_type)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    user_id,
+                    proj['project_name'],
+                    proj['description'][:500] if proj['description'] else f"Personal project: {proj['project_name']}",
+                    tech_stack_json,
+                    proj.get('role', 'Developer'),
+                    proj.get('github_link'),
+                    proj.get('deployed_link'),
+                    'personal'
+                ))
+                projects_added += 1
+        
+        print(f"📁 Added {projects_added} new projects from resume")
         
         return {
-            "message": "Skills extracted successfully using LLM",
+            "message": "Skills and projects extracted successfully using LLM",
             "user_id": user_id,
             "skills_extracted": len(saved_skills),
+            "projects_extracted": projects_added,
             "skills": saved_skills
         }
 
@@ -577,15 +638,41 @@ def extract_all_skills(user_id: int):
         
         conn.commit()
         
-        # Get total skills count
-        cursor.execute("SELECT COUNT(*) as count FROM user_skills WHERE user_id = ?", (user_id,))
-        total = cursor.fetchone()
-        results["total_skills"] = total['count'] if total else 0
-        
         print(f"✅ Extraction complete! Total skills: {results['total_skills']}")
+
+        # ========== Extract from Resume (Projects) ==========
+        from app.services.resume_parser import ResumeParser
+        parser = ResumeParser()
+        sections = parser.split_into_sections(resume_text)
+        projects_text = sections.get('projects', resume_text)
+        
+        resume_projects = parser.extract_projects(projects_text)
+        
+        projects_added = 0
+        for proj in resume_projects:
+            if not _is_similar_project(cursor, user_id, proj['project_name'], proj.get('github_link')):
+                tech_stack_json = json.dumps(proj.get('tech_stack', []))
+                cursor.execute('''
+                    INSERT INTO projects 
+                    (user_id, project_name, description, tech_stack, role, github_link, deployed_link, project_type)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    user_id,
+                    proj['project_name'],
+                    proj['description'][:500] if proj['description'] else f"Personal project: {proj['project_name']}",
+                    tech_stack_json,
+                    proj.get('role', 'Developer'),
+                    proj.get('github_link'),
+                    proj.get('deployed_link'),
+                    'personal'
+                ))
+                projects_added += 1
+        
+        results["resume_projects_added"] = projects_added
+        print(f"📁 Added {projects_added} new projects from resume")
         
         return {
-            "message": "Skills extracted from resume",
+            "message": "Skills and projects extracted from resume",
             **results
         }
 

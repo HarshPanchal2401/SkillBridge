@@ -128,13 +128,15 @@ export const api = {
         });
     },
 
-    getGapBasedCourses: async (userId: string): Promise<any> => {
-        const data = await fetchApi(`/api/users/${userId}/gap-courses`);
+    getGapBasedCourses: async (userId: string, refresh: boolean = false): Promise<any> => {
+        const url = `/api/users/${userId}/gap-courses${refresh ? '?refresh=true' : ''}`;
+        const data = await fetchApi(url);
         return data.data || data;
     },
 
-    searchCoursesForSkill: async (skill: string): Promise<any> => {
-        const data = await fetchApi(`/api/courses/search/${encodeURIComponent(skill)}`);
+    searchCoursesForSkill: async (skill: string, refresh: boolean = false): Promise<any> => {
+        const url = `/api/courses/search/${encodeURIComponent(skill)}${refresh ? '?refresh=true' : ''}`;
+        const data = await fetchApi(url);
         return data.data || data;
     },
 
@@ -143,17 +145,20 @@ export const api = {
         return data.data || data;
     },
 
-    getJobRecommendations: async (userId: string): Promise<any> => {
-        const data = await fetchApi(`/api/jobs/recommendations/${userId}`);
+    getJobRecommendations: async (userId: string, refresh: boolean = false): Promise<any> => {
+        const url = `/api/jobs/recommendations/${userId}${refresh ? '?refresh=true' : ''}`;
+        const data = await fetchApi(url);
         return data.data || data;
     },
 
-    searchJobs: async (title: string, location: string): Promise<any> => {
+    searchJobs: async (title: string, location: string, refresh: boolean = false): Promise<any> => {
         const params = new URLSearchParams({
             title,
             location,
             limit: '20'
         });
+        if (refresh) params.append('refresh', 'true');
+
         const data = await fetchApi(`/api/jobs/search?${params.toString()}`);
         return data.data || data;
     }

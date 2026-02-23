@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.database import get_db
 from app.routers.dependencies import get_services, get_sample_market_requirements
+from app.routers.skills import _is_similar_project
 
 router = APIRouter(prefix="/api", tags=["Analysis"])
 
@@ -169,7 +170,8 @@ def analyze_user_gaps(
 @router.get("/users/{user_id}/gap-courses")  # Alias for frontend compatibility
 def get_recommended_courses(
     user_id: int,
-    max_courses_per_skill: int = 3
+    max_courses_per_skill: int = 3,
+    refresh: bool = False
 ):
     """
     Get course recommendations based on user's skill gaps.
@@ -181,11 +183,11 @@ def get_recommended_courses(
         
         # Verify user exists
         cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        user = cursor.fetchone()
-        if not user:
+        user_row = cursor.fetchone()
+        if not user_row:
             raise HTTPException(status_code=404, detail="User not found")
         
-        user_dict = dict(user)
+        user_dict = dict(user_row)
         
         # Get user skills
         cursor.execute("SELECT * FROM user_skills WHERE user_id = ?", (user_id,))
@@ -207,13 +209,14 @@ def get_recommended_courses(
         if services.has_tavily_api():
             # Use real-time search for much better accuracy
             market_searcher = services.market_skill_searcher
-            print(f"🔍 Searching live market skills for recommended courses: {target_role}")
-            live_result = market_searcher.search_role_skills(target_role)
+            print(f"🔍 Searching live market skills for recommended courses: {target_role} (Refresh: {refresh})")
+            live_result = market_searcher.search_role_skills(target_role, force_refresh=refresh)
             market_requirements = live_result.get("skills", {})
         elif services.has_linkedin_api():
             linkedin_fetcher = services.linkedin_fetcher
             job_analyzer = services.job_analyzer
             
+            # Note: linkedin_fetcher doesn't have a direct refresh but clearing cache works
             jobs_data = linkedin_fetcher.fetch_jobs(target_role, location, limit=30)
             jobs = linkedin_fetcher.get_job_details(jobs_data)
             market_requirements = job_analyzer.aggregate_job_requirements(jobs)
@@ -238,7 +241,8 @@ def get_recommended_courses(
         # Get course recommendations for each skill
         recommendations = []
         for skill in skills_to_improve:
-            courses = course_recommender.search_courses_for_skill(skill, max_courses_per_skill)
+            # Pass refresh parameter down to course_recommender
+            courses = course_recommender.search_courses_for_skill(skill, max_courses_per_skill, force_refresh=refresh)
             recommendations.append({
                 'skill': skill,
                 'gap_priority': 'critical' if skill in critical_gaps else 'important',
@@ -250,24 +254,26 @@ def get_recommended_courses(
             "user_id": user_id,
             "skills_targeted": len(skills_to_improve),
             "total_courses": sum(len(r['courses']) for r in recommendations),
-            "recommendations": recommendations
+            "recommendations": recommendations,
+            "refreshed": refresh
         }
 
 
 @router.get("/courses/search/{skill}")
-def search_courses_for_skill(skill: str, max_results: int = 5):
+def search_courses_for_skill(skill: str, max_results: int = 5, refresh: bool = False):
     """
     Search for courses to learn a specific skill.
     """
     services = get_services()
     course_recommender = services.course_recommender
     
-    courses = course_recommender.search_courses_for_skill(skill, max_results)
+    courses = course_recommender.search_courses_for_skill(skill, max_results, force_refresh=refresh)
     
     return {
         "skill": skill,
         "total_courses": len(courses),
-        "courses": courses
+        "courses": courses,
+        "refreshed": refresh
     }
 
 
@@ -346,14 +352,10 @@ def analyze_user_github(user_id: int, github_url: Optional[str] = None):
             if not repo_name:
                 continue
                 
-            # Check if project already exists
-            cursor.execute(
-                "SELECT id FROM projects WHERE user_id = ? AND project_name = ?",
-                (user_id, repo_name)
-            )
-            existing = cursor.fetchone()
+            # Check if project already exists with robust deduplication
+            repo_url = repo.get('url', f'https://github.com/{result["username"]}/{repo_name}')
             
-            if not existing:
+            if not _is_similar_project(cursor, user_id, repo_name, repo_url):
                 # Extract tech stack from skills found in the repo
                 tech_stack = repo.get('skills_found', [])
                 if isinstance(tech_stack, dict):

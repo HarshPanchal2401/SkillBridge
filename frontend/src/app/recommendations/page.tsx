@@ -57,7 +57,7 @@ export default function RecommendationsPage() {
         }
     }, [user, authLoading, userId]);
 
-    const loadRecommendations = async () => {
+    const loadRecommendations = async (refresh: boolean = false) => {
         if (!userId) return;
         setLoading(true);
         setError(null);
@@ -70,7 +70,7 @@ export default function RecommendationsPage() {
             }
             setHasSkills(true);
 
-            const result = await api.getGapBasedCourses(userId);
+            const result = await api.getGapBasedCourses(userId, refresh);
             const recs: CourseRecommendation[] = [];
             const recsData = result.recommendations || [];
 
@@ -93,11 +93,11 @@ export default function RecommendationsPage() {
         }
     };
 
-    const handleSearch = async () => {
+    const handleSearch = async (refresh: boolean = true) => {
         if (!searchSkill.trim()) return;
         setSearching(true);
         try {
-            const result = await api.searchCoursesForSkill(searchSkill.trim());
+            const result = await api.searchCoursesForSkill(searchSkill.trim(), refresh);
             setSearchResults(result.courses || []);
         } catch (err) {
             console.error('Failed to search courses:', err);
@@ -174,10 +174,10 @@ export default function RecommendationsPage() {
                         </p>
                     </div>
                     <button
-                        onClick={loadRecommendations}
+                        onClick={() => loadRecommendations(true)}
                         className="px-5 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all flex items-center gap-2 shadow-sm"
                     >
-                        <RefreshCw size={16} />
+                        <RefreshCw size={16} className={loading && recommendations.length > 0 ? "animate-spin" : ""} />
                         Refresh Analysis
                     </button>
                 </div>

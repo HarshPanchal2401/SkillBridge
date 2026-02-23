@@ -27,7 +27,8 @@ class CourseRecommender:
     def search_courses_for_skill(
         self,
         skill: str,
-        max_results: int = 5
+        max_results: int = 5,
+        force_refresh: bool = False
     ) -> List[Dict]:
         """
         Search for courses to learn a specific skill.
@@ -35,22 +36,26 @@ class CourseRecommender:
         Args:
             skill: Skill to learn (e.g., "SQL", "Machine Learning")
             max_results: Maximum number of courses to return
+            force_refresh: If True, bypass cache and search fresh
         
         Returns:
             List of course recommendations with details
         """
-        print(f"🔍 Searching courses for skill: {skill}")
+        print(f"🔍 Searching courses for skill: {skill} (Refresh: {force_refresh})")
         
         # Check cache
         cache_file = os.path.join(self.cache_dir, f"{skill.replace(' ', '_').lower()}.json")
         
-        if os.path.exists(cache_file):
-            # Check if cache is less than 7 days old
+        if not force_refresh and os.path.exists(cache_file):
+            # Check if cache is less than 24 hours old
             file_age = datetime.now().timestamp() - os.path.getmtime(cache_file)
-            if file_age < 7 * 24 * 3600:  # 7 days
+            if file_age < 24 * 3600:  # 24 hours (from 7 days)
                 print(f"   📦 Loading from cache")
                 with open(cache_file, 'r') as f:
                     return json.load(f)
+        
+        if force_refresh:
+            print(f"   ⚡ Force refresh requested: Bypassing cache")
         
         if not self.api_key:
             return self._get_fallback_courses(skill, max_results)
