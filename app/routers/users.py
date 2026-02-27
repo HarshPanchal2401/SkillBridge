@@ -40,10 +40,10 @@ def register_user(user: schemas.UserCreate):
         
         # Insert new user
         cursor.execute('''
-            INSERT INTO users (name, email, education, university, graduation_year, location, 
+            INSERT INTO users (name, email, education, specialization, university, graduation_year, location, 
                              target_role, target_sector, phone, linkedin_url, github_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (user.name, user.email, user.education, user.university, user.graduation_year,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (user.name, user.email, user.education, user.specialization, user.university, user.graduation_year,
               user.location, user.target_role, user.target_sector, user.phone, 
               user.linkedin_url, user.github_url))
         

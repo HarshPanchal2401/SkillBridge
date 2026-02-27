@@ -12,7 +12,8 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String, nullable=False)
     email = Column(String, unique=True, nullable=False, index=True)
-    education = Column(String, nullable=True)
+    education = Column(String, nullable=True)  # This will be used for 'Degree'
+    specialization = Column(String, nullable=True)
     university = Column(String, nullable=True)
     graduation_year = Column(Integer, nullable=True)
     location = Column(String, nullable=True)

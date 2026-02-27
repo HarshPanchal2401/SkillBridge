@@ -83,7 +83,9 @@ def analyze_user_gaps(
         
         # Perform gap analysis
         gap_analyzer = services.gap_analyzer
-        gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements)
+        # Pass the global synonym map from SkillExtractor for consistent matching
+        synonym_map = services.skill_extractor.synonym_map
+        gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements, synonym_map=synonym_map)
         
         # Format fetched market skills for frontend display
         fetched_market_skills = []
@@ -99,51 +101,13 @@ def analyze_user_gaps(
         # Sort by demand (descending) - highest demand first
         fetched_market_skills.sort(key=lambda x: x['demand'], reverse=True)
         
-        # Find matching and missing skills
-        matched_skills = []
-        missing_skills = []
+        # Use accurate results from GapAnalyzer
+        matched_skills = gap_result['strengths']
+        missing_skills = gap_result['critical_gaps'] + gap_result['important_gaps'] + gap_result['emerging_gaps']
         
-        # Helper for partial matching
-        def normalize_skill(s):
-            return s.lower().strip().replace('-', ' ').replace('_', ' ')
-        
-        user_skill_names = list(user_skills.keys())
-        
-        for skill, req in market_requirements.items():
-            skill_normalized = normalize_skill(skill)
-            
-            # Try exact match first
-            user_prof = user_skills.get(skill_normalized, {}).get('proficiency', 0)
-            
-            # Partial matching
-            if user_prof == 0:
-                for user_skill_name in user_skill_names:
-                    user_normalized = normalize_skill(user_skill_name)
-                    if skill_normalized in user_normalized or user_normalized in skill_normalized:
-                        user_prof = user_skills[user_skill_name].get('proficiency', 0)
-                        if user_prof > 0:
-                            break
-            
-            if user_prof > 0:
-                matched_skills.append({
-                    "skill": skill,
-                    "user_proficiency": round(user_prof, 2),
-                    "required_proficiency": req.get('avg_proficiency_needed', 0.6),
-                    "gap": round(req.get('avg_proficiency_needed', 0.6) - user_prof, 2),
-                    "requirement_level": req.get('requirement_level', 'important'),
-                    "market_frequency": f"{int(req.get('frequency', 0.5)*100)}%"
-                })
-            else:
-                missing_skills.append({
-                    "skill": skill,
-                    "required_proficiency": req.get('avg_proficiency_needed', 0.6),
-                    "requirement_level": req.get('requirement_level', 'important'),
-                    "market_frequency": f"{int(req.get('frequency', 0.5)*100)}%"
-                })
-        
-        # Sort by requirement level and demand
+        # Sort by requirement level and demand (already mostly sorted by GapAnalyzer)
         level_priority = {"critical": 0, "important": 1, "emerging": 2}
-        missing_skills.sort(key=lambda x: (level_priority.get(x["requirement_level"], 3), -float(x["market_frequency"].rstrip('%'))/100))
+        missing_skills.sort(key=lambda x: (level_priority.get(x["requirement_level"], 3), -x.get("market_demand", 0)))
         matched_skills.sort(key=lambda x: (-x["gap"], level_priority.get(x["requirement_level"], 3)))
 
         return {
@@ -227,7 +191,9 @@ def get_recommended_courses(
         gap_analyzer = services.gap_analyzer
         course_recommender = services.course_recommender
         
-        gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements)
+        # Pass the global synonym map from SkillExtractor for consistent matching
+        synonym_map = services.skill_extractor.synonym_map
+        gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements, synonym_map=synonym_map)
         
         # Get skills to improve (prioritize critical gaps)
         critical_gaps = [g['skill'] for g in gap_result['critical_gaps']]
@@ -490,7 +456,9 @@ def run_complete_analysis(
             }
         
         gap_analyzer = services.gap_analyzer
-        gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements)
+        # Pass the global synonym map from SkillExtractor for consistent matching
+        synonym_map = services.skill_extractor.synonym_map
+        gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements, synonym_map=synonym_map)
         results['stages']['gap_analysis'] = {
             "status": "success",
             "overall_readiness": gap_result['overall_readiness'],
@@ -760,53 +728,18 @@ def analyze_user_for_role(
         
         # Perform gap analysis
         gap_analyzer = services.gap_analyzer
-        gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements)
+        # Pass the global synonym map from SkillExtractor for consistent matching
+        synonym_map = services.skill_extractor.synonym_map
+        gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements, synonym_map=synonym_map)
         
         # Find matching and missing skills
-        matched_skills = []
-        missing_skills = []
+        # Use accurate results from GapAnalyzer
+        matched_skills = gap_result['strengths']
+        missing_skills = gap_result['critical_gaps'] + gap_result['important_gaps'] + gap_result['emerging_gaps']
         
-        # Helper for partial matching (same logic as gap_analyzer)
-        def normalize_skill(s):
-            return s.lower().strip().replace('-', ' ').replace('_', ' ')
-        
-        user_skill_names = list(user_skills.keys())
-        
-        for skill, req in market_requirements.items():
-            skill_normalized = normalize_skill(skill)
-            
-            # Try exact match first
-            user_prof = user_skills.get(skill_normalized, {}).get('proficiency', 0)
-            
-            # If no exact match, try partial matching (e.g., "ml" in "machine learning")
-            if user_prof == 0:
-                for user_skill_name in user_skill_names:
-                    user_normalized = normalize_skill(user_skill_name)
-                    if skill_normalized in user_normalized or user_normalized in skill_normalized:
-                        user_prof = user_skills[user_skill_name].get('proficiency', 0)
-                        if user_prof > 0:
-                            break
-            
-            if user_prof > 0:
-                matched_skills.append({
-                    "skill": skill,
-                    "user_proficiency": round(user_prof, 2),
-                    "required_proficiency": req.get('avg_proficiency_needed', 0.6),
-                    "gap": round(req.get('avg_proficiency_needed', 0.6) - user_prof, 2),
-                    "requirement_level": req.get('requirement_level', 'important'),
-                    "market_frequency": f"{int(req.get('frequency', 0.5)*100)}%"
-                })
-            else:
-                missing_skills.append({
-                    "skill": skill,
-                    "required_proficiency": req.get('avg_proficiency_needed', 0.6),
-                    "requirement_level": req.get('requirement_level', 'important'),
-                    "market_frequency": f"{int(req.get('frequency', 0.5)*100)}%"
-                })
-        
-        # Sort by requirement level priority
+        # Sort by requirement level and demand (already mostly sorted by GapAnalyzer)
         level_priority = {"critical": 0, "important": 1, "emerging": 2}
-        missing_skills.sort(key=lambda x: (level_priority.get(x["requirement_level"], 3), -float(x["market_frequency"].rstrip('%'))/100))
+        missing_skills.sort(key=lambda x: (level_priority.get(x["requirement_level"], 3), -x.get("market_demand", 0)))
         matched_skills.sort(key=lambda x: (-x["gap"], level_priority.get(x["requirement_level"], 3)))
         
         # Get course recommendations for gaps
@@ -973,18 +906,12 @@ def get_gap_based_course_recommendations(
         
         # Perform gap analysis
         gap_analyzer = services.gap_analyzer
-        gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements)
+        # Pass the global synonym map from SkillExtractor for consistent matching
+        synonym_map = services.skill_extractor.synonym_map
+        gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements, synonym_map=synonym_map)
         
-        # Get missing skills (not in user's skillset at all)
-        missing_skills = []
-        for skill, req in market_requirements.items():
-            skill_lower = skill.lower()
-            if skill_lower not in user_skills:
-                missing_skills.append({
-                    "skill": skill,
-                    "requirement_level": req.get('requirement_level', 'important'),
-                    "market_frequency": req.get('frequency', 0.5)
-                })
+        # Use accurate results from GapAnalyzer
+        missing_skills = gap_result['critical_gaps'] + gap_result['important_gaps'] + gap_result['emerging_gaps']
         
         # Prioritize skills to get courses for
         skills_to_search = []
@@ -1016,11 +943,21 @@ def get_gap_based_course_recommendations(
         
         for skill in unique_skills[:6]:  # Limit to 6 skills
             priority = "critical" if skill.lower() in [s.lower() for s in critical_missing + critical_gaps] else "important"
+            
+            # Find matched_as info from gap analysis
+            matched_as = skill
+            all_gap_items = gap_result['critical_gaps'] + gap_result['important_gaps'] + gap_result['emerging_gaps'] + gap_result['strengths']
+            for item in all_gap_items:
+                if item['skill'] == skill:
+                    matched_as = item.get('matched_as', skill)
+                    break
+                    
             courses = course_recommender.search_courses_for_skill(skill, max_per_skill)
             
             if courses:
                 recommendations.append({
                     "skill": skill,
+                    "matched_as": matched_as,
                     "gap_priority": priority,
                     "courses": courses
                 })

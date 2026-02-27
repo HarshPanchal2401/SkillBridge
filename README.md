@@ -1,6 +1,6 @@
-# 🏥 Skill intelligence System (SkillPath)
+# 🏥 Skill intelligence System (SkillBridge)
 
-An AI-powered skill gap analysis and course recommendation platform. SkillPath extracts skills from resumes, analyzes job market requirements, identifies skill gaps, and recommends personalized learning paths.
+An AI-powered skill gap analysis and course recommendation platform. SkillBridge extracts skills from resumes, analyzes job market requirements, identifies skill gaps, and recommends personalized learning paths.
 
 ---
 
@@ -51,7 +51,7 @@ An AI-powered skill gap analysis and course recommendation platform. SkillPath e
 ## 📁 Project Structure
 
 ```
-SkillPath/
+SkillBridge/
 ├── app/                  # FastAPI Backend
 │   ├── routers/          # API Route Modules
 │   ├── services/         # Business Logic (NLP, Analyzers)

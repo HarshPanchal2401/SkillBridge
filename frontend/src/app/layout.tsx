@@ -7,7 +7,7 @@ import AppLayout from '@/components/layout/AppLayout';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-    title: 'SkillPath - Career Intelligence Platform',
+    title: 'SkillBridge - Career Intelligence Platform',
     description: 'Discover your ideal career path in Healthcare, Agriculture, and Smart Cities',
 };
 

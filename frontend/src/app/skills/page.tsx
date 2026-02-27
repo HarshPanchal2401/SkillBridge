@@ -256,25 +256,30 @@ export default function SkillsPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {/* Skill Gaps */}
                                 {(filter === 'all' || filter === 'gaps') && gapAnalysis?.missing_skills?.map((gap: any, i: number) => (
-                                    <div key={`gap-${i}`} className="card-simple border-l-4 border-l-amber-400 group p-5">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center font-bold text-sm">
+                                    <div key={`gap-${i}`} className="card-simple border-l-4 border-l-amber-400 group p-5 flex flex-col h-full transition-all">
+                                        <div className="flex items-start justify-between gap-4 min-w-0">
+                                            <div className="flex items-start gap-4 min-w-0">
+                                                <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex-shrink-0 flex items-center justify-center font-bold text-sm mt-0.5">
                                                     {gap.skill.charAt(0)}
                                                 </div>
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight">{gap.skill}</h4>
-                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${gap.requirement_level === 'critical' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                                                <div className="space-y-1 min-w-0">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight break-words">{gap.skill}</h4>
+                                                        {gap.matched_as && gap.matched_as !== gap.skill && (
+                                                            <span className="text-[9px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded italic">
+                                                                Matched as: {gap.matched_as}
+                                                            </span>
+                                                        )}
+                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider flex-shrink-0 ${gap.requirement_level === 'critical' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
                                                             {gap.requirement_level}
                                                         </span>
                                                     </div>
-                                                    <p className="text-[10px] text-gray-400 font-medium">Required for {gapAnalysis?.target_role?.title || 'Target Role'}</p>
+                                                    <p className="text-[10px] text-gray-400 font-medium truncate">Required for {gapAnalysis?.target_role?.title || 'Target Role'}</p>
                                                 </div>
                                             </div>
                                             <button
                                                 onClick={() => toggleCourseRecommendations(gap.skill)}
-                                                className="p-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-all shadow-sm flex-shrink-0"
+                                                className="p-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-all shadow-sm flex-shrink-0 mt-0.5"
                                                 title="Explore Courses"
                                             >
                                                 <BookOpen size={16} />
@@ -309,9 +314,44 @@ export default function SkillsPage() {
                                     </div>
                                 ))}
 
-                                {/* Existing Skills */}
-                                {(filter === 'all' || filter === 'matches') && skills.sort((a, b) => b.proficiency - a.proficiency).map((skill, i) => (
-                                    <div key={skill.id || i} className="card-simple group p-5">
+                                {/* Existing Skills / Matches */}
+                                {filter === 'matches' && gapAnalysis?.matched_skills?.map((match, i) => (
+                                    <div key={`match-${i}`} className="card-simple border-l-4 border-l-green-400 group p-5 flex flex-col h-full transition-all">
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center font-bold text-sm">
+                                                {match.skill.charAt(0)}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight truncate">{match.skill}</h4>
+                                                {match.matched_as && match.matched_as !== match.skill && (
+                                                    <p className="text-[10px] text-green-600 font-bold italic">Matched as: {match.matched_as}</p>
+                                                )}
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <div className="flex items-center gap-1">
+                                                        <CheckCircle2 size={10} className="text-green-500" />
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Market Match</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
+                                                <span className="text-gray-400">Your Proficiency</span>
+                                                <span className="text-green-600 font-black">{Math.round((match.user_proficiency || 0) * 100)}%</span>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                                                <div
+                                                    className="h-full bg-green-500 rounded-full transition-all duration-1000"
+                                                    style={{ width: `${(match.user_proficiency || 0) * 100}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {filter === 'all' && skills.sort((a, b) => b.proficiency - a.proficiency).map((skill, i) => (
+                                    <div key={skill.id || i} className="card-simple group p-5 flex flex-col h-full transition-all">
                                         <div className="flex items-center gap-4 mb-4">
                                             <div className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center font-bold text-sm">
                                                 {skill.skill_name.charAt(0)}

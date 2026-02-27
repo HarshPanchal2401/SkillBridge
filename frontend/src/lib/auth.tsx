@@ -11,6 +11,7 @@ export interface User {
     // Extended properties for profile
     id?: string;
     education?: string;
+    specialization?: string;
     university?: string;
     location?: string;
     target_role?: string;
@@ -116,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 name: userData.name || name,
                 email: userData.email || email,
                 education: userData.education || '',
+                specialization: userData.specialization || '',
                 university: userData.university || '',
                 location: userData.location || '',
                 target_role: userData.target_role || '',
@@ -168,6 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     name: userData.name || parsedUser.name,
                     email: userData.email || parsedUser.email,
                     education: userData.education || '',
+                    specialization: userData.specialization || '',
                     university: userData.university || '',
                     location: userData.location || '',
                     target_role: userData.target_role || '',

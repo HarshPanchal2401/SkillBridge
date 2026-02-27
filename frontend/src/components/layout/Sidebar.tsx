@@ -30,7 +30,7 @@ const navItems = [
     { href: '/roadmap', label: 'Roadmap', icon: Map },
 ];
 
-export function Sidebar({ isCollapsed }: { isCollapsed: boolean }) {
+export function Sidebar({ isCollapsed, setIsCollapsed }: { isCollapsed: boolean; setIsCollapsed: (v: boolean) => void }) {
     const pathname = usePathname();
     const { user, profile, logout } = useAuth();
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -65,15 +65,30 @@ export function Sidebar({ isCollapsed }: { isCollapsed: boolean }) {
                 `}
             >
                 {/* Brand Identity / Toggle */}
-                <div className={`flex items-center transition-all duration-300 ${isCollapsed ? 'p-4 justify-center mb-6' : 'p-6 mb-2 justify-between'}`}>
-                    <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-9 h-9 min-w-[2.25rem] bg-green-500 rounded-lg flex items-center justify-center text-white shadow-sm">
-                            <Sparkles size={20} />
+                <div className={`transition-all duration-300 ${isCollapsed ? 'p-4 justify-center mb-6' : 'p-6 mb-2'}`}>
+                    <button
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className={`flex items-center gap-3 w-full group transition-all duration-300 relative ${isCollapsed ? 'justify-center' : 'justify-start'}`}
+                    >
+                        <div className="relative w-9 h-9 min-w-[2.25rem] bg-green-500 rounded-lg flex items-center justify-center text-white shadow-sm transition-all duration-300 group-hover:bg-green-600 group-hover:scale-105 active:scale-95 overflow-hidden">
+                            {/* Logo Icon (Sparkles) */}
+                            <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isCollapsed ? 'opacity-100 scale-100 group-hover:opacity-0 group-hover:scale-50' : 'opacity-100 group-hover:opacity-0 group-hover:-translate-x-full'}`}>
+                                <Sparkles size={20} />
+                            </div>
+
+                            {/* Toggle Icon (PanelLeft) */}
+                            <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isCollapsed ? 'opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100' : 'opacity-0 translate-x-full group-hover:opacity-100 group-hover:translate-x-0'}`}>
+                                <PanelLeft size={20} />
+                            </div>
                         </div>
+
                         {!isCollapsed && (
-                            <span className="text-xl font-bold tracking-tight text-gray-900">SkillPath</span>
+                            <div className="flex flex-col items-start overflow-hidden transition-all duration-300">
+                                <span className="text-xl font-bold tracking-tight text-gray-900 group-hover:text-green-600 transition-colors">SkillBridge</span>
+                                <span className={`text-[8px] font-black uppercase tracking-[0.2em] text-gray-300 transition-all duration-500 delay-100 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>Professional</span>
+                            </div>
                         )}
-                    </div>
+                    </button>
                 </div>
 
 
@@ -152,7 +167,7 @@ export function Sidebar({ isCollapsed }: { isCollapsed: boolean }) {
                         {!isCollapsed && <span className="text-xs font-semibold uppercase tracking-wider">Logout</span>}
                     </button>
 
-                    {!isCollapsed && <p className="text-[9px] font-bold text-gray-300 uppercase tracking-[0.2em] text-center pt-2">© 2026 SkillPath</p>}
+                    {!isCollapsed && <p className="text-[9px] font-bold text-gray-300 uppercase tracking-[0.2em] text-center pt-2">© 2026 SkillBridge</p>}
                 </div>
             </aside>
         </>
@@ -169,13 +184,6 @@ export function Header({ isCollapsed, setIsCollapsed }: { isCollapsed: boolean; 
         <header className={`fixed top-0 right-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 transition-all duration-300 ${isCollapsed ? 'left-20' : 'left-0 lg:left-64'}`}>
             <div className="px-4 h-16 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-all"
-                        title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
-                    >
-                        <PanelLeft size={20} className={`transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
-                    </button>
                     <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-green-50 rounded-full">
                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
                         <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider">Live System Active</span>

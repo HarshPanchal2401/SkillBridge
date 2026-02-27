@@ -49,13 +49,13 @@ class SkillExtractor:
             print(f"⚠️ Failed to initialize PrioritySkillExtractor: {e}")
             self.priority_extractor = None
         
-        # Build reverse synonym map for quick lookup
-        self.synonym_map = {}
+        # Build synonym map: canonical -> [variants]
+        self.synonym_map = defaultdict(set)
         for variant, canonical in self.synonyms.items():
-            self.synonym_map[variant.lower()] = canonical
+            self.synonym_map[canonical].add(variant.lower())
             # Also add versions with spaces/hyphens swapped
-            self.synonym_map[variant.lower().replace('-', ' ')] = canonical
-            self.synonym_map[variant.lower().replace(' ', '-')] = canonical
+            self.synonym_map[canonical].add(variant.lower().replace('-', ' '))
+            self.synonym_map[canonical].add(variant.lower().replace(' ', '-'))
         
         # Soft skills set - these are excluded from GitHub/LinkedIn extraction
         self.soft_skills = {
@@ -372,33 +372,29 @@ class SkillExtractor:
             skill_clean = skill.lower()
             skill_space = skill_clean.replace('-', ' ')
             
-            # Check exact match in n-grams (both versions)
-            if skill_clean in ngrams or skill_space in ngrams:
+            # 1. Exact match for canonical name or simple variations
+            if (skill_clean in ngrams or 
+                skill_space in ngrams or 
+                skill_clean in cleaned_text or 
+                skill_space in cleaned_text):
                 found_skills.add(skill)
                 continue
             
-            # Check synonym matches
-            if skill_clean in self.synonym_map:
-                canonical = self.synonym_map[skill_clean]
-                if canonical in self.skills_list:
-                    found_skills.add(canonical)
-                    continue
+            # 2. Check synonym matches (using the fixed mapping)
+            # Variants recorded for this canonical skill
+            variants = self.synonym_map.get(skill, set())
+            found_variant = False
+            for variant in variants:
+                if variant in cleaned_text or variant in ngrams:
+                    found_skills.add(skill)
+                    found_variant = True
+                    break
             
-            if skill_space in self.synonym_map:
-                canonical = self.synonym_map[skill_space]
-                if canonical in self.skills_list:
-                    found_skills.add(canonical)
-                    continue
-            
-            # Check if any synonym exists in text
-            if skill in self.synonyms:
-                for synonym in self.synonyms[skill]:
-                    if synonym.lower() in cleaned_text:
-                        found_skills.add(skill)
-                        break
-            
-            # Fuzzy match for skills with hyphens or variations
-            if self.fuzzy_match(cleaned_text, skill_clean, threshold=0.88):
+            if found_variant:
+                continue
+
+            # 3. Fuzzy match for skills with hyphens or variations (avoiding single letters)
+            if len(skill_clean) > 2 and self.fuzzy_match(cleaned_text, skill_clean, threshold=0.90):
                 found_skills.add(skill)
         
         return list(found_skills)

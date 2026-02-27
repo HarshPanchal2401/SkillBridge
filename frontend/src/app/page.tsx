@@ -66,7 +66,7 @@ export default function HomePage() {
                         <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center">
                             <Sparkles className="text-white" size={20} />
                         </div>
-                        <span className="text-xl font-semibold tracking-tight">SkillPath</span>
+                        <span className="text-xl font-semibold tracking-tight">SkillBridge</span>
                     </div>
                     <div className="flex items-center gap-8">
                         <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-green-600 transition-colors">
@@ -217,7 +217,7 @@ export default function HomePage() {
             <footer className="py-12 bg-white">
                 <div className="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
                     <p className="text-gray-400 text-sm">
-                        © 2024 SkillPath. Built for the Ingenious Hackathon.
+                        © 2024 SkillBridge. Built for the Ingenious Hackathon.
                     </p>
                     <div className="flex gap-8">
                         <Link href="#" className="text-sm text-gray-400 hover:text-green-600">Privacy</Link>

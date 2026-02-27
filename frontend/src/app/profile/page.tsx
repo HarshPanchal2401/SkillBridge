@@ -27,6 +27,9 @@ import {
     Award
 } from 'lucide-react';
 
+import { Autocomplete } from '../../components/ui/Autocomplete';
+import { DEGREES, SPECIALIZATIONS, LOCATIONS, UNIVERSITY_MAP, GLOBAL_UNIVERSITIES, TARGET_ROLES } from '../../lib/suggestions';
+
 export default function ProfilePage() {
     const { user, profile, refreshUser, loading: authLoading, userId } = useAuth();
     const router = useRouter();
@@ -38,6 +41,7 @@ export default function ProfilePage() {
     const [formData, setFormData] = useState({
         name: '',
         education: '',
+        specialization: '',
         university: '',
         location: '',
         target_role: '',
@@ -52,6 +56,7 @@ export default function ProfilePage() {
             setFormData({
                 name: user.name || '',
                 education: user.education || '',
+                specialization: user.specialization || '',
                 university: user.university || '',
                 location: user.location || '',
                 target_role: user.target_role || '',
@@ -228,27 +233,73 @@ export default function ProfilePage() {
                                 Core Repository
                             </h2>
                             <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
-                                {[
-                                    { id: 'name', label: 'Identity', icon: User, placeholder: 'John Doe' },
-                                    { id: 'education', label: 'Degree', icon: GraduationCap, placeholder: 'Master of Science' },
-                                    { id: 'university', label: 'Academy', icon: Building, placeholder: 'Stanford University' },
-                                    { id: 'location', label: 'Territory', icon: MapPin, placeholder: 'San Francisco, CA' },
-                                    { id: 'target_role', label: 'Ambition', icon: Target, placeholder: 'Lead Backend Engineer' },
-                                ].map((field) => (
-                                    <div key={field.id} className="space-y-1.5 group">
-                                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2 group-focus-within:text-green-600 transition-colors">
-                                            <field.icon size={12} />
-                                            {field.label}
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={(formData as any)[field.id]}
-                                            onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
-                                            className="w-full px-4 py-2.5 bg-gray-50 border border-transparent focus:border-green-500 focus:bg-white rounded-xl outline-none transition-all text-sm font-bold text-gray-900 placeholder:text-gray-300"
-                                            placeholder={field.placeholder}
-                                        />
-                                    </div>
-                                ))}
+                                <div className="space-y-1.5 group">
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1 flex items-center gap-2 group-focus-within:text-green-600 transition-colors">
+                                        <User size={12} />
+                                        Full Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        className="w-full px-4 py-2.5 bg-gray-50 border border-transparent focus:border-green-500 focus:bg-white rounded-xl outline-none transition-all text-sm font-bold text-gray-900 placeholder:text-gray-300"
+                                        placeholder="John Doe"
+                                    />
+                                </div>
+
+                                <Autocomplete
+                                    label="Degree"
+                                    value={formData.education}
+                                    onChange={(val) => setFormData({ ...formData, education: val })}
+                                    suggestions={DEGREES}
+                                    icon={GraduationCap}
+                                    placeholder="B.Tech, MS, etc."
+                                />
+
+                                <Autocomplete
+                                    label="Specialization"
+                                    value={formData.specialization}
+                                    onChange={(val) => setFormData({ ...formData, specialization: val })}
+                                    suggestions={SPECIALIZATIONS}
+                                    icon={Star}
+                                    placeholder="Information Technology"
+                                />
+
+                                <Autocomplete
+                                    label="University / College"
+                                    value={formData.university}
+                                    onChange={(val) => setFormData({ ...formData, university: val })}
+                                    suggestions={
+                                        formData.location && UNIVERSITY_MAP[formData.location]
+                                            ? UNIVERSITY_MAP[formData.location]
+                                            : (formData.location?.includes('USA') ? UNIVERSITY_MAP['USA'] :
+                                                formData.location?.includes('UK') ? UNIVERSITY_MAP['UK'] : GLOBAL_UNIVERSITIES)
+                                    }
+                                    icon={Building}
+                                    placeholder="SOU"
+                                />
+
+                                <Autocomplete
+                                    label="Location"
+                                    value={formData.location}
+                                    onChange={(val) => {
+                                        setFormData({ ...formData, location: val });
+                                        // Clear university if location changes significantly?
+                                        // Or just let user pick from new list.
+                                    }}
+                                    suggestions={LOCATIONS}
+                                    icon={MapPin}
+                                    placeholder="Ahmedabad"
+                                />
+
+                                <Autocomplete
+                                    label="Target Role"
+                                    value={formData.target_role}
+                                    onChange={(val) => setFormData({ ...formData, target_role: val })}
+                                    suggestions={TARGET_ROLES}
+                                    icon={Target}
+                                    placeholder="AI/ML Engineer"
+                                />
                             </div>
                         </div>
 

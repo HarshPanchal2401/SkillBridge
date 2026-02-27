@@ -19,7 +19,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="min-h-screen bg-gray-50 selection:bg-green-100 selection:text-green-900">
-            <Sidebar isCollapsed={isCollapsed} />
+            <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
             <Header isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
             <main className={`transition-all duration-300 min-h-screen pt-16 ${isCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
                 <div className="p-4 md:p-8 max-w-7xl mx-auto">

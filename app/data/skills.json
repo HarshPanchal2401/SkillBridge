@@ -205,7 +205,9 @@
   },
   "nltk": {
     "abbr": [],
-    "aliases": []
+    "aliases": [
+      "natural-language-toolkit"
+    ]
   },
   "spacy": {
     "abbr": [],

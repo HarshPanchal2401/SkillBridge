@@ -25,6 +25,7 @@ import {
 
 interface CourseRecommendation {
     skill: string;
+    matched_as?: string;
     gap_priority?: string;
     courses: Array<{
         title?: string;
@@ -78,6 +79,7 @@ export default function RecommendationsPage() {
                 if (item.courses && item.courses.length > 0) {
                     recs.push({
                         skill: item.skill || 'General',
+                        matched_as: item.matched_as,
                         gap_priority: item.gap_priority,
                         courses: item.courses,
                     });
@@ -227,8 +229,13 @@ export default function RecommendationsPage() {
                                             <BookOpen size={18} />
                                         </div>
                                         <div>
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex flex-wrap items-center gap-3">
                                                 <h2 className="text-xl font-bold text-gray-900 uppercase tracking-tight">BRIDGE: {rec.skill}</h2>
+                                                {rec.matched_as && rec.matched_as !== rec.skill && (
+                                                    <span className="text-[10px] text-green-600 font-bold italic bg-green-50 px-2 py-0.5 rounded">
+                                                        Matched as: {rec.matched_as}
+                                                    </span>
+                                                )}
                                                 {rec.gap_priority === 'critical' && (
                                                     <span className="px-2 py-0.5 bg-red-50 text-red-600 text-[9px] font-bold uppercase tracking-wider rounded-md border border-red-100">
                                                         Critical Gap

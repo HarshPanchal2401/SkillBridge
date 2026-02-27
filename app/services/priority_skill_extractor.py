@@ -51,15 +51,31 @@ class PrioritySkillExtractor:
             return {}
         
         with open(self.skills_json_path, 'r', encoding='utf-8') as f:
-            skills_json = json.load(f)
+            skills_data = json.load(f)
             
         lookup = {}
-        for skill, data in skills_json.items():
-            variants = {skill.lower()}
-            if isinstance(data, dict):
-                variants |= set(map(str.lower, data.get("abbr", [])))
-                variants |= set(map(str.lower, data.get("aliases", [])))
-            lookup[skill.lower()] = variants
+        # New format has "skills" list and "synonyms" dict
+        if "skills" in skills_data and "synonyms" in skills_data:
+            # First add all canonical skills
+            for skill in skills_data["skills"]:
+                lookup[skill.lower()] = {skill.lower()}
+            
+            # Then add synonyms for each canonical skill
+            for variant, canonical in skills_data["synonyms"].items():
+                v_lower = variant.lower()
+                c_lower = canonical.lower()
+                if c_lower in lookup:
+                    lookup[c_lower].add(v_lower)
+                else:
+                    lookup[c_lower] = {c_lower, v_lower}
+        else:
+            # Fallback for old format
+            for skill, data in skills_data.items():
+                variants = {skill.lower()}
+                if isinstance(data, dict):
+                    variants |= set(map(str.lower, data.get("abbr", [])))
+                    variants |= set(map(str.lower, data.get("aliases", [])))
+                lookup[skill.lower()] = variants
         return lookup
 
     def extract_resume_text(self, pdf_path: str) -> str:

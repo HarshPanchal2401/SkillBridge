@@ -61,7 +61,8 @@ class UserCreate(BaseModel):
     """Schema for creating a new user."""
     name: str = Field(..., min_length=2, max_length=100, description="User's full name")
     email: str = Field(..., description="User's email address")
-    education: Optional[str] = Field(None, max_length=200)
+    education: Optional[str] = Field(None, max_length=200, description="User's degree/education level")
+    specialization: Optional[str] = Field(None, max_length=200, description="User's field of study")
     university: Optional[str] = Field(None, max_length=200)
     graduation_year: Optional[int] = Field(None, ge=1950, le=2100)
     location: Optional[str] = Field(None, max_length=100)
@@ -115,6 +116,7 @@ class UserUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=100)
     email: Optional[str] = None
     education: Optional[str] = Field(None, max_length=200)
+    specialization: Optional[str] = Field(None, max_length=200)
     university: Optional[str] = Field(None, max_length=200)
     graduation_year: Optional[int] = Field(None, ge=1950, le=2100)
     location: Optional[str] = Field(None, max_length=100)
@@ -151,6 +153,7 @@ class UserResponse(BaseModel):
     name: str
     email: str
     education: Optional[str] = None
+    specialization: Optional[str] = None
     university: Optional[str] = None
     graduation_year: Optional[int] = None
     location: Optional[str] = None

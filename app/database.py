@@ -236,6 +236,7 @@ def init_db() -> None:
             name TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             education TEXT,
+            specialization TEXT,
             university TEXT,
             graduation_year INTEGER,
             location TEXT,
@@ -378,11 +379,18 @@ def init_db() -> None:
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_skills_name ON user_skills(skill_name)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_roadmap_user ON roadmap_progress(user_id)')
     
-    # Migration: add resume_filename column if missing (for existing databases)
-    try:
-        cursor.execute("ALTER TABLE users ADD COLUMN resume_filename TEXT")
-    except sqlite3.OperationalError:
-        pass  # Column already exists
+    # Migration: add missing columns if missing (for existing databases)
+    columns_to_add = [
+        ("resume_filename", "TEXT"),
+        ("specialization", "TEXT")
+    ]
+    
+    for col_name, col_type in columns_to_add:
+        try:
+            cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+            logger.info(f"✅ Added column {col_name} to users table")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
     
     conn.commit()
     conn.close()
