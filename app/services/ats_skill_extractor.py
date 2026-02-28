@@ -81,6 +81,9 @@ class ATSSkillExtractor:
             r'(?i)^[\s]*professional\s+experience[\s]*[:\-]?',
             r'(?i)^[\s]*employment\s+history[\s]*[:\-]?',
             r'(?i)^[\s]*career\s+history[\s]*[:\-]?',
+            r'(?i)^[\s]*internships?[\s]*[:\-]?',
+            r'(?i)^[\s]*internship\s+experience[\s]*[:\-]?',
+            r'(?i)^[\s]*experience\s*/\s*internship[\s]*[:\-]?',
         ],
         SkillSource.PROJECTS: [
             r'(?i)^[\s]*projects?[\s]*[:\-]?',
@@ -166,7 +169,22 @@ class ATSSkillExtractor:
         """Load skills taxonomy from JSON file."""
         try:
             with open(path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+            
+            # Handle flat format: {skill: {abbr, aliases}}
+            if 'skills' not in data and 'synonyms' not in data:
+                skills_list = []
+                synonyms = {}
+                for skill, sdata in data.items():
+                    skills_list.append(skill.lower())
+                    if isinstance(sdata, dict):
+                        for abbr in sdata.get('abbr', []):
+                            synonyms[abbr.lower()] = skill.lower()
+                        for alias in sdata.get('aliases', []):
+                            synonyms[alias.lower()] = skill.lower()
+                return {'skills': skills_list, 'synonyms': synonyms, 'categories': {}, 'weights': {}}
+            
+            return data
         except Exception as e:
             print(f"Error loading skills taxonomy: {e}")
             return {'skills': [], 'synonyms': {}, 'categories': {}, 'weights': {}}

@@ -2012,9 +2012,13 @@
     "abbr": [],
     "aliases": []
   },
-  "teams": {
-    "abbr": [],
-    "aliases": []
+  "microsoft teams": {
+    "abbr": [
+      "ms teams"
+    ],
+    "aliases": [
+      "microsoft-teams"
+    ]
   },
   "zoom": {
     "abbr": [],

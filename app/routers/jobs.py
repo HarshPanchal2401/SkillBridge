@@ -36,18 +36,33 @@ def search_jobs(
     refresh: bool = Query(
         default=False,
         description="Bypass cache and fetch fresh results"
+    ),
+    experience_level: Optional[str] = Query(
+        None,
+        description="Experience level (entry_level, mid_senior_level)"
+    ),
+    min_match: Optional[int] = Query(
+        None,
+        ge=0,
+        le=100,
+        description="Minimum skill match percentage"
+    ),
+    user_id: Optional[int] = Query(
+        None,
+        description="User ID for skill matching"
     )
 ):
     """
     Search for jobs from LinkedIn.
     
-    - **title**: Job title to search (e.g., "Healthcare Data Analyst")
-    - **location**: Location filter (e.g., "United States", "India")
-    - **limit**: Number of jobs to fetch (max: 100)
-    
-    Requires RAPIDAPI_KEY to be configured in .env
+    - **title**: Job title to search 
+    - **location**: Location filter
+    - **experience_level**: entry_level or mid_senior_level
+    - **min_match**: Filter by skill match percentage (requires user_id)
+    - **user_id**: Required if min_match is set
     """
     services = get_services()
+    from app.database import get_db
     
     if not services.has_linkedin_api():
         raise ServiceUnavailableError(
@@ -58,8 +73,46 @@ def search_jobs(
     job_fetcher = services.linkedin_fetcher
     
     try:
-        jobs_data = job_fetcher.fetch_jobs(title, location, limit, use_cache=not refresh)
+        jobs_data = job_fetcher.fetch_jobs(
+            title, 
+            location, 
+            limit, 
+            use_cache=not refresh,
+            experience_level=experience_level
+        )
         jobs = job_fetcher.get_job_details(jobs_data)
+        
+        # Skill matching if user_id and min_match are provided
+        if user_id and (min_match is not None or True): # Always calculate if user_id provided
+            user_skills = {}
+            with get_db() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT skill_name, proficiency FROM user_skills WHERE user_id = ?", (user_id,))
+                user_skills = {row[0]: {'proficiency': row[1]} for row in cursor.fetchall()}
+            
+            if user_skills:
+                gap_analyzer = services.gap_analyzer
+                job_analyzer = services.job_analyzer
+                
+                for job in jobs:
+                    # Extract skills from job description (limit to first 1000 chars for speed if needed)
+                    job_skills_data = job_analyzer.extract_skills_from_job(job.get('description', ''))
+                    
+                    # Create temporary market requirements for this job
+                    job_market_reqs = {
+                        skill: {'frequency': 1.0, 'avg_proficiency_needed': prof}
+                        for skill, prof in job_skills_data.get('required', {}).items()
+                    }
+                    
+                    if job_market_reqs:
+                        analysis = gap_analyzer.analyze_gaps(user_skills, job_market_reqs)
+                        job['match_score'] = analysis.get('overall_readiness', 0)
+                    else:
+                        job['match_score'] = 0
+                
+                # Filter by min_match if provided
+                if min_match and min_match > 0:
+                    jobs = [j for j in jobs if j.get('match_score', 0) >= min_match]
         
         logger.info(f"Searched jobs: '{title}' in '{location}' - found {len(jobs)}")
         
@@ -341,13 +394,22 @@ def get_job_recommendations(
         
         try:
             jobs_data = job_fetcher.fetch_jobs(target_role, location, limit, use_cache=not refresh)
-            jobs = job_fetcher.get_job_details(jobs_data)
+            # Re-use search logic to include match score
+            search_results = search_jobs(
+                title=target_role, 
+                location=location, 
+                limit=limit, 
+                refresh=refresh,
+                user_id=user_id,
+                experience_level=None,
+                min_match=None
+            )
             
             return {
                 "success": True,
                 "message": f"Recommendations for '{target_role}'",
                 "data": {
-                    "jobs": jobs,
+                    "jobs": search_results["data"]["jobs"],
                     "target_role": target_role,
                     "location": location
                 }

@@ -36,15 +36,16 @@ class JobFetcher:
             return [self._clean_data(v) for v in data]
         return data
     
-    def _get_cache_filename(self, title: str, location: str) -> str:
+    def _get_cache_filename(self, title: str, location: str, experience_level: str = None) -> str:
         """Generate cache filename."""
         safe_title = title.replace(' ', '_').replace('/', '_')
         safe_location = location.replace(' ', '_').replace('/', '_')
-        return f"jobspy_{safe_title}_{safe_location}.json"
+        exp_suffix = f"_{experience_level}" if experience_level else ""
+        return f"jobspy_{safe_title}_{safe_location}{exp_suffix}.json"
     
-    def _load_from_cache(self, title: str, location: str) -> Optional[Dict]:
+    def _load_from_cache(self, title: str, location: str, experience_level: str = None) -> Optional[Dict]:
         """Load from cache if fresh (< 4 hours)."""
-        cache_file = os.path.join(self.cache_dir, self._get_cache_filename(title, location))
+        cache_file = os.path.join(self.cache_dir, self._get_cache_filename(title, location, experience_level))
         if os.path.exists(cache_file):
             if (datetime.now().timestamp() - os.path.getmtime(cache_file)) < 4 * 3600:
                 print(f"📦 Loading jobs from cache: {cache_file}")
@@ -53,9 +54,9 @@ class JobFetcher:
                     return self._clean_data(data)
         return None
     
-    def _save_to_cache(self, title: str, location: str, jobs_data: Dict):
+    def _save_to_cache(self, title: str, location: str, jobs_data: Dict, experience_level: str = None):
         """Save to cache."""
-        cache_file = os.path.join(self.cache_dir, self._get_cache_filename(title, location))
+        cache_file = os.path.join(self.cache_dir, self._get_cache_filename(title, location, experience_level))
         with open(cache_file, 'w', encoding='utf-8') as f:
             clean_data = self._clean_data(jobs_data)
             json.dump(clean_data, f, indent=2, ensure_ascii=False)
@@ -66,18 +67,33 @@ class JobFetcher:
         location: str = "United States",
         limit: int = 10,
         page: int = 1,
-        use_cache: bool = True
+        use_cache: bool = True,
+        experience_level: str = None
     ) -> Dict:
         """
         Fetch jobs using JobSpy (LinkedIn, Indeed, etc.) or fallback to mock.
         """
+        # Safety check for FastAPI Query objects leaking into internal calls
+        if not isinstance(title, str): title = str(getattr(title, 'default', ''))
+        if not isinstance(location, str): location = str(getattr(location, 'default', 'United States'))
+        if not isinstance(experience_level, (str, type(None))): 
+            experience_level = str(getattr(experience_level, 'default', '')) or None
+
         if use_cache:
-            cached = self._load_from_cache(title, location)
+            cached = self._load_from_cache(title, location, experience_level)
             if cached:
                 cached['cached'] = True
                 return cached
-        
-        print(f"🔍 Scraping jobs for '{title}' in '{location}'...")
+
+        # Refine search term if experience level is provided
+        search_term = title
+        if experience_level and isinstance(experience_level, str):
+            if experience_level.lower() in ['fresher', 'entry', 'entry_level']:
+                search_term = f"{title} entry level"
+            elif experience_level.lower() in ['experienced', 'senior', 'mid_senior_level']:
+                search_term = f"{title} experienced"
+
+        print(f"🔍 Scraping jobs for '{search_term}' in '{location}'...")
         
         jobs_list = []
         error = None
@@ -88,7 +104,7 @@ class JobFetcher:
                 # Scrape from multiple sites
                 jobs_df = scrape_jobs(
                     site_name=["linkedin", "indeed", "glassdoor"],
-                    search_term=title,
+                    search_term=search_term,
                     location=location,
                     results_wanted=limit,
                     country_indeed='USA' if 'states' in location.lower() or 'usa' in location.lower() else 'India',
@@ -128,18 +144,22 @@ class JobFetcher:
         # 2. Fallback to Mock Data if scraping failed or returned nothing
         if not jobs_list:
             print("⚠️ Switching to MOCK DATA fallback.")
-            jobs_list = self._generate_mock_jobs(title, location, limit)
+            jobs_list = self._generate_mock_jobs(title, location, limit, experience_level)
             
         result = {
             'jobs': jobs_list,
             'total': len(jobs_list),
-            'search_params': {'title': title, 'location': location},
+            'search_params': {
+                'title': title, 
+                'location': location,
+                'experience_level': experience_level
+            },
             'cached': False,
             'timestamp': datetime.now().isoformat()
         }
         
         if use_cache and jobs_list:
-            self._save_to_cache(title, location, result)
+            self._save_to_cache(title, location, result, experience_level)
             
         return self._clean_data(result)
 
@@ -171,7 +191,7 @@ class JobFetcher:
             return "Recently"
         return str(date_val).split(' ')[0] # Keep it simple
 
-    def _generate_mock_jobs(self, title: str, location: str, count: int) -> List[Dict]:
+    def _generate_mock_jobs(self, title: str, location: str, count: int, experience_level: str = None) -> List[Dict]:
         """Generate realistic mock jobs for fallback with diverse sources."""
         mock_jobs = []
         
@@ -183,10 +203,18 @@ class JobFetcher:
         
         sources = ["indeed", "glassdoor", "linkedin"]
         
+        # Adjust title based on experience level for mock data
+        display_title = title
+        if experience_level:
+            if experience_level.lower() in ['fresher', 'entry', 'entry_level']:
+                display_title = f"Entry Level {title}"
+            elif experience_level.lower() in ['experienced', 'senior', 'mid_senior_level']:
+                display_title = f"Senior {title}"
+
         for i in range(count):
             site = random.choice(sources)
             company = random.choice(companies)
-            job_title = f"{title} at {company}"
+            job_title = f"{display_title} at {company}"
             
             # Create source-specific links
             if site == "indeed":

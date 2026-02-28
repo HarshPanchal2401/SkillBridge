@@ -15,7 +15,10 @@ import {
     RefreshCw,
     Target,
     ArrowUpRight,
-    Sparkles
+    Sparkles,
+    Sliders,
+    Filter,
+    Award
 } from 'lucide-react';
 
 interface Job {
@@ -28,6 +31,7 @@ interface Job {
     url: string;
     employment_type: string;
     source?: string;
+    match_score?: number;
 }
 
 export default function JobsPage() {
@@ -39,6 +43,8 @@ export default function JobsPage() {
     const [targetRole, setTargetRole] = useState<string>('');
     const [searchLocation, setSearchLocation] = useState<string>('');
     const [isSearching, setIsSearching] = useState(false);
+
+    const [minMatch, setMinMatch] = useState<number>(0);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -73,7 +79,14 @@ export default function JobsPage() {
         setError(null);
         setIsSearching(true);
         try {
-            const result = await api.searchJobs(targetRole, searchLocation || 'United States', refresh);
+            const result = await api.searchJobs(
+                targetRole,
+                searchLocation || 'United States',
+                refresh,
+                '',
+                minMatch > 0 ? minMatch : undefined,
+                userId?.toString()
+            );
             setJobs(result.jobs || []);
         } catch (err: any) {
             console.error('Search failed:', err);
@@ -173,6 +186,34 @@ export default function JobsPage() {
                     </form>
                 </div>
 
+                {/* Filters */}
+                <div className="card-simple">
+                    <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
+                        <div className="flex-1 w-full">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3 block flex items-center justify-between">
+                                <span className="flex items-center gap-2">
+                                    <Sliders size={12} />
+                                    Minimum Skill Match
+                                </span>
+                                <span className="text-green-600">{minMatch}%</span>
+                            </label>
+                            <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                step="5"
+                                value={minMatch}
+                                onChange={(e) => setMinMatch(parseInt(e.target.value))}
+                                className="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-green-600"
+                            />
+                            <div className="flex justify-between mt-2 text-[10px] text-gray-300 font-bold">
+                                <span>BROAD SEARCH</span>
+                                <span>PRECISION MATCH</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {error && (
                     <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-700 animate-slide-down">
                         <AlertCircle size={18} />
@@ -201,9 +242,19 @@ export default function JobsPage() {
                                     </div>
                                 </div>
 
-                                <h3 className="text-lg font-bold text-gray-900 leading-tight mb-1 line-clamp-2">
-                                    {job.title}
-                                </h3>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <h3 className="text-lg font-bold text-gray-900 leading-tight line-clamp-2 flex-1">
+                                        {job.title}
+                                    </h3>
+                                    {job.match_score !== undefined && job.match_score > 0 && (
+                                        <div className="flex flex-col items-center">
+                                            <div className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-100 flex items-center gap-1">
+                                                <Award size={10} />
+                                                {Math.round(job.match_score)}%
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                                 <p className="text-xs font-bold text-green-600 mb-6">{job.company}</p>
 
                                 <div className="space-y-2.5">

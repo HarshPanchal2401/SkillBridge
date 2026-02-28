@@ -41,7 +41,7 @@ interface DashboardData {
 const SKILL_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function DashboardPage() {
-    const { user, profile, loading: authLoading, userId } = useAuth();
+    const { user, profile, gapAnalysis, loading: authLoading, userId, refreshGapAnalysis } = useAuth();
     const router = useRouter();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -62,9 +62,17 @@ export default function DashboardPage() {
         if (!userId) return;
 
         try {
-            const [skills, gapAnalysis] = await Promise.all([
+            // First check if we already have gapAnalysis in global state
+            let currentGapAnalysis = gapAnalysis;
+
+            if (!currentGapAnalysis) {
+                // If not, fetch it (this will also update the global state)
+                currentGapAnalysis = await refreshGapAnalysis();
+            }
+
+            const [skills] = await Promise.all([
                 api.getUserSkills(userId).catch(() => []),
-                api.getGapAnalysis(userId).catch(() => null),
+                // api.getGapAnalysis(userId) is now handled by refreshGapAnalysis if needed
             ]);
 
             setData({
@@ -73,7 +81,7 @@ export default function DashboardPage() {
                 total_projects: profile?.total_projects || 0,
                 total_courses: profile?.total_courses || 0,
                 skills,
-                gapAnalysis,
+                gapAnalysis: currentGapAnalysis,
             });
         } catch (error) {
             console.error('Failed to load dashboard:', error);

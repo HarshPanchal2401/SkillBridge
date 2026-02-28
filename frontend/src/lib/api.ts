@@ -43,15 +43,30 @@ async function fetchApi(endpoint: string, options?: RequestInit) {
     return res.json();
 }
 
+// Simple in-memory cache
+const cache: Record<string, { data: any; timestamp: number }> = {};
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 export const api = {
-    getUserSkills: async (userId: string): Promise<Skill[]> => {
+    getUserSkills: async (userId: string, refresh = false): Promise<Skill[]> => {
+        const cacheKey = `skills_${userId}`;
+        if (!refresh && cache[cacheKey] && Date.now() - cache[cacheKey].timestamp < CACHE_DURATION) {
+            return cache[cacheKey].data;
+        }
         const data = await fetchApi(`/api/skills/users/${userId}`);
+        cache[cacheKey] = { data: data || [], timestamp: Date.now() };
         return data || [];
     },
 
-    getGapAnalysis: async (userId: string): Promise<GapAnalysis> => {
+    getGapAnalysis: async (userId: string, refresh = false): Promise<GapAnalysis> => {
+        const cacheKey = `gap_${userId}`;
+        if (!refresh && cache[cacheKey] && Date.now() - cache[cacheKey].timestamp < CACHE_DURATION) {
+            return cache[cacheKey].data;
+        }
         const data = await fetchApi(`/api/users/${userId}/gap-analysis`);
-        return data.data || data;
+        const result = data.data || data;
+        cache[cacheKey] = { data: result, timestamp: Date.now() };
+        return result;
     },
 
     updateUser: async (userId: string, userData: any): Promise<void> => {
@@ -59,6 +74,9 @@ export const api = {
             method: 'PUT',
             body: JSON.stringify(userData),
         });
+        // Invalidate cache on user update
+        delete cache[`skills_${userId}`];
+        delete cache[`gap_${userId}`];
     },
 
     uploadResume: async (userId: string, file: File): Promise<any> => {
@@ -75,19 +93,31 @@ export const api = {
             throw new Error(error.message || error.detail || `HTTP ${res.status}`);
         }
 
+        // Invalidate cache on resume upload
+        delete cache[`skills_${userId}`];
+        delete cache[`gap_${userId}`];
+
         return res.json();
     },
 
     extractSkills: async (userId: string): Promise<any> => {
-        return fetchApi(`/api/skills/extract/${userId}`, {
+        const data = await fetchApi(`/api/skills/extract/${userId}`, {
             method: 'POST',
         });
+        // Invalidate cache on extraction
+        delete cache[`skills_${userId}`];
+        delete cache[`gap_${userId}`];
+        return data;
     },
 
     extractAllSkills: async (userId: string): Promise<any> => {
-        return fetchApi(`/api/skills/extract-all/${userId}`, {
+        const data = await fetchApi(`/api/skills/extract-all/${userId}`, {
             method: 'POST',
         });
+        // Invalidate cache on extraction
+        delete cache[`skills_${userId}`];
+        delete cache[`gap_${userId}`];
+        return data;
     },
 
     getRoadmaps: async (): Promise<any> => {
@@ -129,20 +159,36 @@ export const api = {
     },
 
     getGapBasedCourses: async (userId: string, refresh: boolean = false): Promise<any> => {
+        const cacheKey = `gap_courses_${userId}`;
+        if (!refresh && cache[cacheKey] && Date.now() - cache[cacheKey].timestamp < CACHE_DURATION) {
+            return cache[cacheKey].data;
+        }
         const url = `/api/users/${userId}/gap-courses${refresh ? '?refresh=true' : ''}`;
         const data = await fetchApi(url);
-        return data.data || data;
+        const result = data.data || data;
+        cache[cacheKey] = { data: result, timestamp: Date.now() };
+        return result;
     },
 
     searchCoursesForSkill: async (skill: string, refresh: boolean = false): Promise<any> => {
+        const cacheKey = `skill_courses_${skill}`;
+        if (!refresh && cache[cacheKey] && Date.now() - cache[cacheKey].timestamp < CACHE_DURATION) {
+            return cache[cacheKey].data;
+        }
         const url = `/api/courses/search/${encodeURIComponent(skill)}${refresh ? '?refresh=true' : ''}`;
         const data = await fetchApi(url);
-        return data.data || data;
+        const result = data.data || data;
+        cache[cacheKey] = { data: result, timestamp: Date.now() };
+        return result;
     },
 
     analyzeUserForRole: async (userId: string, role: string): Promise<any> => {
         const data = await fetchApi(`/api/users/${userId}/analyze-role/${encodeURIComponent(role)}`);
-        return data.data || data;
+        const result = data.data || data;
+        // Invalidate and update gap cache on manual analysis
+        delete cache[`gap_${userId}`];
+        cache[`gap_${userId}`] = { data: result, timestamp: Date.now() };
+        return result;
     },
 
     getJobRecommendations: async (userId: string, refresh: boolean = false): Promise<any> => {
@@ -151,13 +197,16 @@ export const api = {
         return data.data || data;
     },
 
-    searchJobs: async (title: string, location: string, refresh: boolean = false): Promise<any> => {
+    searchJobs: async (title: string, location: string, refresh: boolean = false, experienceLevel?: string, minMatch?: number, userId?: string): Promise<any> => {
         const params = new URLSearchParams({
             title,
             location,
             limit: '20'
         });
         if (refresh) params.append('refresh', 'true');
+        if (experienceLevel) params.append('experience_level', experienceLevel);
+        if (minMatch !== undefined) params.append('min_match', minMatch.toString());
+        if (userId) params.append('user_id', userId);
 
         const data = await fetchApi(`/api/jobs/search?${params.toString()}`);
         return data.data || data;

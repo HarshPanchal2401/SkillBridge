@@ -151,24 +151,41 @@ def _load_taxonomy() -> Dict:
     
     taxonomy_path = os.path.join(
         os.path.dirname(os.path.dirname(__file__)),
-        'data', 'healthcare_skills.json'
+        'data', 'skills.json'
     )
     with open(taxonomy_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
     # Build lookup sets
     skills_set = set()
-    for skill in data.get('skills', []):
-        normalized = normalize_skill_name(skill)
-        if normalized:
-            skills_set.add(normalized)
-    
     synonym_map = {}
-    for variant, canonical in data.get('synonyms', {}).items():
-        norm_variant = normalize_skill_name(variant)
-        norm_canonical = normalize_skill_name(canonical)
-        if norm_variant and norm_canonical:
-            synonym_map[norm_variant] = norm_canonical
+    
+    # Handle flat format: {skill: {abbr, aliases}}
+    if 'skills' not in data and 'synonyms' not in data:
+        for skill, sdata in data.items():
+            normalized = normalize_skill_name(skill)
+            if normalized:
+                skills_set.add(normalized)
+            if isinstance(sdata, dict):
+                for abbr in sdata.get('abbr', []):
+                    norm_abbr = normalize_skill_name(abbr)
+                    if norm_abbr and normalized:
+                        synonym_map[norm_abbr] = normalized
+                for alias in sdata.get('aliases', []):
+                    norm_alias = normalize_skill_name(alias)
+                    if norm_alias and normalized:
+                        synonym_map[norm_alias] = normalized
+    else:
+        # Original format with 'skills' and 'synonyms' keys
+        for skill in data.get('skills', []):
+            normalized = normalize_skill_name(skill)
+            if normalized:
+                skills_set.add(normalized)
+        for variant, canonical in data.get('synonyms', {}).items():
+            norm_variant = normalize_skill_name(variant)
+            norm_canonical = normalize_skill_name(canonical)
+            if norm_variant and norm_canonical:
+                synonym_map[norm_variant] = norm_canonical
     
     _taxonomy_cache = {
         'skills': skills_set,
@@ -373,40 +390,24 @@ def extract_user_skills(user_id: int):
                 detail="No resume found. Please upload a resume first."
             )
         
-        # 3. Extract skills using unified SkillExtractor (handles HF, Gemini, and NLP fallbacks)
+        # 3. Extract skills using PrioritySkillExtractor only
         print("🤖 Extracting skills from resume...")
+        skill_results = services.skill_extractor.extract_skills_from_resume(resume_text, file_path=resume_path)
         
-        # Get skill names first (this handles the HF/Gemini/NLP logic internally now)
-        skill_names = services.skill_extractor.extract_skills_from_resume(resume_text, file_path=resume_path)
-        
-        # Calculate proficiency for each skill
+        # Build skills data from priority extractor output
         skills_data = []
-        for skill_item in skill_names:
-            # Handle both string (legacy) and dict (priority extractor) formats
-            if isinstance(skill_item, dict):
-                skill = skill_item.get('skill', skill_item.get('name'))
-                # Use priority as base for proficiency, but maybe cap/adjust
-                # Priority 1.0 (Skills section) -> 1.0 proficiency? 
-                # Let's trust the priority extractor's judgment or verify with text
-                prof = skill_item.get('priority', 0.5)
-                conf = skill_item.get('confidence', 0.8)
-                source_tag = skill_item.get('source', 'priority')
-                
-                # If source is priority, we want to tag it specially
-                source_id = 'priority:0' if source_tag == 'priority' else 'resume:0'
-            else:
-                skill = skill_item
-                prof, conf = services.skill_extractor.calculate_proficiency_from_resume(skill, resume_text)
-                source_id = 'resume:0'
-            
+        for skill_item in skill_results:
+            skill = skill_item.get('skill', '')
+            if not skill:
+                continue
             skills_data.append({
                 'skill_name': skill,
-                'proficiency': prof,
-                'confidence': conf,
-                'source_id': source_id
+                'proficiency': skill_item.get('proficiency', 0.5),
+                'confidence': skill_item.get('confidence', 0.8),
+                'source_id': 'priority:0',
+                'found_in': skill_item.get('found_in', []),
+                'context_boost': skill_item.get('context_boost', 0.0),
             })
-
-
         
         print(f"✅ Extracted {len(skills_data)} skills from resume")
         
@@ -444,7 +445,10 @@ def extract_user_skills(user_id: int):
             proficiency = skill_info['proficiency']
             confidence = skill_info['confidence']
             
-            source_id = skill_info.get('source_id', 'resume:0')
+            source_id = skill_info.get('source_id', 'priority:0')
+            found_in = skill_info.get('found_in', [])
+            # Store found_in sections as sources for frontend display
+            sources_data = found_in if found_in else [source_id]
             cursor.execute('''
                 INSERT INTO user_skills 
                 (user_id, skill_name, proficiency, confidence, source_count, sources)
@@ -454,14 +458,15 @@ def extract_user_skills(user_id: int):
                 skill_name,
                 proficiency,
                 confidence,
-                1,
-                json.dumps([source_id])
+                len(sources_data),
+                json.dumps(sources_data)
             ))
             
             saved_skills[skill_name] = {
                 'proficiency': proficiency,
                 'confidence': confidence,
-                'sources': [source_id]
+                'sources': sources_data,
+                'found_in': found_in
             }
         
         print(f"💾 Saved {len(saved_skills)} skills to database")
@@ -568,25 +573,26 @@ def extract_all_skills(user_id: int):
             skill_names = services.skill_extractor.extract_skills_from_resume(resume_text, file_path=resume_path)
             
             skills_data = []
-            skills_data = []
             for skill_item in skill_names:
+                skill = skill_item.get('skill', '') if isinstance(skill_item, dict) else skill_item
+                if not skill:
+                    continue
                 if isinstance(skill_item, dict):
-                    skill = skill_item.get('skill', skill_item.get('name'))
-                    prof = skill_item.get('priority', 0.5)
-                    conf = skill_item.get('confidence', 0.8)
-                    source_tag = skill_item.get('source', 'priority')
-                    source_id = 'priority:0' if source_tag == 'priority' else 'resume:0'
+                    skills_data.append({
+                        'skill_name': skill,
+                        'proficiency': skill_item.get('proficiency', 0.5),
+                        'confidence': skill_item.get('confidence', 0.8),
+                        'source_id': 'priority:0',
+                        'found_in': skill_item.get('found_in', []),
+                    })
                 else:
-                    skill = skill_item
-                    prof, conf = services.skill_extractor.calculate_proficiency_from_resume(skill, resume_text)
-                    source_id = 'resume:0'
-
-                skills_data.append({
-                    'skill_name': skill,
-                    'proficiency': prof,
-                    'confidence': conf,
-                    'source_id': source_id
-                })
+                    skills_data.append({
+                        'skill_name': skill,
+                        'proficiency': 0.5,
+                        'confidence': 0.8,
+                        'source_id': 'priority:0',
+                        'found_in': [],
+                    })
             
             # Filter out soft skills and invalid entries
             # Normalize names, validate structure, then match against taxonomy
@@ -615,7 +621,8 @@ def extract_all_skills(user_id: int):
             
             # Save resume skills
             for skill_info in skills_data:
-                source_id = skill_info.get('source_id', 'resume:0')
+                found_in = skill_info.get('found_in', [])
+                sources_data = found_in if found_in else ['priority:0']
                 cursor.execute('''
                     INSERT INTO user_skills 
                     (user_id, skill_name, proficiency, confidence, source_count, sources)
@@ -625,8 +632,8 @@ def extract_all_skills(user_id: int):
                     skill_info['skill_name'],
                     skill_info['proficiency'],
                     skill_info['confidence'],
-                    1,
-                    json.dumps([source_id])
+                    len(sources_data),
+                    json.dumps(sources_data)
                 ))
             
             results["resume_skills"] = len(skills_data)
@@ -638,6 +645,7 @@ def extract_all_skills(user_id: int):
         
         conn.commit()
         
+        results["total_skills"] = results["resume_skills"]
         print(f"✅ Extraction complete! Total skills: {results['total_skills']}")
 
         # ========== Extract from Resume (Projects) ==========

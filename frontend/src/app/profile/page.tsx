@@ -24,7 +24,9 @@ import {
     ChevronRight,
     SearchCode,
     ArrowUpRight,
-    Award
+    Award,
+    ChevronDown,
+    ChevronUp
 } from 'lucide-react';
 
 import { Autocomplete } from '../../components/ui/Autocomplete';
@@ -37,6 +39,7 @@ export default function ProfilePage() {
     const [extracting, setExtracting] = useState(false);
     const [skills, setSkills] = useState<Skill[]>([]);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
 
     const [formData, setFormData] = useState({
         name: '',
@@ -183,6 +186,15 @@ export default function ProfilePage() {
             }
         });
     });
+
+    const toggleSourceExpansion = (source: string) => {
+        setExpandedSources(prev => {
+            const next = new Set(prev);
+            if (next.has(source)) next.delete(source);
+            else next.add(source);
+            return next;
+        });
+    };
 
     return (
         <>
@@ -403,24 +415,43 @@ export default function ProfilePage() {
 
                             {skills.length > 0 ? (
                                 <div className="space-y-6">
-                                    {Object.entries(skillsBySource).map(([source, sourceSkills], i) => (
-                                        <div key={source} className="space-y-3">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{source}</span>
+                                    {Object.entries(skillsBySource).map(([source, sourceSkills], i) => {
+                                        const isExpanded = expandedSources.has(source);
+                                        const displayedSkills = isExpanded ? sourceSkills : sourceSkills.slice(0, 8);
+
+                                        return (
+                                            <div key={source} className="space-y-3">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
+                                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{source}</span>
+                                                    </div>
+                                                    {sourceSkills.length > 8 && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                toggleSourceExpansion(source);
+                                                            }}
+                                                            className="text-[9px] font-bold text-green-600 hover:text-green-700 transition-colors uppercase tracking-tight flex items-center gap-1"
+                                                        >
+                                                            {isExpanded ? (
+                                                                <>Show Less <ChevronUp size={10} /></>
+                                                            ) : (
+                                                                <>Show All ({sourceSkills.length}) <ChevronDown size={10} /></>
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {displayedSkills.map((skill) => (
+                                                        <span key={skill.id} className="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-bold text-gray-600 cursor-default hover:bg-white hover:border-green-100 transition-all">
+                                                            {skill.skill_name}
+                                                        </span>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {sourceSkills.slice(0, 8).map((skill) => (
-                                                    <span key={skill.id} className="px-2.5 py-1 bg-gray-50 border border-gray-100 rounded-lg text-[10px] font-bold text-gray-600 cursor-default hover:bg-white hover:border-green-100 transition-all">
-                                                        {skill.skill_name}
-                                                    </span>
-                                                ))}
-                                                {sourceSkills.length > 8 && (
-                                                    <span className="text-[10px] font-bold text-gray-400 px-1">+ {sourceSkills.length - 8}</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                     <button
                                         onClick={() => router.push('/skills')}
                                         className="w-full py-3 bg-gray-50 text-gray-500 hover:text-green-600 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border border-transparent hover:border-green-100"

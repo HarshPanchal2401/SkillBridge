@@ -28,7 +28,7 @@ logger = get_logger("dependencies")
 
 # Configuration
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads/resumes")
-SKILLS_FILE = os.path.join("app", "data", "healthcare_skills.json")
+SKILLS_FILE = os.path.join("app", "data", "skills.json")
 
 
 class ServiceContainer:

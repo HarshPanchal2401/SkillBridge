@@ -44,7 +44,7 @@ interface SkillCourseInfo {
 }
 
 export default function SkillsPage() {
-    const { user, loading: authLoading, userId } = useAuth();
+    const { user, loading: authLoading, userId, gapAnalysis: globalGapAnalysis, refreshGapAnalysis } = useAuth();
     const router = useRouter();
     const [skills, setSkills] = useState<Skill[]>([]);
     const [gapAnalysis, setGapAnalysis] = useState<GapAnalysis | null>(null);
@@ -65,17 +65,26 @@ export default function SkillsPage() {
     const loadData = async () => {
         if (!userId) return;
         try {
-            const [skillsData, gapData] = await Promise.all([
+            // First check if we have global gapAnalysis
+            let currentGap = globalGapAnalysis;
+
+            const [skillsData] = await Promise.all([
                 api.getUserSkills(userId).catch(() => []),
-                api.getGapAnalysis(userId).catch(() => null),
             ]);
+
+            if (!currentGap) {
+                // If not in global state, fetch it once
+                currentGap = await refreshGapAnalysis();
+            }
+
             setSkills(skillsData);
-            setGapAnalysis(gapData);
-            if (gapData?.target_role?.title) {
-                setRoleInput(gapData.target_role.title);
+            setGapAnalysis(currentGap);
+
+            if (currentGap?.target_role?.title) {
+                setRoleInput(currentGap.target_role.title);
             }
         } catch (error) {
-            console.error('Failed to load skills:', error);
+            console.error('Failed to load data:', error);
         } finally {
             setLoading(false);
         }
@@ -284,6 +293,20 @@ export default function SkillsPage() {
                                             >
                                                 <BookOpen size={16} />
                                             </button>
+                                        </div>
+
+                                        {/* Proficiency Level */}
+                                        <div className="mt-3 space-y-1.5">
+                                            <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
+                                                <span className="text-gray-400">Your Proficiency</span>
+                                                <span className={`font-black ${(gap.user_proficiency || 0) > 0 ? 'text-amber-600' : 'text-red-500'}`}>{Math.round((gap.user_proficiency || 0) * 100)}%</span>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                                                <div
+                                                    className={`h-full rounded-full transition-all duration-1000 ${(gap.user_proficiency || 0) > 0 ? 'bg-amber-400' : 'bg-red-300'}`}
+                                                    style={{ width: `${Math.max((gap.user_proficiency || 0) * 100, 2)}%` }}
+                                                />
+                                            </div>
                                         </div>
 
                                         {skillCourses[gap.skill] && (

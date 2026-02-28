@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { api } from './api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -31,11 +32,13 @@ interface Profile {
 interface AuthContextType {
     user: User | null;
     profile: Profile | null;
+    gapAnalysis: any | null;
     loading: boolean;
     userId: string | null;
     login: (email: string) => Promise<void>;
     logout: () => void;
     refreshUser: () => Promise<void>;
+    refreshGapAnalysis: (refresh?: boolean) => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,6 +46,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [profile, setProfile] = useState<Profile | null>(null);
+    const [gapAnalysis, setGapAnalysis] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
 
@@ -210,8 +214,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const refreshGapAnalysis = async (refresh = false) => {
+        if (!user?.id) return null;
+        try {
+            const data = await api.getGapAnalysis(user.id, refresh);
+            setGapAnalysis(data);
+            return data;
+        } catch (error) {
+            console.error('Failed to refresh gap analysis:', error);
+            return null;
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, profile, loading, userId: user?.id || null, login, logout, refreshUser }}>
+        <AuthContext.Provider value={{
+            user,
+            profile,
+            gapAnalysis,
+            loading,
+            userId: user?.id || null,
+            login,
+            logout,
+            refreshUser,
+            refreshGapAnalysis
+        }}>
             {children}
         </AuthContext.Provider>
     );

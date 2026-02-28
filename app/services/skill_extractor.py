@@ -31,6 +31,19 @@ class SkillExtractor:
         with open(skills_file_path, 'r', encoding='utf-8') as f:
             skills_data = json.load(f)
         
+        # Handle flat format: {skill: {abbr, aliases}} -> convert to structured format
+        if 'skills' not in skills_data and 'synonyms' not in skills_data:
+            skills_list = []
+            synonyms = {}
+            for skill, data in skills_data.items():
+                skills_list.append(skill.lower())
+                if isinstance(data, dict):
+                    for abbr in data.get('abbr', []):
+                        synonyms[abbr.lower()] = skill.lower()
+                    for alias in data.get('aliases', []):
+                        synonyms[alias.lower()] = skill.lower()
+            skills_data = {'skills': skills_list, 'synonyms': synonyms, 'categories': {}, 'weights': {}}
+        
         self.skills_list = set(skills_data.get('skills', []))
         self.synonyms = skills_data.get('synonyms', {})
         self.categories = skills_data.get('categories', {})
@@ -93,7 +106,7 @@ class SkillExtractor:
         return [s for s in skills if self.is_technical_skill(s)]
     
     def clean_text(self, text: str) -> str:
-        """Clean and normalize text."""
+        """Clean and normalize text while preserving tech-critical characters."""
         if not text:
             return ""
         
@@ -103,8 +116,9 @@ class SkillExtractor:
         # Strip anything in brackets/parentheses (Professional [ATS] -> Professional)
         text = re.sub(r'[\(\[].*?[\)\]]', ' ', text)
         
-        # Remove special characters but keep spaces, hyphens, and alphanumeric
-        text = re.sub(r'[^a-z0-9\s\-]', ' ', text)
+        # Preserve common tech symbols: +, #, . (e.g., C++, C#, Node.js)
+        # We replace other special characters with spaces
+        text = re.sub(r'[^a-z0-9\s\-\+\#\.]', ' ', text)
         
         # Remove extra whitespace
         text = re.sub(r'\s+', ' ', text)
@@ -162,22 +176,22 @@ class SkillExtractor:
         
         return False
     
-    def extract_skills_from_resume(self, resume_text: str, use_ats: bool = True, file_path: Optional[str] = None) -> List[str]:
+    def extract_skills_from_resume(self, resume_text: str, use_ats: bool = True, file_path: Optional[str] = None) -> List:
         """
-        Extract and score skills from resume to find the most relevant ones.
+        Extract skills from resume using ONLY PrioritySkillExtractor.
         
         Args:
             resume_text: The resume text to extract skills from
-            use_ats: If True, use ATS-style extraction (recommended)
+            use_ats: Ignored (kept for API compatibility)
             file_path: Optional path to the resume file (for better PDF extraction)
         
         Returns:
-            List of canonical skill names or skill objects
+            List of skill dicts with {skill, proficiency, confidence, found_in, context_boost, evidence}
         """
         if not resume_text and not file_path:
             return []
         
-        # If file_path is provided and it's a PDF, we might want to get better text
+        # If file_path is a PDF, use pdfplumber for better text extraction
         current_text = resume_text
         if file_path and file_path.lower().endswith('.pdf') and self.priority_extractor:
             try:
@@ -188,116 +202,15 @@ class SkillExtractor:
             except Exception as e:
                 print(f"⚠️ PDF extraction with pdfplumber failed: {e}")
 
-        # Try Priority Extractor (User's Logic) - HIGHEST PRIORITY
-        try:
-            print("🔍 Running Priority skill extraction...")
-            if self.priority_extractor:
-                priority_skills = self.priority_extractor.extract_skills(current_text)
-                if priority_skills and len(priority_skills) > 3:
-                    print(f"✅ Priority Extractor found {len(priority_skills)} skills")
-                    return priority_skills
-                else:
-                    print("⚠️ Priority Extractor found few skills, falling back...")
-        except Exception as e:
-            print(f"⚠️ Priority Extraction failed: {e}")
+        # Use ONLY PrioritySkillExtractor
+        if not self.priority_extractor:
+            print("❌ PrioritySkillExtractor not initialized!")
+            return []
 
-        # Use ATS extractor for better results
-        if use_ats:
-            print("🔍 Running ATS-style skill extraction...")
-            result = self.ats_extractor.extract_skills(resume_text)
-            skills = list(result.skills.keys())
-            print(f"✅ ATS extracted {len(skills)} skills")
-            return skills[:35]
-        
-        # Try HuggingFace if requested or as fallback
-        if self.hf_extractor and self.hf_extractor.is_available():
-            print("🔍 Running HuggingFace-style skill extraction...")
-            hf_skills = self.hf_extractor.extract_skills_from_resume(resume_text)
-            if hf_skills:
-                print(f"✅ HuggingFace extracted {len(hf_skills)} skills")
-                return hf_skills
-        
-        # Fallback to legacy method
-        # Score tracker: {canonical_name: score}
-        scores = defaultdict(float)
-        
-        # 1. Structured extraction
-        parsed = self.resume_parser.parse_resume(resume_text)
-        
-        # Extract from dedicated SKILLS section (Highest priority)
-        if parsed.get('skills'):
-            for skill in parsed['skills']:
-                canonical = self._get_canonical_skill(skill)
-                if canonical:
-                    scores[canonical] += 15.0
-        
-        # Extract from projects
-        if parsed.get('projects'):
-            for project in parsed['projects']:
-                for tech in project.get('tech_stack', []):
-                    canonical = self._get_canonical_skill(tech)
-                    if canonical:
-                        scores[canonical] += 8.0
-        
-        # Extract from work experience
-        if parsed.get('experience'):
-            for exp in parsed['experience']:
-                for tech in exp.get('technologies_used', []):
-                    canonical = self._get_canonical_skill(tech)
-                    if canonical:
-                        scores[canonical] += 8.0
-        
-        # 2. Taxonomy-based extraction (from entire text)
-        print("🔍 Running taxonomy-based extraction on resume...")
-        taxonomy_skills = self.extract_skills_from_text(resume_text)
-        resume_lower = resume_text.lower()
-        
-        for skill in taxonomy_skills:
-            canonical = self._get_canonical_skill(skill)
-            if not canonical: continue
-            
-            # Base taxonomy score
-            scores[canonical] += 3.0
-            
-            # Frequency boost
-            count = resume_lower.count(canonical.lower().replace('-', ' '))
-            count += resume_lower.count(canonical.lower())
-            scores[canonical] += min(count * 2.0, 10.0) # Up to 10 points for frequency
-            
-        # 3. Apply category weights and specific skill weights
-        final_scores = {}
-        for skill, score in scores.items():
-            # Apply weight from healthcare_skills.json if exists
-            weight = self.weights.get(skill, 1.0)
-            
-            # Boost if it's a technical category, penalize if it's very generic
-            category = self._get_skill_category(skill)
-            if category == 'soft-skills':
-                weight *= 0.6 # Soft skills are less "unique" technical identifiers
-            
-            final_scores[skill] = score * weight
-            
-        # 4. Filter and Limit
-        sorted_skills = sorted(final_scores.items(), key=lambda x: x[1], reverse=True)
-        
-        # Limit soft skills to max 4
-        result = []
-        soft_skill_count = 0
-        
-        for skill, score in sorted_skills:
-            category = self._get_skill_category(skill)
-            if category == 'soft-skills':
-                if soft_skill_count < 4:
-                    result.append(skill)
-                    soft_skill_count += 1
-            else:
-                result.append(skill)
-                
-            # Stop when we have around 18-22 skills (users usually list 15-20)
-            if len(result) >= 20:
-                break
-                
-        return result
+        print("🔍 Running Priority skill extraction...")
+        priority_skills = self.priority_extractor.extract_skills(current_text)
+        print(f"✅ Priority Extractor found {len(priority_skills)} skills")
+        return priority_skills
 
     def extract_skills_with_proficiency(self, resume_text: str) -> Dict[str, Dict]:
         """
@@ -372,13 +285,16 @@ class SkillExtractor:
             skill_clean = skill.lower()
             skill_space = skill_clean.replace('-', ' ')
             
-            # 1. Exact match for canonical name or simple variations
-            if (skill_clean in ngrams or 
-                skill_space in ngrams or 
-                skill_clean in cleaned_text or 
-                skill_space in cleaned_text):
+            # 1. Exact match for canonical name or simple variations (using n-grams for word boundary safety)
+            if (skill_clean in ngrams or skill_space in ngrams):
                 found_skills.add(skill)
                 continue
+            
+            # For longer skills, we can be slightly more flexible if they aren't in n-grams (e.g., concatenated)
+            if len(skill_clean) > 3:
+                if (skill_clean in cleaned_text or skill_space in cleaned_text):
+                    found_skills.add(skill)
+                    continue
             
             # 2. Check synonym matches (using the fixed mapping)
             # Variants recorded for this canonical skill
