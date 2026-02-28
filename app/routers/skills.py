@@ -447,8 +447,11 @@ def extract_user_skills(user_id: int):
             
             source_id = skill_info.get('source_id', 'priority:0')
             found_in = skill_info.get('found_in', [])
-            # Store found_in sections as sources for frontend display
-            sources_data = found_in if found_in else [source_id]
+            llm_refined = skill_info.get('llm_refined', False)
+            # Store found_in sections as sources; add 'llm_refined' marker if applicable
+            sources_data = list(found_in) if found_in else [source_id]
+            if llm_refined and 'llm_refined' not in sources_data:
+                sources_data.append('llm_refined')
             cursor.execute('''
                 INSERT INTO user_skills 
                 (user_id, skill_name, proficiency, confidence, source_count, sources)
@@ -622,7 +625,10 @@ def extract_all_skills(user_id: int):
             # Save resume skills
             for skill_info in skills_data:
                 found_in = skill_info.get('found_in', [])
-                sources_data = found_in if found_in else ['priority:0']
+                llm_refined = skill_info.get('llm_refined', False)
+                sources_data = list(found_in) if found_in else ['priority:0']
+                if llm_refined and 'llm_refined' not in sources_data:
+                    sources_data.append('llm_refined')
                 cursor.execute('''
                     INSERT INTO user_skills 
                     (user_id, skill_name, proficiency, confidence, source_count, sources)

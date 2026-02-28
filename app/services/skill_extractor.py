@@ -10,6 +10,11 @@ from .ats_skill_extractor import ATSSkillExtractor
 from .huggingface_skill_extractor import HuggingFaceSkillExtractor
 from .priority_skill_extractor import PrioritySkillExtractor
 
+try:
+    from .groq_skill_refiner import GroqSkillRefiner
+except ImportError:
+    GroqSkillRefiner = None  # type: ignore
+
 
 # Import PDF/DOCX readers
 try:
@@ -26,7 +31,7 @@ except ImportError:
 class SkillExtractor:
     """Extract skills from text using NLP techniques."""
     
-    def __init__(self, skills_file_path: str, hf_extractor: Optional[HuggingFaceSkillExtractor] = None):
+    def __init__(self, skills_file_path: str, hf_extractor: Optional[HuggingFaceSkillExtractor] = None, groq_refiner=None):
         """Initialize with healthcare skills taxonomy."""
         with open(skills_file_path, 'r', encoding='utf-8') as f:
             skills_data = json.load(f)
@@ -54,6 +59,9 @@ class SkillExtractor:
         self._skills_file_path = skills_file_path
         self.ats_extractor = ATSSkillExtractor(skills_file_path)
         self.hf_extractor = hf_extractor
+        
+        # Groq LLM refiner (optional — falls back gracefully if not available)
+        self.groq_refiner = groq_refiner
         
         # Initialize Priority Extractor
         try:
@@ -210,6 +218,18 @@ class SkillExtractor:
         print("🔍 Running Priority skill extraction...")
         priority_skills = self.priority_extractor.extract_skills(current_text)
         print(f"✅ Priority Extractor found {len(priority_skills)} skills")
+
+        # --- Groq LLM Refinement ---
+        if self.groq_refiner and self.groq_refiner.is_available() and priority_skills:
+            print("🧠 Running Groq LLM refinement...")
+            priority_skills = self.groq_refiner.refine_skills(current_text, priority_skills)
+        else:
+            # Mark all as not LLM-refined if refiner isn't available
+            priority_skills = [
+                {**s, "llm_refined": False, "llm_reasoning": ""}
+                for s in priority_skills
+            ]
+
         return priority_skills
 
     def extract_skills_with_proficiency(self, resume_text: str) -> Dict[str, Dict]:

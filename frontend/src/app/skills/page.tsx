@@ -38,6 +38,25 @@ import {
 
 const PROFICIENCY_COLORS = ['#22c55e', '#3b82f6', '#f59e0b', '#6366f1', '#ec4899', '#f43f5e'];
 
+/**
+ * Check if a skill was refined by the Groq LLM.
+ * The sources array contains 'llm_refined' as a marker when Groq refined the score.
+ */
+function isLlmRefined(skill: Skill): boolean {
+    let sources: string[] = [];
+    if (typeof skill.sources === 'string') {
+        try {
+            const parsed = JSON.parse(skill.sources);
+            sources = Array.isArray(parsed) ? parsed : [skill.sources];
+        } catch {
+            sources = [skill.sources];
+        }
+    } else if (Array.isArray(skill.sources)) {
+        sources = skill.sources as string[];
+    }
+    return sources.includes('llm_refined');
+}
+
 interface SkillCourseInfo {
     loading: boolean;
     courses: any[];
@@ -373,41 +392,53 @@ export default function SkillsPage() {
                                     </div>
                                 ))}
 
-                                {filter === 'all' && skills.sort((a, b) => b.proficiency - a.proficiency).map((skill, i) => (
-                                    <div key={skill.id || i} className="card-simple group p-5 flex flex-col h-full transition-all">
-                                        <div className="flex items-center gap-4 mb-4">
-                                            <div className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center font-bold text-sm">
-                                                {skill.skill_name.charAt(0)}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight truncate">{skill.skill_name}</h4>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <div className="flex items-center gap-1">
-                                                        <Star size={10} className="text-amber-400 fill-amber-400" />
-                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Verified</span>
+                                {filter === 'all' && skills.sort((a, b) => b.proficiency - a.proficiency).map((skill, i) => {
+                                    const aiRefined = isLlmRefined(skill);
+                                    return (
+                                        <div key={skill.id || i} className={`card-simple group p-5 flex flex-col h-full transition-all ${aiRefined ? 'hover:border-purple-100' : ''}`}>
+                                            <div className="flex items-center gap-4 mb-4">
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${aiRefined ? 'bg-purple-50 text-purple-600' : 'bg-green-50 text-green-600'}`}>
+                                                    {skill.skill_name.charAt(0).toUpperCase()}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight truncate">{skill.skill_name}</h4>
+                                                        {aiRefined && (
+                                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-50 text-purple-600 border border-purple-100 rounded text-[8px] font-black uppercase tracking-widest flex-shrink-0">
+                                                                AI ✦
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                    <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
-                                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                                                        {Array.isArray(skill.sources) ? (typeof skill.sources[0] === 'string' ? skill.sources[0].split(':')[0] : 'Portfolio') : 'Portfolio'}
-                                                    </span>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <div className="flex items-center gap-1">
+                                                            {aiRefined ? (
+                                                                <Sparkles size={10} className="text-purple-400" />
+                                                            ) : (
+                                                                <Star size={10} className="text-amber-400 fill-amber-400" />
+                                                            )}
+                                                            <span className={`text-[9px] font-bold uppercase tracking-widest ${aiRefined ? 'text-purple-400' : 'text-gray-400'}`}>
+                                                                {aiRefined ? 'LLM Verified' : 'Resume Detected'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-1.5">
+                                                <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
+                                                    <span className="text-gray-400">Expertise Level</span>
+                                                    <span className={`font-black ${aiRefined ? 'text-purple-600' : 'text-green-600'}`}>{Math.round(skill.proficiency * 100)}%</span>
+                                                </div>
+                                                <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                                                    <div
+                                                        className={`h-full rounded-full transition-all duration-1000 ${aiRefined ? 'bg-purple-500' : 'bg-green-500'}`}
+                                                        style={{ width: `${skill.proficiency * 100}%` }}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
-
-                                        <div className="space-y-1.5">
-                                            <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
-                                                <span className="text-gray-400">Expertise Level</span>
-                                                <span className="text-green-600 font-black">{Math.round(skill.proficiency * 100)}%</span>
-                                            </div>
-                                            <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
-                                                <div
-                                                    className="h-full bg-green-500 rounded-full transition-all duration-1000"
-                                                    style={{ width: `${skill.proficiency * 100}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>

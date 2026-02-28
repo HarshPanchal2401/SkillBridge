@@ -19,6 +19,7 @@ from app.services.course_recommender import CourseRecommender
 from app.services.github_analyzer import GitHubAnalyzer
 from app.services.huggingface_skill_extractor import HuggingFaceSkillExtractor
 from app.services.market_skill_searcher import MarketSkillSearcher
+from app.services.groq_skill_refiner import GroqSkillRefiner
 
 # Load environment variables
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env'))
@@ -61,16 +62,19 @@ class ServiceContainer:
         self._tavily_api_key = os.getenv("TAVILY_API_KEY", "")
         self._gemini_api_key = os.getenv("GEMINI_API_KEY", "")
         self._huggingface_api_key = os.getenv("HUGGINGFACE_API_KEY") or os.getenv("HF_TOKEN", "")
+        self._groq_api_key = os.getenv("GROQ_API_KEY", "")
         
         # Log API key status
         logger.info(f"🔑 RAPIDAPI_KEY: {'✓ Loaded' if self._rapidapi_key else '✗ Not set'}")
         logger.info(f"🔑 TAVILY_API_KEY: {'✓ Loaded' if self._tavily_api_key else '✗ Not set'}")
         logger.info(f"🔑 GEMINI_API_KEY: {'✓ Loaded' if self._gemini_api_key else '✗ Not set'}")
         logger.info(f"🔑 HUGGINGFACE_API_KEY: {'✓ Loaded' if self._huggingface_api_key else '✗ Not set'}")
+        logger.info(f"🔑 GROQ_API_KEY: {'✓ Loaded' if self._groq_api_key else '✗ Not set'}")
         
         # Initialize core services
         self._huggingface_extractor = HuggingFaceSkillExtractor(self._huggingface_api_key) if self._huggingface_api_key else None
-        self._skill_extractor = SkillExtractor(SKILLS_FILE, hf_extractor=self._huggingface_extractor)
+        self._groq_refiner = GroqSkillRefiner(self._groq_api_key)
+        self._skill_extractor = SkillExtractor(SKILLS_FILE, hf_extractor=self._huggingface_extractor, groq_refiner=self._groq_refiner)
         self._resume_parser = ResumeParser()
         
         # Initialize dependent services
@@ -130,6 +134,11 @@ class ServiceContainer:
         return self._market_skill_searcher
     
     @property
+    def groq_refiner(self) -> GroqSkillRefiner:
+        """Get the Groq skill refiner service."""
+        return self._groq_refiner
+    
+    @property
     def upload_dir(self) -> str:
         """Get the upload directory path."""
         return UPLOAD_DIR
@@ -141,6 +150,10 @@ class ServiceContainer:
     def has_llm_api(self) -> bool:
         """Check if HuggingFace API is configured and available."""
         return self._huggingface_extractor is not None and self._huggingface_extractor.is_available()
+    
+    def has_groq_api(self) -> bool:
+        """Check if Groq API is configured and available."""
+        return self._groq_refiner.is_available()
     
     def has_tavily_api(self) -> bool:
         """Check if Tavily API is configured."""
@@ -154,6 +167,7 @@ class ServiceContainer:
             "linkedin_api": "available" if self.has_linkedin_api() else "not_configured",
             "tavily_api": "available" if self.has_tavily_api() else "not_configured",
             "llm_api": "available" if self.has_llm_api() else "not_configured",
+            "groq_refiner": "available" if self.has_groq_api() else "not_configured",
             "gap_analyzer": "healthy",
             "course_recommender": "healthy",
             "github_analyzer": "healthy",
