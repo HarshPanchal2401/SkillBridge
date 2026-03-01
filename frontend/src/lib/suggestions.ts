@@ -31,7 +31,7 @@ export const SPECIALIZATIONS = [
     'Finance',
     'Human Resource Management',
     'Business Analytics',
-    'Healthcare Management',
+    'Product Management',
     'Biotechnology',
     'Digital Marketing',
 ];
@@ -178,7 +178,7 @@ export const TARGET_ROLES = [
     'Data Science / Data Analyst',
     'Machine Learning Engineer',
     'Mobile Developer',
-    'Healthcare Data Analyst',
+    'Business Analyst',
     'UI/UX Designer',
     'Systems Architect',
     'Cloud Architect',

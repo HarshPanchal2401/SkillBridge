@@ -71,7 +71,7 @@ class EnhancedSkillExtractor:
             'vscode': 'vs code', 'vim': 'vim', 'jupyter': 'jupyter notebook',
             'postman': 'postman', 'swagger': 'swagger', 
             
-            # Healthcare specific
+            # Domain specific
             'ehr': 'ehr systems', 'emr': 'emr systems', 'hl7': 'hl7',
             'fhir': 'fhir', 'dicom': 'dicom', 'hipaa': 'hipaa compliance',
         }

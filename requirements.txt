@@ -1,4 +1,4 @@
-# Requirements for Healthcare Skill Intelligence System
+# Requirements for SkillBridge Career Intelligence System
 # Install with: pip install -r requirements.txt
 
 # Core Framework

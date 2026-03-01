@@ -12,16 +12,26 @@ export interface GapAnalysis {
     overall_readiness: number;
     critical_gaps: any[];
     important_gaps: any[];
-    gaps: {
-        skill: string;
-        priority: 'high' | 'medium' | 'low';
-    }[];
+    skill_gaps: {
+        critical: any[];
+        important: any[];
+        emerging: any[];
+    };
+    immediate_learning?: any[];
+    skill_learning?: any[];
     fetched_market_skills?: any[];
     skills_source?: string;
     matched_skills?: any[];
     missing_skills?: any[];
+    strengths?: any[];
     target_role?: { id: string, title: string };
     match_percentage?: number;
+    learning_path: {
+        immediate_focus: string[];
+        next_steps: string[];
+        future_skills: string[];
+        estimated_months: number;
+    };
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';

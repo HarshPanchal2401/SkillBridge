@@ -44,9 +44,9 @@ export default function HomePage() {
     ];
 
     const domains = [
-        { name: 'Healthcare', icon: '🏥', border: 'border-l-healthcare' },
-        { name: 'Agriculture', icon: '🌾', border: 'border-l-agriculture' },
-        { name: 'Smart Cities', icon: '🏙️', border: 'border-l-smartcity' },
+        { name: 'AI & Machine Learning', icon: '🤖', border: 'border-l-green-500' },
+        { name: 'Cloud & DevOps', icon: '☁️', border: 'border-l-blue-500' },
+        { name: 'Web & Mobile Dev', icon: '💻', border: 'border-l-purple-500' },
     ];
 
     if (loading) {
@@ -97,7 +97,7 @@ export default function HomePage() {
 
                     <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-12">
                         Smart skill analysis, domain recommendations, and personalized roadmaps
-                        tailored for growth in <span className="font-medium text-gray-900">Healthcare, Agriculture, and Smart Cities</span>.
+                        tailored for growth across <span className="font-medium text-gray-900">every technology domain</span>.
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">

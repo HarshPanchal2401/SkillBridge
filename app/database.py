@@ -12,7 +12,7 @@ from app.logging_config import get_logger, log_database_query
 
 # Get the base directory
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATABASE_PATH = os.path.join(BASE_DIR, "healthcare_skills.db")
+DATABASE_PATH = os.path.join(BASE_DIR, "skillbridge.db")
 
 # Thread-local storage for connections
 _thread_local = local()
@@ -241,7 +241,7 @@ def init_db() -> None:
             graduation_year INTEGER,
             location TEXT,
             target_role TEXT,
-            target_sector TEXT DEFAULT 'healthcare',
+            target_sector TEXT DEFAULT 'technology',
             phone TEXT,
             linkedin_url TEXT,
             github_url TEXT,

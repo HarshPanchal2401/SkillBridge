@@ -1,4 +1,4 @@
-"""Custom middleware for the Healthcare Skill Intelligence API."""
+"""Custom middleware for the SkillBridge Career Intelligence API."""
 import time
 import uuid
 from typing import Callable, Dict

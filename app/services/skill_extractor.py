@@ -32,7 +32,7 @@ class SkillExtractor:
     """Extract skills from text using NLP techniques."""
     
     def __init__(self, skills_file_path: str, hf_extractor: Optional[HuggingFaceSkillExtractor] = None, groq_refiner=None):
-        """Initialize with healthcare skills taxonomy."""
+        """Initialize with skills taxonomy."""
         with open(skills_file_path, 'r', encoding='utf-8') as f:
             skills_data = json.load(f)
         

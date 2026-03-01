@@ -18,7 +18,7 @@ class User(Base):
     graduation_year = Column(Integer, nullable=True)
     location = Column(String, nullable=True)
     target_role = Column(String, nullable=True)
-    target_sector = Column(String, default="healthcare")
+    target_sector = Column(String, default="technology")
     phone = Column(String, nullable=True)
     linkedin_url = Column(String, nullable=True)
     github_url = Column(String, nullable=True)

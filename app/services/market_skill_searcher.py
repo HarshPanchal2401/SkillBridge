@@ -79,6 +79,7 @@ class MarketSkillSearcher:
             # Programming languages
             "python", "javascript", "java", "c++", "c#", "ruby", "go", "rust", "swift", 
             "kotlin", "typescript", "php", "scala", "r", "matlab", "perl", "bash", "shell",
+            "ai", "artificial intelligence", "genai", "generative ai",
             
             # Frontend
             "react", "angular", "vue", "vue.js", "next.js", "nuxt.js", "svelte", "jquery",
@@ -137,7 +138,7 @@ class MarketSkillSearcher:
         self,
         role_title: str,
         force_refresh: bool = False,
-        max_skills: int = 20
+        max_skills: int = 50
     ) -> Dict:
         """
         Search the web for required skills for a given role.
@@ -388,9 +389,11 @@ class MarketSkillSearcher:
             "data analyst": "data_science_analyst",
             "machine learning": "machine_learning_engineer",
             "ml engineer": "machine_learning_engineer",
+            "ai engineer": "machine_learning_engineer",
+            "ai/ml": "machine_learning_engineer",
             "devops": "devops_engineer",
             "dev ops": "devops_engineer",
-            "healthcare": "healthcare_data_analyst",
+            "healthcare data": "healthcare_data_analyst",
             "mobile": "mobile_developer",
             "android": "mobile_developer",
             "ios": "mobile_developer"

@@ -277,7 +277,7 @@ def get_sample_market_requirements() -> dict:
             "requirement_level": "important",
             "avg_proficiency_needed": 0.60
         },
-        "healthcare-data": {
+        "data-visualization": {
             "frequency": 0.55,
             "requirement_level": "important",
             "avg_proficiency_needed": 0.65

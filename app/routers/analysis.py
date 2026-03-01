@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api", tags=["Analysis"])
 @router.get("/users/{user_id}/gap-analysis")
 def analyze_user_gaps(
     user_id: int,
-    job_title: str = "Healthcare Data Analyst",
+    job_title: str = "Data Analyst",
     location: str = "United States"
 ):
     """
@@ -84,8 +84,11 @@ def analyze_user_gaps(
         # Perform gap analysis
         gap_analyzer = services.gap_analyzer
         # Pass the global synonym map from SkillExtractor for consistent matching
-        synonym_map = services.skill_extractor.synonym_map
-        gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements, synonym_map=synonym_map)
+        gap_result = gap_analyzer.analyze_gaps(
+            user_skills, 
+            market_requirements,
+            synonym_map=services.skill_extractor.synonyms
+        )
         
         # Format fetched market skills for frontend display
         fetched_market_skills = []
@@ -98,18 +101,16 @@ def analyze_user_gaps(
                 "trending": req.get("trending", False)
             })
         
-        # Sort by demand (descending) - highest demand first
-        fetched_market_skills.sort(key=lambda x: x['demand'], reverse=True)
+        # Sort by demand (ascending) - least to high demanded
+        fetched_market_skills.sort(key=lambda x: x['demand'])
         
-        # Use accurate results from GapAnalyzer
-        matched_skills = gap_result['strengths']
-        missing_skills = gap_result['critical_gaps'] + gap_result['important_gaps'] + gap_result['emerging_gaps']
+        # Format detailed results for frontend
+        detailed = gap_result.get('detailed_results', {})
         
-        # Sort by requirement level and demand (already mostly sorted by GapAnalyzer)
-        level_priority = {"critical": 0, "important": 1, "emerging": 2}
-        missing_skills.sort(key=lambda x: (level_priority.get(x["requirement_level"], 3), -x.get("market_demand", 0)))
-        matched_skills.sort(key=lambda x: (-x["gap"], level_priority.get(x["requirement_level"], 3)))
-
+        # Map GapAnalyzer results to frontend categories
+        immediate_learning = detailed.get('critical', [])
+        skill_learning = detailed.get('important', [])
+        
         return {
             "message": "Gap analysis complete",
             "user_id": user_id,
@@ -120,12 +121,16 @@ def analyze_user_gaps(
             "market_skills_count": len(market_requirements),
             "overall_readiness": gap_result['overall_readiness'],
             "summary": gap_result['summary'],
-            "critical_gaps": gap_result['critical_gaps'][:5],
-            "important_gaps": gap_result['important_gaps'][:5],
-            "emerging_gaps": gap_result['emerging_gaps'][:5],
-            "matched_skills": matched_skills[:10],
-            "missing_skills": missing_skills[:10],
-            "strengths": gap_result['strengths'][:5]
+            "immediate_learning": immediate_learning,
+            "skill_learning": skill_learning,
+            "strengths": detailed.get('strengths', []),
+            "matched_skills": detailed.get('strengths', []),
+            "missing_skills": gap_result['critical_gaps'] + gap_result['important_gaps'] + gap_result['emerging_gaps'],
+            "skill_gaps": {
+                "critical": gap_result['critical_gaps'],
+                "important": gap_result['important_gaps'],
+                "emerging": gap_result['emerging_gaps']
+            }
         }
 
 
@@ -167,7 +172,7 @@ def get_recommended_courses(
         
         # Get market requirements (from cache or API)
         # Use user's target role from DB if available, otherwise default
-        target_role = user_dict.get('target_role') or 'Healthcare Data Analyst'
+        target_role = user_dict.get('target_role') or 'Data Analyst'
         location = user_dict.get('location', 'United States')
 
         if services.has_tavily_api():
@@ -364,7 +369,7 @@ def analyze_user_github(user_id: int, github_url: Optional[str] = None):
 @router.post("/users/{user_id}/complete-analysis")
 def run_complete_analysis(
     user_id: int,
-    target_job: str = "Healthcare Data Analyst",
+    target_job: str = "Data Analyst",
     location: str = "United States"
 ):
     """
@@ -530,7 +535,7 @@ def get_available_roles():
     }
 
 
-@router.get("/roles/{role_id}/requirements")
+@router.get("/roles/{role_id:path}/requirements")
 def get_role_requirements(role_id: str):
     """Get market skills required for a specific role."""
     roles_data = load_role_requirements()
@@ -557,11 +562,11 @@ def get_role_requirements(role_id: str):
     }
 
 
-@router.get("/market-skills/search/{role_name}")
+@router.get("/market-skills/search/{role_name:path}")
 def get_live_market_skills(
     role_name: str,
     force_refresh: bool = False,
-    max_skills: int = 20
+    max_skills: int = 50
 ):
     """
     Fetch current trending skills for a role from the internet.
@@ -657,7 +662,7 @@ def analyze_user_for_role(
     market_searcher = services.market_skill_searcher
     
     print(f"🔍 Searching live market skills for: {role_title}")
-    live_result = market_searcher.search_role_skills(role_title)
+    live_result = market_searcher.search_role_skills(role_title, max_skills=50)
     market_requirements = live_result.get("skills", {})
     skills_source = live_result.get("source", "web_search")
     
@@ -784,9 +789,14 @@ def analyze_user_for_role(
                 "trending": req.get("trending", False)
             })
         
-        # Sort by demand (descending) - highest demand first
-        fetched_market_skills.sort(key=lambda x: x['demand'], reverse=True)
+        # Sort by demand (ascending) - least to high demanded
+        fetched_market_skills.sort(key=lambda x: x['demand'])
         
+        # Format detailed results for frontend
+        detailed = gap_result.get('detailed_results', {})
+        immediate_learning = detailed.get('critical', [])
+        skill_learning = detailed.get('important', [])
+
         return {
             "message": "Role-based skill gap analysis complete",
             "user_id": user_id,
@@ -794,8 +804,8 @@ def analyze_user_for_role(
                 "id": role_id,
                 "title": role_title
             },
-            "skills_source": skills_source,  # "static", "web_search", or "fallback"
-            "fetched_market_skills": fetched_market_skills,  # Skills fetched from internet for the target role
+            "skills_source": skills_source,
+            "fetched_market_skills": fetched_market_skills,
             "readiness": {
                 "score": gap_result['overall_readiness'],
                 "interpretation": gap_result['summary']['interpretation'],
@@ -803,23 +813,25 @@ def analyze_user_for_role(
             },
             "skills_analysis": {
                 "total_role_skills": len(market_requirements),
-                "user_skills_matched": len(matched_skills),
-                "skills_missing": len(missing_skills),
-                "match_percentage": round(len(matched_skills) / len(market_requirements) * 100, 1) if market_requirements else 0
+                "user_skills_matched": gap_result['summary']['strength_count'] + len(skill_learning), # Approximate match
+                "skills_missing": gap_result['summary']['critical_gap_count'],
+                "match_percentage": gap_result['overall_readiness']
             },
             "skill_gaps": {
-                "critical": gap_result['critical_gaps'][:5],
-                "important": gap_result['important_gaps'][:5],
-                "emerging": gap_result['emerging_gaps'][:3]
+                "critical": gap_result['critical_gaps'],
+                "important": gap_result['important_gaps'],
+                "emerging": gap_result['emerging_gaps']
             },
-            "missing_skills": missing_skills[:10],
-            "matched_skills": matched_skills[:10],
-            "strengths": gap_result['strengths'][:5],
+            "immediate_learning": immediate_learning,
+            "skill_learning": skill_learning,
+            "strengths": detailed.get('strengths', []),
+            "matched_skills": detailed.get('strengths', []),
+            "missing_skills": gap_result['critical_gaps'] + gap_result['important_gaps'] + gap_result['emerging_gaps'],
             "course_recommendations": recommendations,
             "learning_path": {
-                "immediate_focus": [s["skill"] for s in missing_skills if s["requirement_level"] == "critical"][:3],
-                "next_steps": [s["skill"] for s in missing_skills if s["requirement_level"] == "important"][:3],
-                "future_skills": [s["skill"] for s in missing_skills if s["requirement_level"] == "emerging"][:2],
+                "immediate_focus": [g['skill'] for g in immediate_learning[:3]],
+                "next_steps": [g['skill'] for g in skill_learning[:3]],
+                "future_skills": gap_result['emerging_gaps'][:2],
                 "estimated_months": 3 if gap_result['overall_readiness'] >= 60 else 6 if gap_result['overall_readiness'] >= 40 else 9
             }
         }
@@ -868,7 +880,7 @@ def get_gap_based_course_recommendations(
                     'machine learning': 'machine_learning_engineer',
                     'ml engineer': 'machine_learning_engineer',
                     'devops': 'devops_engineer',
-                    'healthcare': 'healthcare_data_analyst',
+                    'data analyst': 'data_science_analyst',
                     'mobile': 'mobile_developer',
                 }
                 profile_lower = profile_role.lower()

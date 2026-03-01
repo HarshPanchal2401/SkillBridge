@@ -91,9 +91,9 @@ export default function SkillsPage() {
                 api.getUserSkills(userId).catch(() => []),
             ]);
 
-            if (!currentGap) {
-                // If not in global state, fetch it once
-                currentGap = await refreshGapAnalysis();
+            if (!currentGap || !currentGap.missing_skills) {
+                // If not in global state or if it's the old cached version without missing_skills
+                currentGap = await refreshGapAnalysis(true);
             }
 
             setSkills(skillsData);
@@ -314,16 +314,16 @@ export default function SkillsPage() {
                                             </button>
                                         </div>
 
-                                        {/* Proficiency Level */}
+                                        {/* Skill Gap */}
                                         <div className="mt-3 space-y-1.5">
                                             <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
-                                                <span className="text-gray-400">Your Proficiency</span>
-                                                <span className={`font-black ${(gap.user_proficiency || 0) > 0 ? 'text-amber-600' : 'text-red-500'}`}>{Math.round((gap.user_proficiency || 0) * 100)}%</span>
+                                                <span className="text-gray-400">Identified Skill Gap</span>
+                                                <span className={`font-black ${(gap.gap || 0) > 70 ? 'text-red-500' : 'text-amber-600'}`}>{Math.round(gap.gap || 0)}% Gap</span>
                                             </div>
                                             <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
                                                 <div
-                                                    className={`h-full rounded-full transition-all duration-1000 ${(gap.user_proficiency || 0) > 0 ? 'bg-amber-400' : 'bg-red-300'}`}
-                                                    style={{ width: `${Math.max((gap.user_proficiency || 0) * 100, 2)}%` }}
+                                                    className={`h-full rounded-full transition-all duration-1000 ${(gap.gap || 0) > 70 ? 'bg-red-400' : 'bg-amber-400'}`}
+                                                    style={{ width: `${Math.max(gap.gap || 0, 2)}%` }}
                                                 />
                                             </div>
                                         </div>
@@ -380,12 +380,12 @@ export default function SkillsPage() {
                                         <div className="space-y-1.5">
                                             <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
                                                 <span className="text-gray-400">Your Proficiency</span>
-                                                <span className="text-green-600 font-black">{Math.round((match.user_proficiency || 0) * 100)}%</span>
+                                                <span className="text-green-600 font-black">{Math.round(match.user_proficiency || 0)}%</span>
                                             </div>
                                             <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
                                                 <div
                                                     className="h-full bg-green-500 rounded-full transition-all duration-1000"
-                                                    style={{ width: `${(match.user_proficiency || 0) * 100}%` }}
+                                                    style={{ width: `${match.user_proficiency || 0}%` }}
                                                 />
                                             </div>
                                         </div>
@@ -514,18 +514,25 @@ export default function SkillsPage() {
                                     <TrendingUp size={16} />
                                     <h4 className="text-[10px] font-bold uppercase tracking-widest">Live Market Pulse</h4>
                                 </div>
-                                <div className="space-y-2">
-                                    {gapAnalysis.fetched_market_skills.slice(0, 5).map((ms: any, i: number) => (
+                                <div className="space-y-2 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
+                                    {gapAnalysis.fetched_market_skills.map((ms: any, i: number) => (
                                         <div key={i} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl border border-gray-100 hover:border-blue-100 transition-colors">
                                             <span className="text-[11px] font-bold text-gray-700 uppercase tracking-tight">{ms.skill}</span>
-                                            <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 rounded-lg">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
-                                                <span className="text-[9px] font-black text-blue-600 uppercase">Hot</span>
+                                            <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-50 rounded-lg">
+                                                <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${ms.demand >= 0.7 ? 'bg-green-500' :
+                                                    ms.demand >= 0.4 ? 'bg-blue-500' : 'bg-amber-500'
+                                                    }`}></div>
+                                                <span className="text-[9px] font-black text-blue-600 uppercase">
+                                                    {ms.demand_percentage || `${Math.round((ms.demand || 0) * 100)}%`}
+                                                </span>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-                                <button className="w-full mt-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-green-600 transition-colors">
+                                <button
+                                    onClick={() => router.push('/gap-analysis')}
+                                    className="w-full mt-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-green-600 transition-colors"
+                                >
                                     Comprehensive Report
                                 </button>
                             </div>

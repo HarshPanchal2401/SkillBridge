@@ -63,7 +63,7 @@ class GitHubAnalyzer:
             
             # Headers (User-Agent required by GitHub)
             headers = {
-                'User-Agent': 'Healthcare-Skill-Intelligence-App',
+                'User-Agent': 'SkillBridge-Career-Intelligence-App',
                 'Accept': 'application/vnd.github.v3+json'
             }
             
@@ -125,7 +125,7 @@ class GitHubAnalyzer:
         try:
             url = f"https://api.github.com/repos/{username}/{repo_name}/languages"
             headers = {
-                'User-Agent': 'Healthcare-Skill-Intelligence-App',
+                'User-Agent': 'SkillBridge-Career-Intelligence-App',
                 'Accept': 'application/vnd.github.v3+json'
             }
             response = requests.get(url, headers=headers, timeout=10)

@@ -1,4 +1,4 @@
-"""Custom exception classes for the Healthcare Skill Intelligence API."""
+"""Custom exception classes for the SkillBridge Career Intelligence API."""
 from fastapi import HTTPException, status
 from typing import Optional, Dict, Any
 

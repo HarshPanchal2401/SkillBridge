@@ -22,12 +22,20 @@ import {
 
 interface SkillGap {
     skill: string;
-    has_skill: boolean;
-    market_demand: number;
+    gap: number;
     demand_percentage: number;
     requirement_level: string;
-    priority: string;
+    market_demand?: number;
+    user_proficiency?: number;
     impact?: string;
+}
+
+interface MarketSkill {
+    skill: string;
+    demand: number;
+    demand_percentage: string;
+    requirement_level: string;
+    trending: boolean;
 }
 
 interface GapAnalysisResult {
@@ -44,6 +52,8 @@ interface GapAnalysisResult {
         important: SkillGap[];
         emerging: SkillGap[];
     };
+    immediate_learning?: SkillGap[];
+    skill_learning?: SkillGap[];
     missing_skills: any[];
     matched_skills: any[];
     strengths: any[];
@@ -55,6 +65,7 @@ interface GapAnalysisResult {
         future_skills: string[];
         estimated_months: number;
     };
+    fetched_market_skills?: MarketSkill[];
 }
 
 export default function GapAnalysisPage() {
@@ -248,7 +259,7 @@ export default function GapAnalysisPage() {
                             {/* Critical Node Gaps */}
                             <div className="card-simple">
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center justify-between">
-                                    Critical Deficiencies
+                                    Critical Deficiencies ({'>'}70% Gap)
                                     <span className="px-2 py-0.5 bg-red-50 text-red-600 text-[9px] rounded-lg">{analysis.skill_gaps.critical.length}</span>
                                 </h3>
                                 {analysis.skill_gaps.critical.length === 0 ? (
@@ -257,18 +268,28 @@ export default function GapAnalysisPage() {
                                         <p className="text-[10px] font-bold uppercase tracking-widest">Minimal Friction</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-4">
-                                        {analysis.skill_gaps.critical.slice(0, 5).map((gap, i) => (
+                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {analysis.skill_gaps.critical.map((gap: any, i: number) => (
                                             <div key={i} className="group p-4 bg-gray-50 hover:bg-white border border-transparent hover:border-red-100 rounded-xl transition-all">
                                                 <div className="flex justify-between items-center mb-3">
                                                     <span className="text-sm font-bold text-gray-900">{gap.skill}</span>
-                                                    <span className="text-[9px] font-bold text-red-600 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded-md">Urgent</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[9px] font-black text-red-600 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded-md border border-red-100">
+                                                            {Math.round(gap.gap)}% Gap
+                                                        </span>
+                                                        <span className="text-[9px] font-bold text-red-400 uppercase tracking-widest">Urgent</span>
+                                                    </div>
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                                        <div className="h-full bg-red-500 rounded-full transition-all duration-1000" style={{ width: `${gap.demand_percentage}%` }}></div>
+                                                        <div
+                                                            className="h-full bg-red-500 rounded-full transition-all duration-1000"
+                                                            style={{ width: `${gap.demand_percentage || gap.market_demand}%` }}
+                                                        ></div>
                                                     </div>
-                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter w-12 text-right">{gap.demand_percentage}% Demand</span>
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter w-12 text-right">
+                                                        {Math.round(gap.demand_percentage || gap.market_demand)}% Demand
+                                                    </span>
                                                 </div>
                                             </div>
                                         ))}
@@ -280,24 +301,48 @@ export default function GapAnalysisPage() {
                             <div className="card-simple">
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center justify-between">
                                     Skill Gap Bridge
-                                    <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] rounded-lg">Tactical Flow</span>
+                                    <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] rounded-lg">Priority Learning</span>
                                 </h3>
                                 <div className="space-y-6">
                                     {[
-                                        { id: 'immediate', label: 'Primary Focus', items: analysis.learning_path.immediate_focus, color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-100' },
-                                        { id: 'next', label: 'Next Sequence', items: analysis.learning_path.next_steps, color: 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
+                                        {
+                                            id: 'immediate',
+                                            label: 'Immediate Learning (>70%)',
+                                            items: analysis.immediate_learning || [],
+                                            color: 'text-red-500',
+                                            bg: 'bg-red-50',
+                                            border: 'border-red-100'
+                                        },
+                                        {
+                                            id: 'next',
+                                            label: 'Skill Learning (30-70%)',
+                                            items: analysis.skill_learning || [],
+                                            color: 'text-amber-500',
+                                            bg: 'bg-amber-50',
+                                            border: 'border-amber-100'
+                                        },
                                     ].map((stage) => (
                                         <div key={stage.id} className="space-y-3">
                                             <div className="flex items-center gap-2">
                                                 <div className={`w-1 h-6 rounded-full ${stage.color} bg-current`}></div>
                                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{stage.label}</span>
                                             </div>
-                                            <div className="flex flex-wrap gap-1.5 pl-3">
-                                                {stage.items.length > 0 ? (
-                                                    stage.items.map((skill, i) => (
-                                                        <span key={i} className={`px-2.5 py-1 ${stage.bg} ${stage.color} rounded-lg text-[10px] font-bold border ${stage.border}`}>
-                                                            {skill}
-                                                        </span>
+                                            <div className="flex flex-col gap-2 pl-3">
+                                                {stage.items && stage.items.length > 0 ? (
+                                                    stage.items.map((gap: any, i: number) => (
+                                                        <div key={i} className={`p-2 rounded-lg border ${stage.border} ${stage.bg} flex justify-between items-center`}>
+                                                            <span className={`text-[11px] font-bold ${stage.color} uppercase tracking-tight`}>
+                                                                {gap.skill}
+                                                            </span>
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="text-[9px] font-bold text-gray-400 uppercase">
+                                                                    {Math.round(gap.demand_percentage || gap.market_demand || 0)}% Demand
+                                                                </span>
+                                                                <span className={`text-[10px] font-black ${stage.color} bg-white/50 px-2 py-0.5 rounded border border-current/10`}>
+                                                                    {Math.round(gap.gap)}% GAP
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                     ))
                                                 ) : (
                                                     <span className="text-[10px] font-bold text-gray-300 italic">No nodes identified</span>
@@ -317,23 +362,81 @@ export default function GapAnalysisPage() {
                             </div>
                         </div>
 
-                        {/* Inventory Context (Matched) */}
-                        <div className="card-simple">
-                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 px-1">Verified Competencies</h3>
-                            <div className="flex flex-wrap gap-2">
-                                {analysis.strengths.length > 0 ? (
-                                    analysis.strengths.map((s, i) => (
-                                        <div key={i} className="px-3 py-1.5 bg-green-50 text-green-700 border border-green-100 rounded-xl text-[10px] font-bold flex items-center gap-2 animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
-                                            <CheckCircle size={12} />
-                                            {s.skill}
+                        {/* Competencies and Market Intelligence Grid */}
+                        <div className="grid md:grid-cols-2 gap-8">
+                            {/* Inventory Context (Matched) */}
+                            <div className="card-simple">
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 px-1">Verified Competencies</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {analysis.strengths.length > 0 ? (
+                                        analysis.strengths.map((s, i) => (
+                                            <div key={i} className="px-3 py-1.5 bg-green-50 text-green-700 border border-green-100 rounded-xl text-[10px] font-bold flex items-center gap-2 animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
+                                                <CheckCircle size={12} />
+                                                {s.skill}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="w-full text-center py-6 opacity-20">
+                                            <TrendingUp size={24} className="mx-auto mb-2" />
+                                            <p className="text-[10px] font-bold uppercase">Zero confirmed nodes</p>
                                         </div>
-                                    ))
-                                ) : (
-                                    <div className="w-full text-center py-6 opacity-20">
-                                        <TrendingUp size={24} className="mx-auto mb-2" />
-                                        <p className="text-[10px] font-bold uppercase">Zero confirmed nodes</p>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* LIVE MARKET PLUS Section */}
+                            <div className="card-simple relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <TrendingUp size={48} className="text-green-600" />
+                                </div>
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center justify-between relative z-10">
+                                    LIVE MARKET PLUS
+                                    <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[9px] rounded-lg border border-green-100 flex items-center gap-1">
+                                        <TrendingUp size={8} />
+                                        Demand Spectrum
+                                    </span>
+                                </h3>
+
+                                <div className="space-y-4 relative z-10">
+                                    {analysis.fetched_market_skills && analysis.fetched_market_skills.length > 0 ? (
+                                        <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                            {analysis.fetched_market_skills.map((marketSkill, i) => (
+                                                <div key={i} className="flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-transparent hover:border-gray-200 hover:bg-white transition-all group/item">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-1.5 h-1.5 rounded-full ${marketSkill.requirement_level === 'critical' ? 'bg-red-500' :
+                                                            marketSkill.requirement_level === 'important' ? 'bg-amber-500' : 'bg-blue-500'
+                                                            }`}></div>
+                                                        <span className="text-xs font-bold text-gray-700">{marketSkill.skill}</span>
+                                                        {marketSkill.trending && (
+                                                            <Sparkles size={10} className="text-amber-500 animate-pulse" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">
+                                                            {marketSkill.demand_percentage}
+                                                        </span>
+                                                        <div className="w-16 h-1 bg-gray-100 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all duration-1000 ${marketSkill.demand >= 0.7 ? 'bg-green-500' :
+                                                                    marketSkill.demand >= 0.4 ? 'bg-amber-500' : 'bg-blue-400'
+                                                                    }`}
+                                                                style={{ width: marketSkill.demand_percentage }}
+                                                            ></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-10 opacity-30">
+                                            <Search size={32} className="mx-auto mb-3" />
+                                            <p className="text-[10px] font-bold uppercase tracking-widest">No market signals</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-[9px] font-bold text-gray-400 mt-6 uppercase tracking-widest text-center">
+                                    Real-time indices sorted by global industry demand
+                                </p>
                             </div>
                         </div>
                     </div>

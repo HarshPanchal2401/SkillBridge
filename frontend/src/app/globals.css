@@ -68,17 +68,7 @@ body {
   @apply w-1.5 h-full absolute left-0 top-0;
 }
 
-.domain-healthcare {
-  background-color: #10B981;
-}
-
-.domain-agriculture {
-  background-color: #F59E0B;
-}
-
-.domain-smartcity {
-  background-color: #6366F1;
-}
+/* Domain colors removed - using Tailwind utility classes directly */
 
 /* Progress bar */
 .progress-container {

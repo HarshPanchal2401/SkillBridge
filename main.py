@@ -1,4 +1,4 @@
-"""FastAPI Healthcare Skill Intelligence System - Enhanced Main Application"""
+"""FastAPI SkillBridge Career Intelligence System - Enhanced Main Application"""
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -41,7 +41,7 @@ logger = get_logger("main")
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown."""
     # Startup
-    logger.info("🚀 Starting Healthcare Skill Intelligence API...")
+    logger.info("🚀 Starting SkillBridge Career Intelligence API...")
     
     # Initialize database
     init_db()
@@ -62,7 +62,7 @@ async def lifespan(app: FastAPI):
     yield  # Application is running
     
     # Shutdown
-    logger.info("🛑 Shutting down Healthcare Skill Intelligence API...")
+    logger.info("🛑 Shutting down SkillBridge Career Intelligence API...")
     
     # Clear cache
     cache = get_cache()
@@ -90,9 +90,9 @@ def get_cors_origins() -> list:
 
 # ===== INITIALIZE FASTAPI APP =====
 app = FastAPI(
-    title="Healthcare Skill Intelligence API",
+    title="SkillBridge Career Intelligence API",
     description="""
-    AI-powered skill gap analysis for healthcare professionals.
+    AI-powered skill gap analysis and career intelligence platform.
     
     ## Features
     - **User Management**: Register and manage user profiles
@@ -100,7 +100,7 @@ app = FastAPI(
     - **Course Management**: Track completed courses
     - **Project Management**: Document projects and tech stack
     - **Skill Extraction**: NLP-based skill extraction from all sources
-    - **Job Search**: Search LinkedIn for healthcare jobs
+    - **Job Search**: Search for relevant jobs
     - **Gap Analysis**: Compare skills against market requirements
     - **Course Recommendations**: AI-powered course suggestions
     - **GitHub Analysis**: Extract skills from repositories
@@ -223,7 +223,7 @@ def read_root():
     """Root endpoint - API health check and info."""
     return {
         "success": True,
-        "message": "Healthcare Skill Intelligence API",
+        "message": "SkillBridge Career Intelligence API",
         "data": {
             "status": "online",
             "version": "2.0.0",
@@ -309,7 +309,7 @@ if __name__ == "__main__":
     reload = os.getenv("RELOAD", "false").lower() == "true"
     
     print("=" * 60)
-    print("🏥 Healthcare Skill Intelligence API")
+    print("🚀 SkillBridge Career Intelligence API")
     print("=" * 60)
     print(f"🌐 Server: http://{host}:{port}")
     print(f"📚 Documentation: http://{host}:{port}/docs")

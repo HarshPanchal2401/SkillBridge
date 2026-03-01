@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
     title: 'SkillBridge - Career Intelligence Platform',
-    description: 'Discover your ideal career path in Healthcare, Agriculture, and Smart Cities',
+    description: 'AI-powered career intelligence platform for skill gap analysis and career growth',
 };
 
 export default function RootLayout({

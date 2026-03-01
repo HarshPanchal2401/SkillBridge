@@ -1,4 +1,4 @@
-"""Logging configuration for the Healthcare Skill Intelligence API."""
+"""Logging configuration for the SkillBridge Career Intelligence API."""
 import logging
 import sys
 from datetime import datetime
@@ -46,7 +46,7 @@ def setup_logging(
     log_level = os.getenv("LOG_LEVEL", level).upper()
     
     # Create logger
-    logger = logging.getLogger("healthcare_api")
+    logger = logging.getLogger("skillbridge_api")
     logger.setLevel(getattr(logging, log_level, logging.INFO))
     logger.handlers = []  # Clear existing handlers
     
@@ -84,7 +84,7 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     Returns:
         Logger instance
     """
-    base_logger = logging.getLogger("healthcare_api")
+    base_logger = logging.getLogger("skillbridge_api")
     if name:
         return base_logger.getChild(name)
     return base_logger

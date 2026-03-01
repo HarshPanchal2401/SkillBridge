@@ -1,4 +1,4 @@
-"""Simple in-memory caching utilities for the Healthcare Skill Intelligence API."""
+"""Simple in-memory caching utilities for the SkillBridge Career Intelligence API."""
 import time
 from typing import Any, Optional, Dict, Callable
 from functools import wraps

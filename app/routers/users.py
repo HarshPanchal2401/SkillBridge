@@ -25,7 +25,7 @@ def register_user(user: schemas.UserCreate):
     - **name**: User's full name (2-100 characters)
     - **email**: User's email (must be unique, valid format)
     - **education**: Degree and major
-    - **target_role**: Target healthcare role
+    - **target_role**: Target career role
     
     Returns the created user with generated ID.
     """

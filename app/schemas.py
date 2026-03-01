@@ -67,7 +67,7 @@ class UserCreate(BaseModel):
     graduation_year: Optional[int] = Field(None, ge=1950, le=2100)
     location: Optional[str] = Field(None, max_length=100)
     target_role: Optional[str] = Field(None, max_length=100)
-    target_sector: str = Field(default="healthcare", max_length=50)
+    target_sector: str = Field(default="technology", max_length=50)
     phone: Optional[str] = Field(None, max_length=20)
     linkedin_url: Optional[str] = Field(None, max_length=500)
     github_url: Optional[str] = Field(None, max_length=500)
@@ -158,7 +158,7 @@ class UserResponse(BaseModel):
     graduation_year: Optional[int] = None
     location: Optional[str] = None
     target_role: Optional[str] = None
-    target_sector: str = "healthcare"
+    target_sector: str = "technology"
     phone: Optional[str] = None
     linkedin_url: Optional[str] = None
     github_url: Optional[str] = None
@@ -295,7 +295,7 @@ class ProfileSummary(BaseModel):
 # ===== JOB SCHEMAS =====
 class JobSearchRequest(BaseModel):
     """Schema for job search request."""
-    title: str = Field(default="Healthcare Data Analyst", max_length=200)
+    title: str = Field(default="Data Analyst", max_length=200)
     location: str = Field(default="United States", max_length=100)
     limit: int = Field(default=50, ge=1, le=100)
 

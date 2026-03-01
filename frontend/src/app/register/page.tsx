@@ -15,7 +15,7 @@ export default function RegisterPage() {
         graduation_year: new Date().getFullYear(),
         location: '',
         target_role: '',
-        target_sector: 'healthcare',
+        target_sector: 'technology',
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -42,7 +42,7 @@ export default function RegisterPage() {
                 graduation_year: formData.graduation_year || undefined,
                 location: formData.location.trim() || undefined,
                 target_role: formData.target_role.trim() || undefined,
-                target_sector: formData.target_sector || 'healthcare',
+                target_sector: formData.target_sector || 'technology',
             });
             router.push('/onboarding');
         } catch (err: any) {

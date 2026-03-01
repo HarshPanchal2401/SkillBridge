@@ -18,7 +18,7 @@ logger = get_logger("jobs")
 @router.get("/search")
 def search_jobs(
     title: str = Query(
-        default="Healthcare Data Analyst",
+        default="Data Analyst",
         max_length=200,
         description="Job title to search"
     ),
@@ -179,7 +179,7 @@ def analyze_job_skills(
 @router.post("/market-analysis")
 def analyze_market_requirements(
     title: str = Query(
-        default="Healthcare Data Analyst",
+        default="Data Analyst",
         max_length=200,
         description="Job title to analyze"
     ),
@@ -308,7 +308,7 @@ def get_trending_skills(
     )
 ):
     """
-    Get trending skills in healthcare based on market analysis.
+    Get trending skills based on market analysis.
     
     Uses sample data when market API is not available.
     """

@@ -20,9 +20,7 @@ module.exports = {
           800: '#166534',
           900: '#14532d',
         },
-        healthcare: '#10B981',
-        agriculture: '#F59E0B',
-        smartcity: '#6366F1',
+
       },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
