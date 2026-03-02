@@ -24,7 +24,8 @@ import {
     ChevronDown,
     ChevronUp,
     Briefcase,
-    Globe
+    Globe,
+    Wifi
 } from 'lucide-react';
 import {
     PieChart,
@@ -71,7 +72,7 @@ export default function SkillsPage() {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [roleInput, setRoleInput] = useState('');
     const [skillCourses, setSkillCourses] = useState<Record<string, SkillCourseInfo>>({});
-    const [filter, setFilter] = useState<'all' | 'matches' | 'gaps'>('all');
+    const [filter, setFilter] = useState<'User Skill' | 'Market Skill' | 'Gap'>('User Skill');
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -242,10 +243,10 @@ export default function SkillsPage() {
                 {/* Key Metrics Row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
-                        { label: 'Total Proficiency', value: skills.length, icon: Award, color: 'text-green-600', bg: 'bg-green-50' },
-                        { label: 'Market Matches', value: gapAnalysis?.matched_skills?.length || 0, icon: CheckCircle2, color: 'text-blue-600', bg: 'bg-blue-50' },
-                        { label: 'Growth Areas', value: gapAnalysis?.missing_skills?.length || 0, icon: AlertCircle, color: 'text-amber-600', bg: 'bg-amber-50' },
-                        { label: 'Readiness', value: `${Math.round(gapAnalysis?.overall_readiness || 0)}%`, icon: Target, color: 'text-purple-600', bg: 'bg-purple-50' },
+                        { label: 'Profile Skills', value: skills.length, icon: Award, color: 'text-green-600', bg: 'bg-green-50' },
+                        { label: 'Market Skills', value: gapAnalysis?.fetched_market_skills?.length || 0, icon: Target, color: 'text-blue-600', bg: 'bg-blue-50' },
+                        { label: 'Growth Tracking', value: 'Active', icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
+                        { label: 'Market Readiness', value: `${Math.round(gapAnalysis?.overall_readiness || 0)}%`, icon: Star, color: 'text-purple-600', bg: 'bg-purple-50' },
                     ].map((stat, i) => (
                         <div key={i} className="card-simple">
                             <div className="flex items-center justify-between mb-4">
@@ -268,7 +269,7 @@ export default function SkillsPage() {
                         <div className="flex items-center justify-between">
                             <h3 className="font-bold text-gray-900">Skill Inventory</h3>
                             <div className="flex p-1 bg-gray-50 rounded-lg border border-gray-100">
-                                {['all', 'matches', 'gaps'].map((t) => (
+                                {['User Skill', 'Market Skill', 'Gap'].map((t) => (
                                     <button
                                         key={t}
                                         onClick={() => setFilter(t as any)}
@@ -282,96 +283,88 @@ export default function SkillsPage() {
 
                         <div className="max-h-[800px] overflow-y-auto pr-2 custom-scrollbar">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {/* Skill Gaps */}
-                                {(filter === 'all' || filter === 'gaps') && gapAnalysis?.missing_skills?.map((gap: any, i: number) => (
-                                    <div key={`gap-${i}`} className="card-simple border-l-4 border-l-amber-400 group p-5 flex flex-col h-full transition-all">
-                                        <div className="flex items-start justify-between gap-4 min-w-0">
-                                            <div className="flex items-start gap-4 min-w-0">
-                                                <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex-shrink-0 flex items-center justify-center font-bold text-sm mt-0.5">
-                                                    {gap.skill.charAt(0)}
-                                                </div>
-                                                <div className="space-y-1 min-w-0">
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight break-words">{gap.skill}</h4>
-                                                        {gap.matched_as && gap.matched_as !== gap.skill && (
-                                                            <span className="text-[9px] text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded italic">
-                                                                Matched as: {gap.matched_as}
-                                                            </span>
-                                                        )}
-                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider flex-shrink-0 ${gap.requirement_level === 'critical' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
-                                                            {gap.requirement_level}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-[10px] text-gray-400 font-medium truncate">Required for {gapAnalysis?.target_role?.title || 'Target Role'}</p>
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={() => toggleCourseRecommendations(gap.skill)}
-                                                className="p-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-all shadow-sm flex-shrink-0 mt-0.5"
-                                                title="Explore Courses"
-                                            >
-                                                <BookOpen size={16} />
-                                            </button>
-                                        </div>
-
-                                        {/* Skill Gap */}
-                                        <div className="mt-3 space-y-1.5">
-                                            <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
-                                                <span className="text-gray-400">Identified Skill Gap</span>
-                                                <span className={`font-black ${(gap.gap || 0) > 70 ? 'text-red-500' : 'text-amber-600'}`}>{Math.round(gap.gap || 0)}% Gap</span>
-                                            </div>
-                                            <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
-                                                <div
-                                                    className={`h-full rounded-full transition-all duration-1000 ${(gap.gap || 0) > 70 ? 'bg-red-400' : 'bg-amber-400'}`}
-                                                    style={{ width: `${Math.max(gap.gap || 0, 2)}%` }}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {skillCourses[gap.skill] && (
-                                            <div className="mt-4 pt-4 border-t border-gray-50 space-y-3 animate-fade-in">
-                                                {skillCourses[gap.skill].loading ? (
-                                                    <div className="flex items-center justify-center py-2">
-                                                        <RefreshCw className="animate-spin text-gray-300" size={14} />
-                                                    </div>
-                                                ) : skillCourses[gap.skill].courses.length > 0 ? (
-                                                    <div className="grid gap-2">
-                                                        {skillCourses[gap.skill].courses.slice(0, 3).map((c: any, ci: number) => (
-                                                            <a key={ci} href={c.url} target="_blank" className="p-2.5 bg-gray-50 rounded-xl border border-gray-100 hover:border-green-200 transition-all group">
-                                                                <div className="flex justify-between items-start gap-2">
-                                                                    <div className="space-y-1">
-                                                                        <p className="text-[10px] font-bold text-gray-700 line-clamp-1 leading-tight">{c.title}</p>
-                                                                        <p className="text-[8px] text-gray-400 font-bold uppercase tracking-widest">{c.platform || 'Learning Platform'}</p>
-                                                                    </div>
-                                                                    <ArrowUpRight size={10} className="text-gray-300 group-hover:text-green-500 flex-shrink-0" />
+                                {/* Gap Filter (Actual Gaps) */}
+                                {filter === 'Gap' && (
+                                    <>
+                                        {gapAnalysis?.missing_skills && gapAnalysis.missing_skills.length > 0 ? (
+                                            gapAnalysis.missing_skills.map((ms: any, i: number) => (
+                                                <div key={`gap-${i}`} className="card-simple border-l-4 border-l-red-400 group p-5 flex flex-col h-full transition-all">
+                                                    <div className="flex items-center gap-4 mb-4">
+                                                        <div className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center font-bold text-sm">
+                                                            {ms.skill.charAt(0)}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight truncate">{ms.skill}</h4>
+                                                                {ms.llm_validated && (
+                                                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[8px] font-black uppercase tracking-widest flex-shrink-0">
+                                                                        AI ✦
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <AlertCircle size={10} className="text-red-500" />
+                                                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Priority Gap</span>
+                                                                    {ms.transferability !== undefined && ms.transferability > 0.4 && (
+                                                                        <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-0.5">
+                                                                            <Wifi size={8} /> Transferable
+                                                                        </span>
+                                                                    )}
                                                                 </div>
-                                                            </a>
-                                                        ))}
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                ) : (
-                                                    <p className="text-[9px] text-gray-400 italic text-center">No curated courses found currently.</p>
-                                                )}
+
+                                                    {ms.reasoning && (
+                                                        <p className="text-[10px] text-gray-500 leading-relaxed mb-4 italic line-clamp-2 hover:line-clamp-none transition-all">
+                                                            "{ms.reasoning}"
+                                                        </p>
+                                                    )}
+
+                                                    <div className="space-y-1.5">
+                                                        <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
+                                                            <span className="text-gray-400">Industry Frequency</span>
+                                                            <span className="text-red-600 font-black">{ms.demand_percentage}</span>
+                                                        </div>
+                                                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-red-500 rounded-full transition-all duration-1000"
+                                                                style={{ width: ms.demand_percentage }}
+                                                            ></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="col-span-full py-20 text-center opacity-30">
+                                                <CheckCircle2 size={48} className="mx-auto mb-4 text-green-500" />
+                                                <p className="text-[10px] font-bold uppercase tracking-widest">No critical gaps captured</p>
                                             </div>
                                         )}
-                                    </div>
-                                ))}
+                                    </>
+                                )}
 
-                                {/* Existing Skills / Matches */}
-                                {filter === 'matches' && gapAnalysis?.matched_skills?.map((match, i) => (
-                                    <div key={`match-${i}`} className="card-simple border-l-4 border-l-green-400 group p-5 flex flex-col h-full transition-all">
+                                {/* Market Skill Filter (Full Market Requirements) */}
+                                {filter === 'Market Skill' && gapAnalysis?.fetched_market_skills?.map((ms: any, i: number) => (
+                                    <div key={`market-${i}`} className="card-simple border-l-4 border-l-blue-400 group p-5 flex flex-col h-full transition-all">
                                         <div className="flex items-center gap-4 mb-4">
-                                            <div className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center font-bold text-sm">
-                                                {match.skill.charAt(0)}
+                                            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-bold text-sm">
+                                                {ms.skill.charAt(0)}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight truncate">{match.skill}</h4>
-                                                {match.matched_as && match.matched_as !== match.skill && (
-                                                    <p className="text-[10px] text-green-600 font-bold italic">Matched as: {match.matched_as}</p>
-                                                )}
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight truncate">{ms.skill}</h4>
+                                                    {ms.llm_validated && (
+                                                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[8px] font-black uppercase tracking-widest flex-shrink-0">
+                                                            AI ✦
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <div className="flex items-center gap-1">
-                                                        <CheckCircle2 size={10} className="text-green-500" />
-                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Market Match</span>
+                                                        <TrendingUp size={10} className="text-blue-500" />
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Market Demand</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -379,21 +372,23 @@ export default function SkillsPage() {
 
                                         <div className="space-y-1.5">
                                             <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
-                                                <span className="text-gray-400">Your Proficiency</span>
-                                                <span className="text-green-600 font-black">{Math.round(match.user_proficiency || 0)}%</span>
+                                                <span className="text-gray-400">Industry Frequency</span>
+                                                <span className="text-blue-600 font-black">{ms.demand_percentage}</span>
                                             </div>
                                             <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
                                                 <div
-                                                    className="h-full bg-green-500 rounded-full transition-all duration-1000"
-                                                    style={{ width: `${match.user_proficiency || 0}%` }}
+                                                    className="h-full bg-blue-500 rounded-full transition-all duration-1000"
+                                                    style={{ width: ms.demand_percentage }}
                                                 />
                                             </div>
                                         </div>
                                     </div>
                                 ))}
 
-                                {filter === 'all' && skills.sort((a, b) => b.proficiency - a.proficiency).map((skill, i) => {
+                                {/* User Skill Filter (Only Raw Skills) */}
+                                {filter === 'User Skill' && skills.sort((a, b) => b.proficiency - a.proficiency).map((skill, i) => {
                                     const aiRefined = isLlmRefined(skill);
+                                    const prof = (skill.proficiency || 0) * (skill.proficiency <= 1 ? 100 : 1);
                                     return (
                                         <div key={skill.id || i} className={`card-simple group p-5 flex flex-col h-full transition-all ${aiRefined ? 'hover:border-purple-100' : ''}`}>
                                             <div className="flex items-center gap-4 mb-4">
@@ -427,12 +422,12 @@ export default function SkillsPage() {
                                             <div className="space-y-1.5">
                                                 <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
                                                     <span className="text-gray-400">Expertise Level</span>
-                                                    <span className={`font-black ${aiRefined ? 'text-purple-600' : 'text-green-600'}`}>{Math.round(skill.proficiency * 100)}%</span>
+                                                    <span className={`font-black ${aiRefined ? 'text-purple-600' : 'text-green-600'}`}>{Math.round(prof)}%</span>
                                                 </div>
                                                 <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
                                                     <div
                                                         className={`h-full rounded-full transition-all duration-1000 ${aiRefined ? 'bg-purple-500' : 'bg-green-500'}`}
-                                                        style={{ width: `${skill.proficiency * 100}%` }}
+                                                        style={{ width: `${prof}%` }}
                                                     />
                                                 </div>
                                             </div>

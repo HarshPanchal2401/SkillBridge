@@ -580,22 +580,30 @@ def extract_all_skills(user_id: int):
                 skill = skill_item.get('skill', '') if isinstance(skill_item, dict) else skill_item
                 if not skill:
                     continue
+                
+                # Default values
+                base_info = {
+                    'proficiency': 0.5,
+                    'confidence': 0.8,
+                    'source_id': 'priority:0',
+                    'found_in': [],
+                    'llm_refined': False,
+                    'llm_reasoning': ""
+                }
+                
                 if isinstance(skill_item, dict):
-                    skills_data.append({
-                        'skill_name': skill,
+                    base_info.update({
                         'proficiency': skill_item.get('proficiency', 0.5),
                         'confidence': skill_item.get('confidence', 0.8),
-                        'source_id': 'priority:0',
                         'found_in': skill_item.get('found_in', []),
+                        'llm_refined': skill_item.get('llm_refined', False),
+                        'llm_reasoning': skill_item.get('llm_reasoning', "")
                     })
-                else:
-                    skills_data.append({
-                        'skill_name': skill,
-                        'proficiency': 0.5,
-                        'confidence': 0.8,
-                        'source_id': 'priority:0',
-                        'found_in': [],
-                    })
+                
+                skills_data.append({
+                    'skill_name': skill,
+                    **base_info
+                })
             
             # Filter out soft skills and invalid entries
             # Normalize names, validate structure, then match against taxonomy
@@ -629,6 +637,7 @@ def extract_all_skills(user_id: int):
                 sources_data = list(found_in) if found_in else ['priority:0']
                 if llm_refined and 'llm_refined' not in sources_data:
                     sources_data.append('llm_refined')
+                
                 cursor.execute('''
                     INSERT INTO user_skills 
                     (user_id, skill_name, proficiency, confidence, source_count, sources)

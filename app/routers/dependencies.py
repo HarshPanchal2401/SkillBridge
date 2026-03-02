@@ -20,6 +20,7 @@ from app.services.github_analyzer import GitHubAnalyzer
 from app.services.huggingface_skill_extractor import HuggingFaceSkillExtractor
 from app.services.market_skill_searcher import MarketSkillSearcher
 from app.services.groq_skill_refiner import GroqSkillRefiner
+from app.services.llm_gap_analyzer import GroqGapAnalyzer
 
 # Load environment variables
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env'))
@@ -84,6 +85,7 @@ class ServiceContainer:
         self._course_recommender = CourseRecommender(self._tavily_api_key)
         self._github_analyzer = GitHubAnalyzer(self._skill_extractor)
         self._market_skill_searcher = MarketSkillSearcher(self._tavily_api_key)
+        self._llm_gap_analyzer = GroqGapAnalyzer(self._groq_api_key)
         
         self._initialized = True
         logger.info("✅ Service container initialized")
@@ -139,6 +141,11 @@ class ServiceContainer:
         return self._groq_refiner
     
     @property
+    def llm_gap_analyzer(self) -> GroqGapAnalyzer:
+        """Get the LLM-based gap analyzer service."""
+        return self._llm_gap_analyzer
+    
+    @property
     def upload_dir(self) -> str:
         """Get the upload directory path."""
         return UPLOAD_DIR
@@ -169,6 +176,7 @@ class ServiceContainer:
             "llm_api": "available" if self.has_llm_api() else "not_configured",
             "groq_refiner": "available" if self.has_groq_api() else "not_configured",
             "gap_analyzer": "healthy",
+            "llm_gap_analyzer": "available" if self._llm_gap_analyzer.available else "not_configured",
             "course_recommender": "healthy",
             "github_analyzer": "healthy",
             "market_skill_searcher": "healthy"

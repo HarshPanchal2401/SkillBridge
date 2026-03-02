@@ -3,21 +3,24 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../lib/auth';
-import { api } from '../../lib/api';
+import { api, Skill, GapAnalysis, MarketSkill } from '../../lib/api';
 import {
-    Target,
     TrendingUp,
-    AlertTriangle,
-    CheckCircle,
+    Award,
+    Target,
+    AlertCircle,
     ChevronRight,
-    Loader2,
-    Zap,
-    Clock,
-    Wifi,
-    RefreshCw,
+    BookOpen,
     Search,
+    Zap,
+    RefreshCw,
+    CheckCircle2,
+    Clock,
     ArrowUpRight,
-    Sparkles
+    Star,
+    Layers,
+    Sparkles,
+    Wifi
 } from 'lucide-react';
 
 interface SkillGap {
@@ -25,19 +28,17 @@ interface SkillGap {
     gap: number;
     demand_percentage: number;
     requirement_level: string;
+    reasoning?: string;
+    transferability?: number;
     market_demand?: number;
     user_proficiency?: number;
     impact?: string;
 }
 
-interface MarketSkill {
-    skill: string;
-    demand: number;
-    demand_percentage: string;
-    requirement_level: string;
-    trending: boolean;
-}
-
+// The GapAnalysisResult interface is likely meant to be the GapAnalysis type.
+// Assuming the imported GapAnalysis from '../../lib/api' is the canonical one,
+// this local interface might be redundant or needs to be renamed if it represents
+// a different structure. For now, keeping it as per instruction to only make specified changes.
 interface GapAnalysisResult {
     target_role: { id: string; title: string };
     readiness: { score: number; interpretation: string; level: string };
@@ -72,7 +73,8 @@ export default function GapAnalysisPage() {
     const router = useRouter();
     const { user, profile, loading: authLoading } = useAuth();
     const [selectedRole, setSelectedRole] = useState<string>('');
-    const [analysis, setAnalysis] = useState<GapAnalysisResult | null>(null);
+    const [analysis, setAnalysis] = useState<GapAnalysis | null>(null);
+    const [userSkills, setUserSkills] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [autoAnalyzed, setAutoAnalyzed] = useState(false);
@@ -103,6 +105,11 @@ export default function GapAnalysisPage() {
         setError(null);
         setAnalysis(null);
         try {
+            // Fetch raw user skills for the 'User Skill' section
+            const rawSkills = await api.getUserSkills(user.id || '');
+            setUserSkills(rawSkills);
+
+            // Trigger the role analysis (which now has simplified logic)
             const result = await api.analyzeUserForRole(user.id || '', selectedRole);
             setAnalysis(result);
         } catch (err: any) {
@@ -120,7 +127,8 @@ export default function GapAnalysisPage() {
         }
     };
 
-    if (authLoading) {
+
+    if (loading || authLoading) {
         return (
             <>
                 <div className="flex flex-col items-center justify-center h-[70vh] space-y-4">
@@ -183,7 +191,7 @@ export default function GapAnalysisPage() {
 
                 {error && (
                     <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-center gap-3 text-red-700 animate-slide-down">
-                        <AlertTriangle size={18} />
+                        <AlertCircle size={18} />
                         <span className="text-sm font-bold">{error}</span>
                     </div>
                 )}
@@ -197,12 +205,12 @@ export default function GapAnalysisPage() {
                             <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-10">
                                 <div className="space-y-4 text-center lg:text-left">
                                     <div className="space-y-1">
-                                        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">{analysis.target_role.title}</h2>
+                                        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">{analysis.target_role?.title || 'Target Role'}</h2>
                                         <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Market Readiness Profile</p>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-2 justify-center lg:justify-start">
-                                        <div className={`px-3 py-1 rounded-lg font-bold text-[10px] uppercase tracking-wider ${getReadinessColor(analysis.readiness.level)}`}>
-                                            {analysis.readiness.level}
+                                        <div className={`px-3 py-1 rounded-lg font-bold text-[10px] uppercase tracking-wider ${getReadinessColor(analysis.readiness?.level || 'early')}`}>
+                                            {analysis.readiness?.level || 'Developing'}
                                         </div>
                                         {analysis.skills_source && (
                                             <div className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg font-bold text-[10px] uppercase tracking-wider flex items-center gap-1.5 border border-blue-100">
@@ -211,7 +219,7 @@ export default function GapAnalysisPage() {
                                             </div>
                                         )}
                                     </div>
-                                    <p className="text-sm font-medium text-gray-500 max-w-lg leading-relaxed">{analysis.readiness.interpretation}</p>
+                                    <p className="text-sm font-medium text-gray-500 max-w-lg leading-relaxed">{analysis.readiness?.interpretation || analysis.interpretation || "We've analyzed your skills against market data."}</p>
                                 </div>
 
                                 <div className="flex flex-col items-center">
@@ -223,25 +231,23 @@ export default function GapAnalysisPage() {
                                                 stroke="#22c55e"
                                                 strokeWidth="12"
                                                 fill="none"
-                                                strokeDasharray={`${analysis.readiness.score * 4.4} 440`}
+                                                strokeDasharray={`${(analysis.readiness?.score || analysis.overall_readiness) * 4.4} 440`}
                                                 strokeLinecap="round"
                                                 className="transition-all duration-1000"
                                             />
                                         </svg>
                                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                            <span className="text-4xl font-black text-gray-900">{Math.round(analysis.readiness.score)}%</span>
+                                            <span className="text-4xl font-black text-gray-900">{Math.round(analysis.readiness?.score || analysis.overall_readiness)}%</span>
                                             <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Compatibility</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                            <div className="grid grid-cols-2 md:grid-cols-2 gap-4 mt-12 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
                                 {[
-                                    { label: 'Verified Nodes', value: analysis.skills_analysis.user_skills_matched, icon: CheckCircle, color: 'text-green-600' },
-                                    { label: 'Identified Gaps', value: analysis.skills_analysis.skills_missing, icon: Zap, color: 'text-amber-600' },
-                                    { label: 'Time To Mastery', value: `${analysis.learning_path.estimated_months}m`, icon: Clock, color: 'text-blue-600' },
-                                    { label: 'Match Ratio', value: `${Math.round(analysis.skills_analysis.match_percentage)}%`, icon: Target, color: 'text-purple-600' },
+                                    { label: 'Resume Skills', value: userSkills.length, icon: CheckCircle2, color: 'text-green-600' },
+                                    { label: 'Market Skills', value: analysis.fetched_market_skills?.length || 0, icon: Target, color: 'text-blue-600' },
                                 ].map((stat, i) => (
                                     <div key={i} className="text-center md:text-left space-y-1">
                                         <div className="flex items-center gap-2 justify-center md:justify-start">
@@ -254,144 +260,52 @@ export default function GapAnalysisPage() {
                             </div>
                         </div>
 
-                        {/* Gaps Grid */}
-                        <div className="grid md:grid-cols-2 gap-8">
-                            {/* Critical Node Gaps */}
-                            <div className="card-simple">
+                        {/* Gap Analysis Sections */}
+                        <div className="grid grid-cols-1 gap-12">
+                            {/* 1. User Skill Section */}
+                            <div className="card-simple animate-fade-in">
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center justify-between">
-                                    Critical Deficiencies ({'>'}70% Gap)
-                                    <span className="px-2 py-0.5 bg-red-50 text-red-600 text-[9px] rounded-lg">{analysis.skill_gaps.critical.length}</span>
+                                    User Skill (Your Raw Fetched Skills)
+                                    <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[9px] rounded-lg border border-green-100 italic">Fetched from Profile</span>
                                 </h3>
-                                {analysis.skill_gaps.critical.length === 0 ? (
-                                    <div className="text-center py-10 opacity-30">
-                                        <CheckCircle size={32} className="mx-auto mb-3" />
-                                        <p className="text-[10px] font-bold uppercase tracking-widest">Minimal Friction</p>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                        {analysis.skill_gaps.critical.map((gap: any, i: number) => (
-                                            <div key={i} className="group p-4 bg-gray-50 hover:bg-white border border-transparent hover:border-red-100 rounded-xl transition-all">
-                                                <div className="flex justify-between items-center mb-3">
-                                                    <span className="text-sm font-bold text-gray-900">{gap.skill}</span>
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[9px] font-black text-red-600 uppercase tracking-widest bg-red-50 px-2 py-0.5 rounded-md border border-red-100">
-                                                            {Math.round(gap.gap)}% Gap
-                                                        </span>
-                                                        <span className="text-[9px] font-bold text-red-400 uppercase tracking-widest">Urgent</span>
-                                                    </div>
-                                                </div>
+                                <div className="flex flex-wrap gap-4">
+                                    {userSkills.length > 0 ? (
+                                        userSkills.map((s, i) => (
+                                            <div key={i} className="group px-6 py-4 bg-green-50/50 hover:bg-white hover:shadow-lg text-green-700 border border-green-100 rounded-2xl text-[12px] font-bold flex flex-col gap-2 transition-all min-w-[200px] animate-fade-in" style={{ animationDelay: `${i * 30}ms` }}>
                                                 <div className="flex items-center gap-3">
-                                                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                                        <div
-                                                            className="h-full bg-red-500 rounded-full transition-all duration-1000"
-                                                            style={{ width: `${gap.demand_percentage || gap.market_demand}%` }}
-                                                        ></div>
+                                                    <div className="w-8 h-8 bg-green-100 text-green-700 rounded-lg flex items-center justify-center">
+                                                        <CheckCircle2 size={16} />
                                                     </div>
-                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter w-12 text-right">
-                                                        {Math.round(gap.demand_percentage || gap.market_demand)}% Demand
-                                                    </span>
+                                                    {s.skill_name || s.skill}
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Learning Velocity (Learning Path) */}
-                            <div className="card-simple">
-                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center justify-between">
-                                    Skill Gap Bridge
-                                    <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] rounded-lg">Priority Learning</span>
-                                </h3>
-                                <div className="space-y-6">
-                                    {[
-                                        {
-                                            id: 'immediate',
-                                            label: 'Immediate Learning (>70%)',
-                                            items: analysis.immediate_learning || [],
-                                            color: 'text-red-500',
-                                            bg: 'bg-red-50',
-                                            border: 'border-red-100'
-                                        },
-                                        {
-                                            id: 'next',
-                                            label: 'Skill Learning (30-70%)',
-                                            items: analysis.skill_learning || [],
-                                            color: 'text-amber-500',
-                                            bg: 'bg-amber-50',
-                                            border: 'border-amber-100'
-                                        },
-                                    ].map((stage) => (
-                                        <div key={stage.id} className="space-y-3">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-1 h-6 rounded-full ${stage.color} bg-current`}></div>
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{stage.label}</span>
-                                            </div>
-                                            <div className="flex flex-col gap-2 pl-3">
-                                                {stage.items && stage.items.length > 0 ? (
-                                                    stage.items.map((gap: any, i: number) => (
-                                                        <div key={i} className={`p-2 rounded-lg border ${stage.border} ${stage.bg} flex justify-between items-center`}>
-                                                            <span className={`text-[11px] font-bold ${stage.color} uppercase tracking-tight`}>
-                                                                {gap.skill}
-                                                            </span>
-                                                            <div className="flex items-center gap-3">
-                                                                <span className="text-[9px] font-bold text-gray-400 uppercase">
-                                                                    {Math.round(gap.demand_percentage || gap.market_demand || 0)}% Demand
-                                                                </span>
-                                                                <span className={`text-[10px] font-black ${stage.color} bg-white/50 px-2 py-0.5 rounded border border-current/10`}>
-                                                                    {Math.round(gap.gap)}% GAP
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    ))
-                                                ) : (
-                                                    <span className="text-[10px] font-bold text-gray-300 italic">No nodes identified</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-
-                                    <button
-                                        onClick={() => router.push('/roadmap')}
-                                        className="w-full mt-4 py-3.5 bg-gray-900 text-white rounded-xl font-bold text-[10px] uppercase tracking-[0.2em] shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"
-                                    >
-                                        Execute Path
-                                        <ArrowUpRight size={14} />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Competencies and Market Intelligence Grid */}
-                        <div className="grid md:grid-cols-2 gap-8">
-                            {/* Inventory Context (Matched) */}
-                            <div className="card-simple">
-                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 px-1">Verified Competencies</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {analysis.strengths.length > 0 ? (
-                                        analysis.strengths.map((s, i) => (
-                                            <div key={i} className="px-3 py-1.5 bg-green-50 text-green-700 border border-green-100 rounded-xl text-[10px] font-bold flex items-center gap-2 animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
-                                                <CheckCircle size={12} />
-                                                {s.skill}
+                                                <div className="space-y-1.5">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-[9px] uppercase tracking-widest text-gray-400">Proficiency</span>
+                                                        <span className="text-[10px] font-black">{Math.round((s.proficiency || s.user_proficiency || 0) * (s.proficiency <= 1 ? 100 : 1))}%</span>
+                                                    </div>
+                                                    <div className="h-1.5 w-full bg-green-100 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-green-600 rounded-full" style={{ width: `${(s.proficiency || s.user_proficiency || 0) * (s.proficiency <= 1 ? 100 : 1)}%` }}></div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="w-full text-center py-6 opacity-20">
-                                            <TrendingUp size={24} className="mx-auto mb-2" />
-                                            <p className="text-[10px] font-bold uppercase">Zero confirmed nodes</p>
+                                        <div className="w-full text-center py-12 opacity-20">
+                                            <TrendingUp size={32} className="mx-auto mb-3" />
+                                            <p className="text-[10px] font-bold uppercase tracking-widest">No verified skills found in profile</p>
                                         </div>
                                     )}
                                 </div>
                             </div>
 
-                            {/* LIVE MARKET PLUS Section */}
-                            <div className="card-simple relative overflow-hidden group">
-                                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                                    <TrendingUp size={48} className="text-green-600" />
+                            {/* 2. Market Skill Section */}
+                            <div className="card-simple relative overflow-hidden group animate-fade-in">
+                                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                                    <TrendingUp size={64} className="text-green-600" />
                                 </div>
                                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center justify-between relative z-10">
-                                    LIVE MARKET PLUS
-                                    <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[9px] rounded-lg border border-green-100 flex items-center gap-1">
+                                    Market Skill (Industry Required Competencies)
+                                    <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[9px] rounded-lg border border-green-100 flex items-center gap-1 uppercase italic">
                                         <TrendingUp size={8} />
                                         Demand Spectrum
                                     </span>
@@ -399,46 +313,150 @@ export default function GapAnalysisPage() {
 
                                 <div className="space-y-4 relative z-10">
                                     {analysis.fetched_market_skills && analysis.fetched_market_skills.length > 0 ? (
-                                        <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                                            {analysis.fetched_market_skills.map((marketSkill, i) => (
-                                                <div key={i} className="flex items-center justify-between p-2.5 bg-gray-50/50 rounded-xl border border-transparent hover:border-gray-200 hover:bg-white transition-all group/item">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className={`w-1.5 h-1.5 rounded-full ${marketSkill.requirement_level === 'critical' ? 'bg-red-500' :
-                                                            marketSkill.requirement_level === 'important' ? 'bg-amber-500' : 'bg-blue-500'
-                                                            }`}></div>
-                                                        <span className="text-xs font-bold text-gray-700">{marketSkill.skill}</span>
-                                                        {marketSkill.trending && (
-                                                            <Sparkles size={10} className="text-amber-500 animate-pulse" />
-                                                        )}
-                                                    </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                                            {analysis.fetched_market_skills.map((marketSkill: MarketSkill, i: number) => (
+                                                <div key={i} className="flex flex-col p-3.5 bg-gray-50/50 rounded-xl border border-transparent hover:border-gray-200 hover:bg-white transition-all group/item shadow-sm">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className={`w-1.5 h-1.5 rounded-full ${marketSkill.requirement_level === 'critical' ? 'bg-red-500' :
+                                                                marketSkill.requirement_level === 'important' ? 'bg-amber-500' : 'bg-blue-500'
+                                                                }`}></div>
+                                                            <span className="text-xs font-bold text-gray-800">{marketSkill.skill}</span>
+                                                            {marketSkill.llm_validated && (
+                                                                <span className="flex items-center gap-1 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-md text-[8px] font-black uppercase tracking-tighter border border-indigo-100/50">
+                                                                    AI ✦
+                                                                </span>
+                                                            )}
+                                                            {marketSkill.trending && (
+                                                                <Sparkles size={10} className="text-amber-500 animate-pulse" />
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-tighter">
                                                             {marketSkill.demand_percentage}
                                                         </span>
-                                                        <div className="w-16 h-1 bg-gray-100 rounded-full overflow-hidden">
-                                                            <div
-                                                                className={`h-full rounded-full transition-all duration-1000 ${marketSkill.demand >= 0.7 ? 'bg-green-500' :
-                                                                    marketSkill.demand >= 0.4 ? 'bg-amber-500' : 'bg-blue-400'
-                                                                    }`}
-                                                                style={{ width: marketSkill.demand_percentage }}
-                                                            ></div>
+                                                    </div>
+                                                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1">
+                                                        <div
+                                                            className={`h-full rounded-full transition-all duration-1000 ${marketSkill.demand >= 0.7 ? 'bg-green-500' :
+                                                                marketSkill.demand >= 0.4 ? 'bg-amber-500' : 'bg-blue-400'
+                                                                }`}
+                                                            style={{ width: marketSkill.demand_percentage }}
+                                                        ></div>
+                                                    </div>
+                                                    <div className="flex justify-between items-center mt-2">
+                                                        <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest">{marketSkill.requirement_level}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-16 opacity-30">
+                                            <Search size={48} className="mx-auto mb-4" />
+                                            <p className="text-[10px] font-bold uppercase tracking-widest">No market signals captured</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* 3. Gap Section */}
+                            <div className="card-simple relative overflow-hidden group animate-fade-in">
+                                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity">
+                                    <Target size={64} className="text-red-600" />
+                                </div>
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center justify-between relative z-10">
+                                    Skill Gaps (Top Priorities for Growth)
+                                    <span className="px-2 py-0.5 bg-red-50 text-red-600 text-[9px] rounded-lg border border-red-100 flex items-center gap-1 uppercase italic">
+                                        <AlertCircle size={8} />
+                                        Priority Gaps
+                                    </span>
+                                </h3>
+
+                                <div className="space-y-6 relative z-10">
+                                    {analysis.skill_gaps && (analysis.skill_gaps.critical.length > 0 || analysis.skill_gaps.important.length > 0) ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                                            {/* Critical Gaps */}
+                                            {analysis.skill_gaps.critical.map((gap: MarketSkill, i: number) => (
+                                                <div key={`critical-${i}`} className="flex flex-col p-4 bg-red-50/40 rounded-2xl border border-red-100 hover:border-red-200 hover:bg-white transition-all group/item shadow-sm">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
+                                                            <span className="text-sm font-bold text-gray-800 tracking-tight">{gap.skill}</span>
+                                                        </div>
+                                                        <span className="text-[10px] font-black text-red-600 bg-red-100/50 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                                            {gap.demand_percentage}
+                                                        </span>
+                                                    </div>
+
+                                                    {gap.reasoning && (
+                                                        <p className="text-[10px] text-gray-500 leading-relaxed mb-3 italic line-clamp-2 group-hover/item:line-clamp-none transition-all duration-300">
+                                                            "{gap.reasoning}"
+                                                        </p>
+                                                    )}
+
+                                                    <div className="w-full h-1.5 bg-red-100/50 rounded-full overflow-hidden mb-3">
+                                                        <div className="h-full bg-red-500 rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(239,68,68,0.3)]" style={{ width: gap.demand_percentage }}></div>
+                                                    </div>
+
+                                                    <div className="mt-auto flex justify-between items-center">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-none">Critical</span>
+                                                            {gap.transferability !== undefined && gap.transferability > 0.4 && (
+                                                                <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-0.5">
+                                                                    <Wifi size={8} /> Transferable
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <Zap size={12} className="text-amber-500 fill-amber-500 opacity-50 group-hover/item:opacity-100 transition-opacity" />
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            {/* Important Gaps */}
+                                            {analysis.skill_gaps.important.map((gap: MarketSkill, i: number) => (
+                                                <div key={`important-${i}`} className="flex flex-col p-4 bg-amber-50/40 rounded-2xl border border-amber-100 hover:border-amber-200 hover:bg-white transition-all group/item shadow-sm">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                                                            <span className="text-sm font-bold text-gray-800 tracking-tight">{gap.skill}</span>
+                                                        </div>
+                                                        <span className="text-[10px] font-black text-amber-600 bg-amber-100/50 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                                            {gap.demand_percentage}
+                                                        </span>
+                                                    </div>
+
+                                                    {gap.reasoning && (
+                                                        <p className="text-[10px] text-gray-600/70 leading-relaxed mb-3 line-clamp-2 group-hover/item:line-clamp-none transition-all duration-300">
+                                                            {gap.reasoning}
+                                                        </p>
+                                                    )}
+
+                                                    <div className="w-full h-1.5 bg-amber-100/50 rounded-full overflow-hidden mb-3">
+                                                        <div className="h-full bg-amber-500 rounded-full transition-all duration-1000" style={{ width: gap.demand_percentage }}></div>
+                                                    </div>
+
+                                                    <div className="mt-auto flex justify-between items-center">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest leading-none">Important</span>
+                                                            {gap.transferability !== undefined && gap.transferability > 0.6 && (
+                                                                <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-0.5">
+                                                                    <Wifi size={8} /> High Transfer
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="text-center py-10 opacity-30">
-                                            <Search size={32} className="mx-auto mb-3" />
-                                            <p className="text-[10px] font-bold uppercase tracking-widest">No market signals</p>
+                                        <div className="text-center py-16 opacity-30">
+                                            <CheckCircle2 size={48} className="mx-auto mb-4 text-green-500" />
+                                            <p className="text-[10px] font-bold uppercase tracking-widest">No significant gaps detected</p>
                                         </div>
                                     )}
                                 </div>
-                                <p className="text-[9px] font-bold text-gray-400 mt-6 uppercase tracking-widest text-center">
-                                    Real-time indices sorted by global industry demand
-                                </p>
                             </div>
                         </div>
+
                     </div>
                 )}
             </div>

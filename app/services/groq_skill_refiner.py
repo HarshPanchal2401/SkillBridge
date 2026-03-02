@@ -44,6 +44,40 @@ Rules:
 - Consider the FULL resume context, not just the skills section
 - Return ONLY a valid JSON array — no markdown, no explanation outside JSON"""
 
+# System prompt for market skill validation
+MARKET_VALIDATION_SYSTEM_PROMPT = """You are an expert technical recruiter and industry analyst.
+Your job is to filter a list of skills fetched from a web search to ensure they are GENUINELY relevant and typical for a specific job role.
+
+Web searches sometimes return generic terms (like "testing", "security", "leadership") or tangentially related terms that aren't core technical skills for the specific role.
+
+For each skill provided, you must decide if it's a "must-have" or "nice-to-have" technical skill for the role, or if it should be removed.
+
+Rules:
+1. ONLY return skills that are truly relevant to the role.
+2. If a skill is too generic (e.g., "skills", "experience"), remove it.
+3. Assign a 'relevance_score' from 0.0 to 1.0.
+4. Categorize as 'core', 'related', or 'soft'.
+5. Return ONLY a valid JSON array."""
+
+MARKET_VALIDATION_USER_PROMPT_TEMPLATE = """Target Role: {role_title}
+
+List of skills found from web search:
+{skills_list_json}
+
+Please validate these skills for the role of {role_title}. 
+Return ONLY a JSON array in this format:
+[
+  {{
+    "skill": "skill-name",
+    "is_relevant": true,
+    "relevance_score": 0.95,
+    "category": "core",
+    "reasoning": "Fundamental tool for this role"
+  }},
+  ...
+]
+"""
+
 USER_PROMPT_TEMPLATE = """Here is the candidate's full resume text:
 
 <resume>
@@ -258,6 +292,85 @@ class GroqSkillRefiner:
 
         print(f"✅ LLM refined {llm_count}/{len(original)} skills")
         return result
+
+    def validate_market_skills(
+        self,
+        role_title: str,
+        market_skills: Dict[str, Dict],
+    ) -> Dict[str, Dict]:
+        """
+        Validate market-searched skills for a specific role using Groq LLM.
+        
+        Args:
+            role_title: The job title being analyzed.
+            market_skills: Dict of skills from MarketSkillSearcher.
+            
+        Returns:
+            Filtered and validated dict of market skills.
+        """
+        if not self.is_available() or not market_skills:
+            return market_skills
+
+        # Prepare list for LLM
+        skills_to_validate = [
+            {"skill": name, "demand": data.get("frequency", 0)}
+            for name, data in market_skills.items()
+        ]
+
+        user_prompt = MARKET_VALIDATION_USER_PROMPT_TEMPLATE.format(
+            role_title=role_title,
+            skills_list_json=json.dumps(skills_to_validate, indent=2)
+        )
+
+        try:
+            print(f"🤖 Calling Groq to validate {len(market_skills)} market skills for '{role_title}'...")
+            
+            response = self.client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=[
+                    {"role": "system", "content": MARKET_VALIDATION_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.0,
+                max_tokens=2048,
+                timeout=GROQ_TIMEOUT,
+            )
+
+            raw_content = response.choices[0].message.content.strip()
+            validated_list = self._parse_llm_response(raw_content)
+
+            if not validated_list:
+                return market_skills
+
+            # Build validated dict
+            result = {}
+            for item in validated_list:
+                skill_name = item.get("skill", "").lower()
+                if item.get("is_relevant") and skill_name:
+                    # Find original data if possible (fuzzy match or exact)
+                    original_data = market_skills.get(skill_name)
+                    if not original_data:
+                        # Try case-insensitive lookup
+                        for k, v in market_skills.items():
+                            if k.lower() == skill_name:
+                                original_data = v
+                                break
+                    
+                    if original_data:
+                        result[skill_name] = {
+                            **original_data,
+                            "llm_validated": True,
+                            "relevance_score": item.get("relevance_score", 0.5),
+                            "category": item.get("category", "related"),
+                            "llm_reasoning": item.get("reasoning", "")
+                        }
+            
+            print(f"✅ LLM validated {len(result)}/{len(market_skills)} market skills")
+            return result
+
+        except Exception as e:
+            print(f"⚠️ Market skill validation failed: {e}")
+            return market_skills
 
     def _mark_heuristic(self, skills: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Mark all skills as NOT LLM refined (fallback case)."""

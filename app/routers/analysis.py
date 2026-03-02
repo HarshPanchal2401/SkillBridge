@@ -62,10 +62,19 @@ def analyze_user_gaps(
         live_result = market_searcher.search_role_skills(target_role)
         market_requirements = live_result.get("skills", {})
         skills_source = live_result.get("source", "web_search")
+
+        # ========== LLM Market Skill Validation ==========
+        if market_requirements and services.groq_refiner and services.groq_refiner.is_available():
+            print(f"🧠 Validating {len(market_requirements)} market skills with LLM...")
+            market_requirements = services.groq_refiner.validate_market_skills(
+                target_role, 
+                market_requirements
+            )
+            skills_source = f"{skills_source}_llm_validated"
         
-        # Print fetched skills to terminal
+        # Print fetched/validated skills to terminal
         print(f"\n{'='*60}")
-        print(f"📋 FETCHED MARKET SKILLS FOR: {target_role}")
+        print(f"📋 FINAL MARKET SKILLS FOR: {target_role}")
         print(f"   Source: {skills_source}")
         print(f"   Total Skills: {len(market_requirements)}")
         print(f"{'='*60}")
@@ -81,15 +90,50 @@ def analyze_user_gaps(
             market_requirements = get_sample_market_requirements()
             skills_source = "fallback"
         
-        # Perform gap analysis
-        gap_analyzer = services.gap_analyzer
-        # Pass the global synonym map from SkillExtractor for consistent matching
-        gap_result = gap_analyzer.analyze_gaps(
-            user_skills, 
-            market_requirements,
-            synonym_map=services.skill_extractor.synonyms
-        )
-        
+        # Perform contextual gap analysis
+        llm_gap_analyzer = services.llm_gap_analyzer
+        is_llm = False
+        try:
+            gap_result = llm_gap_analyzer.analyze_gaps(
+                user_skills, 
+                market_requirements,
+                target_role=target_role
+            )
+            if 'skill_gaps' in gap_result:
+                is_llm = True
+            else:
+                # Fallback if LLM returned bad format
+                raise ValueError("Incomplete LLM response")
+        except Exception as e:
+            print(f"⚠️ LLM Gap Analysis failed: {e}. Falling back to heuristic.")
+            gap_result = services.gap_analyzer.analyze_gaps(
+                user_skills, 
+                market_requirements,
+                synonym_map=services.skill_extractor.synonyms
+            )
+
+        # Unified formatting for both LLM and Heuristic results
+        if is_llm:
+            gaps = gap_result.get('skill_gaps', {})
+            critical_gaps = gaps.get('critical', [])
+            important_gaps = gaps.get('important', [])
+            emerging_gaps = gaps.get('emerging', [])
+            strengths = gap_result.get('strengths', [])
+            overall_readiness = gap_result.get('overall_readiness', 0)
+            summary = {
+                "interpretation": gap_result.get('interpretation', ""),
+                "overall_readiness_pct": int(overall_readiness),
+                "critical_gap_count": len(critical_gaps),
+                "strength_count": len(strengths)
+            }
+        else:
+            critical_gaps = gap_result.get('critical_gaps', [])
+            important_gaps = gap_result.get('important_gaps', [])
+            emerging_gaps = gap_result.get('emerging_gaps', [])
+            strengths = gap_result.get('strengths', [])
+            overall_readiness = gap_result.get('overall_readiness', 0)
+            summary = gap_result.get('summary', {})
+
         # Format fetched market skills for frontend display
         fetched_market_skills = []
         for skill, req in market_requirements.items():
@@ -98,19 +142,18 @@ def analyze_user_gaps(
                 "demand": req.get('frequency', 0),
                 "demand_percentage": f"{int(req.get('frequency', 0) * 100)}%",
                 "requirement_level": req.get('requirement_level', 'important'),
-                "trending": req.get("trending", False)
+                "trending": req.get("trending", False),
+                "llm_validated": req.get("llm_validated", False)
             })
         
-        # Sort by demand (ascending) - least to high demanded
-        fetched_market_skills.sort(key=lambda x: x['demand'])
+        # Sort by demand (descending) - high to low demanded
+        fetched_market_skills.sort(key=lambda x: x['demand'], reverse=True)
         
-        # Format detailed results for frontend
-        detailed = gap_result.get('detailed_results', {})
-        
-        # Map GapAnalyzer results to frontend categories
-        immediate_learning = detailed.get('critical', [])
-        skill_learning = detailed.get('important', [])
-        
+        # Combine all gaps for missing_skills
+        all_gaps = critical_gaps + important_gaps + emerging_gaps
+        all_gaps.sort(key=lambda x: x.get('demand', x.get('market_demand', 0)), reverse=True)
+        strengths.sort(key=lambda x: x.get('demand', x.get('market_demand', 0)), reverse=True)
+
         return {
             "message": "Gap analysis complete",
             "user_id": user_id,
@@ -119,17 +162,15 @@ def analyze_user_gaps(
             "fetched_market_skills": fetched_market_skills,
             "user_skills_count": len(user_skills),
             "market_skills_count": len(market_requirements),
-            "overall_readiness": gap_result['overall_readiness'],
-            "summary": gap_result['summary'],
-            "immediate_learning": immediate_learning,
-            "skill_learning": skill_learning,
-            "strengths": detailed.get('strengths', []),
-            "matched_skills": detailed.get('strengths', []),
-            "missing_skills": gap_result['critical_gaps'] + gap_result['important_gaps'] + gap_result['emerging_gaps'],
+            "overall_readiness": overall_readiness,
+            "summary": summary,
+            "strengths": strengths,
+            "matched_skills": strengths,
+            "missing_skills": all_gaps,
             "skill_gaps": {
-                "critical": gap_result['critical_gaps'],
-                "important": gap_result['important_gaps'],
-                "emerging": gap_result['emerging_gaps']
+                "critical": critical_gaps,
+                "important": important_gaps,
+                "emerging": emerging_gaps
             }
         }
 
@@ -731,54 +772,83 @@ def analyze_user_for_role(
                 'confidence': skill_dict['confidence']
             }
         
-        # Perform gap analysis
-        gap_analyzer = services.gap_analyzer
-        # Pass the global synonym map from SkillExtractor for consistent matching
-        synonym_map = services.skill_extractor.synonym_map
-        gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements, synonym_map=synonym_map)
-        
-        # Find matching and missing skills
-        # Use accurate results from GapAnalyzer
-        matched_skills = gap_result['strengths']
-        missing_skills = gap_result['critical_gaps'] + gap_result['important_gaps'] + gap_result['emerging_gaps']
-        
-        # Sort by requirement level and demand (already mostly sorted by GapAnalyzer)
-        level_priority = {"critical": 0, "important": 1, "emerging": 2}
-        missing_skills.sort(key=lambda x: (level_priority.get(x["requirement_level"], 3), -x.get("market_demand", 0)))
-        matched_skills.sort(key=lambda x: (-x["gap"], level_priority.get(x["requirement_level"], 3)))
+        # Perform contextual gap analysis
+        llm_gap_analyzer = services.llm_gap_analyzer
+        is_llm = False
+        try:
+            gap_result = llm_gap_analyzer.analyze_gaps(
+                user_skills, 
+                market_requirements,
+                target_role=role_title
+            )
+            if 'skill_gaps' in gap_result:
+                is_llm = True
+            else:
+                raise ValueError("Incomplete LLM response")
+        except Exception as e:
+            print(f"⚠️ LLM Gap Analysis failed: {e}. Falling back to heuristic.")
+            gap_analyzer = services.gap_analyzer
+            synonym_map = services.skill_extractor.synonym_map
+            gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements, synonym_map=synonym_map)
+
+        # Unified formatting
+        if is_llm:
+            gaps = gap_result.get('skill_gaps', {})
+            critical_gaps = gaps.get('critical', [])
+            important_gaps = gaps.get('important', [])
+            emerging_gaps = gaps.get('emerging', [])
+            strengths = gap_result.get('strengths', [])
+            overall_readiness = gap_result.get('overall_readiness', 0)
+            summary = {
+                "interpretation": gap_result.get('interpretation', ""),
+                "overall_readiness_pct": int(overall_readiness),
+                "critical_gap_count": len(critical_gaps),
+                "strength_count": len(strengths)
+            }
+        else:
+            critical_gaps = gap_result.get('critical_gaps', [])
+            important_gaps = gap_result.get('important_gaps', [])
+            emerging_gaps = gap_result.get('emerging_gaps', [])
+            strengths = gap_result.get('strengths', [])
+            overall_readiness = gap_result.get('overall_readiness', 0)
+            summary = gap_result.get('summary', {})
+
+        missing_skills = critical_gaps + important_gaps + emerging_gaps
+        matched_skills = strengths
         
         # Get course recommendations for gaps
         recommendations = []
         if include_courses:
             course_recommender = services.course_recommender
             
-            # Recommend courses for top gaps
-            skills_to_learn = []
-            # Add missing critical skills first
-            skills_to_learn.extend([s["skill"] for s in missing_skills if s["requirement_level"] == "critical"][:3])
-            # Add skills with largest gaps
-            skills_to_learn.extend([s["skill"] for s in gap_result['critical_gaps'][:2]])
-            skills_to_learn.extend([s["skill"] for s in gap_result['important_gaps'][:2]])
+            # Recommend courses for top gaps (limit to 5 skills)
+            # Prioritize critical gaps
+            skills_to_learn = [s["skill"] for s in critical_gaps[:3]]
+            if len(skills_to_learn) < 5:
+                skills_to_learn.extend([s["skill"] for s in important_gaps[:(5-len(skills_to_learn))]])
             
-            # Remove duplicates while preserving order
+            # Remove duplicates
+            unique_skills = []
             seen = set()
-            unique_skills = [s for s in skills_to_learn if not (s.lower() in seen or seen.add(s.lower()))]
+            for s in skills_to_learn:
+                if s.lower() not in seen:
+                    unique_skills.append(s)
+                    seen.add(s.lower())
             
-            for skill in unique_skills[:5]:  # Limit to top 5
+            for skill in unique_skills:
                 courses = course_recommender.search_courses_for_skill(skill, max_courses_per_skill)
                 if courses:
                     recommendations.append({
                         "skill": skill,
-                        "priority": "critical" if skill in [s["skill"] for s in missing_skills if s["requirement_level"] == "critical"] else "important",
+                        "priority": "critical" if any(s['skill'] == skill for s in critical_gaps) else "important",
                         "courses": courses[:max_courses_per_skill]
                     })
         
         # Build response
-        # Get role title (handle case when using live skills without role in static data)
-        role_title = roles_data.get(role_id, {}).get("title", role_id.replace("_", " ").title())
+        # Get role title
+        role_title_display = roles_data.get(role_id, {}).get("title", role_id.replace("_", " ").title())
         
-        # Format market skills for display (skills fetched from internet for the target role)
-        # Already sorted by demand (highest first) from market_skill_searcher
+        # Format market skills for display
         fetched_market_skills = []
         for skill, req in market_requirements.items():
             fetched_market_skills.append({
@@ -786,53 +856,53 @@ def analyze_user_for_role(
                 "demand": req.get('frequency', 0),
                 "demand_percentage": f"{int(req.get('frequency', 0) * 100)}%",
                 "requirement_level": req.get('requirement_level', 'important'),
-                "trending": req.get("trending", False)
+                "trending": req.get("trending", False),
+                "llm_validated": req.get("llm_validated", False)
             })
         
-        # Sort by demand (ascending) - least to high demanded
-        fetched_market_skills.sort(key=lambda x: x['demand'])
+        # Sort by demand (descending)
+        fetched_market_skills.sort(key=lambda x: x['demand'], reverse=True)
         
-        # Format detailed results for frontend
-        detailed = gap_result.get('detailed_results', {})
-        immediate_learning = detailed.get('critical', [])
-        skill_learning = detailed.get('important', [])
+        # Map GapAnalyzer results to frontend categories
+        immediate_learning = critical_gaps
+        skill_learning = important_gaps
 
         return {
             "message": "Role-based skill gap analysis complete",
             "user_id": user_id,
             "target_role": {
                 "id": role_id,
-                "title": role_title
+                "title": role_title_display
             },
             "skills_source": skills_source,
             "fetched_market_skills": fetched_market_skills,
             "readiness": {
-                "score": gap_result['overall_readiness'],
-                "interpretation": gap_result['summary']['interpretation'],
-                "level": "ready" if gap_result['overall_readiness'] >= 75 else "developing" if gap_result['overall_readiness'] >= 50 else "early"
+                "score": overall_readiness,
+                "interpretation": summary.get('interpretation', ""),
+                "level": "ready" if overall_readiness >= 75 else "developing" if overall_readiness >= 40 else "early"
             },
             "skills_analysis": {
                 "total_role_skills": len(market_requirements),
-                "user_skills_matched": gap_result['summary']['strength_count'] + len(skill_learning), # Approximate match
-                "skills_missing": gap_result['summary']['critical_gap_count'],
-                "match_percentage": gap_result['overall_readiness']
+                "user_skills_matched": len(strengths),
+                "skills_missing": len(critical_gaps),
+                "match_percentage": overall_readiness
             },
-            "skill_gaps": {
-                "critical": gap_result['critical_gaps'],
-                "important": gap_result['important_gaps'],
-                "emerging": gap_result['emerging_gaps']
-            },
+            "skill_gaps": gap_result.get('skill_gaps', {
+                "critical": [],
+                "important": [],
+                "emerging": []
+            }),
             "immediate_learning": immediate_learning,
             "skill_learning": skill_learning,
-            "strengths": detailed.get('strengths', []),
-            "matched_skills": detailed.get('strengths', []),
-            "missing_skills": gap_result['critical_gaps'] + gap_result['important_gaps'] + gap_result['emerging_gaps'],
+            "strengths": strengths,
+            "matched_skills": strengths,
+            "missing_skills": all_gaps,
             "course_recommendations": recommendations,
             "learning_path": {
                 "immediate_focus": [g['skill'] for g in immediate_learning[:3]],
                 "next_steps": [g['skill'] for g in skill_learning[:3]],
-                "future_skills": gap_result['emerging_gaps'][:2],
-                "estimated_months": 3 if gap_result['overall_readiness'] >= 60 else 6 if gap_result['overall_readiness'] >= 40 else 9
+                "future_skills": [g['skill'] for g in emerging_gaps[:2]],
+                "estimated_months": 3 if overall_readiness >= 75 else 6 if overall_readiness >= 40 else 9
             }
         }
 

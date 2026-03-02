@@ -36,97 +36,75 @@ class GapAnalyzer:
         synonym_map: Dict[str, List[str]] = None
     ) -> Dict:
         """
-        Performs gap analysis based on user proficiency and market demand.
-        
-        Rules:
-        - Gap = Market Demand (%) - User Proficiency (%)
-        - Gap > 70%: Immediate Learning (Critical)
-        - 30% <= Gap <= 70%: Skill Learning (Important)
-        - Gap < 20%: Ignore
+        Analyze gaps between user skills and market requirements.
+        Categorizes and sorts by demand (descending).
         """
+        norm_user_skills = {}
+        for skill, data in user_skills.items():
+            norm_name = self._normalize_skill(skill, synonym_map)
+            norm_user_skills[norm_name] = data
+
         critical_gaps = []
         important_gaps = []
         emerging_gaps = []
         strengths = []
-        
-        # Normalize user skills for easier lookup
-        norm_user_skills = {}
-        for s, data in user_skills.items():
-            norm_name = self._normalize_skill(s, synonym_map)
-            norm_user_skills[norm_name] = data
 
-        total_market_skills = 0
-        matched_count = 0
-        
-        for market_skill, market_data in market_requirements.items():
-            # Skip if not a technical skill (contextual relevance)
-            skill_key = market_skill.lower().replace(' ', '-')
-            if skill_key in self.soft_skills:
-                continue
-                
-            total_market_skills += 1
-            norm_market_name = self._normalize_skill(market_skill, synonym_map)
+        for skill, req in market_requirements.items():
+            norm_market_name = self._normalize_skill(skill, synonym_map)
+            demand = req.get('frequency', 0)
+            req_level = req.get('requirement_level', 'important')
             
-            market_demand = market_data.get('frequency', 0)
-            user_data = norm_user_skills.get(norm_market_name)
-            user_proficiency = user_data.get('proficiency', 0) if user_data else 0
-            
-            # Match found
-            if user_data:
-                matched_count += 1
-            
-            # Calculate simple gap percentage
-            gap_pct = (market_demand - user_proficiency) * 100
-            
-            skill_info = {
-                'skill': market_skill,
-                'market_demand': round(market_demand * 100, 1),
-                'demand_percentage': round(market_demand * 100, 1), # Added for frontend compatibility
-                'user_proficiency': round(user_proficiency * 100, 1),
-                'gap': round(max(0, gap_pct), 1),
-                'requirement_level': market_data.get('requirement_level', 'important')
+            # Prepare skill data for result
+            skill_data = {
+                "skill": skill,
+                "demand": demand,
+                "demand_percentage": f"{int(demand * 100)}%",
+                "requirement_level": req_level,
+                "trending": req.get("trending", False),
+                "llm_validated": req.get("llm_validated", False)
             }
 
-            if user_data:
-                strengths.append(skill_info)
+            if norm_market_name in norm_user_skills:
+                # User has the skill - it's a strength
+                user_data = norm_user_skills[norm_market_name]
+                skill_data["user_proficiency"] = user_data.get('proficiency', 0)
+                strengths.append(skill_data)
             else:
-                # If skill is NOT matched, it's a gap
-                gap_pct = market_demand * 100
-                skill_info['gap'] = round(gap_pct, 1)
-                
-                if gap_pct > 70:
-                    critical_gaps.append(skill_info)
-                elif 30 <= gap_pct <= 70:
-                    important_gaps.append(skill_info)
+                # User lacks the skill - it's a gap
+                # Filter out soft skills for the gap list to keep it technical
+                if skill.lower().replace(' ', '-') in self.soft_skills:
+                    continue
+                    
+                if req_level == 'critical':
+                    critical_gaps.append(skill_data)
+                elif req_level == 'important':
+                    important_gaps.append(skill_data)
                 else:
-                    emerging_gaps.append(skill_info)
+                    emerging_gaps.append(skill_data)
 
-        # Sort gaps by priority (highest gap first)
-        critical_gaps.sort(key=lambda x: x['gap'], reverse=True)
-        important_gaps.sort(key=lambda x: x['gap'], reverse=True)
-        
-        overall_readiness = (matched_count / total_market_skills * 100) if total_market_skills > 0 else 0
+        # Sort all lists by demand descending
+        critical_gaps.sort(key=lambda x: x['demand'], reverse=True)
+        important_gaps.sort(key=lambda x: x['demand'], reverse=True)
+        emerging_gaps.sort(key=lambda x: x['demand'], reverse=True)
+        strengths.sort(key=lambda x: x['demand'], reverse=True)
 
-        # Build interpretation
-        interpretation = "You are well-prepared for this role." if overall_readiness > 80 else \
-                         "You have a solid foundation but some critical gaps remain." if overall_readiness > 50 else \
-                         "Extensive learning is required to be competitive for this role."
+        readiness_score = self._calculate_readiness(user_skills, market_requirements, synonym_map)
 
         return {
-            'critical_gaps': critical_gaps, # Return objects instead of names
+            'critical_gaps': critical_gaps,
             'important_gaps': important_gaps,
             'emerging_gaps': emerging_gaps,
             'strengths': strengths,
-            'overall_readiness': round(overall_readiness, 1),
+            'overall_readiness': readiness_score,
             'summary': {
-                'total_gaps': len(critical_gaps) + len(important_gaps),
+                'total_gaps': len(critical_gaps) + len(important_gaps) + len(emerging_gaps),
                 'critical_gap_count': len(critical_gaps),
                 'important_gap_count': len(important_gaps),
                 'emerging_gap_count': len(emerging_gaps),
                 'strength_count': len(strengths),
-                'overall_readiness_pct': round(overall_readiness, 1),
-                'interpretation': interpretation,
-                'top_3_priorities': [g['skill'] for g in critical_gaps[:3]]
+                'overall_readiness_pct': int(readiness_score * 100),
+                'interpretation': self._get_interpretation(readiness_score),
+                'top_3_priorities': [s['skill'] for s in critical_gaps[:3]]
             },
             'detailed_results': {
                 'critical': critical_gaps,
@@ -135,6 +113,38 @@ class GapAnalyzer:
                 'strengths': strengths
             }
         }
+
+    def _calculate_readiness(self, user_skills, market_requirements, synonym_map) -> float:
+        """Calculate a weighted readiness score."""
+        if not market_requirements:
+            return 0.0
+            
+        total_weight = 0
+        attained_weight = 0
+        
+        norm_user_skills = {self._normalize_skill(s, synonym_map) for s in user_skills.keys()}
+        
+        for skill, req in market_requirements.items():
+            demand = req.get('frequency', 0)
+            norm_name = self._normalize_skill(skill, synonym_map)
+            
+            # Critical skills carry 3x weight, important 2x, emerging 1x
+            multiplier = 3 if req.get('requirement_level') == 'critical' else \
+                         2 if req.get('requirement_level') == 'important' else 1
+            
+            weight = demand * multiplier
+            total_weight += weight
+            
+            if norm_name in norm_user_skills:
+                attained_weight += weight
+                
+        return round(attained_weight / total_weight, 2) if total_weight > 0 else 0.0
+
+    def _get_interpretation(self, score: float) -> str:
+        if score >= 0.8: return "Excellent match. You are highly ready for this role."
+        if score >= 0.6: return "Good match. Focus on a few key missing skills to be competitive."
+        if score >= 0.4: return "Moderate match. Significant learning required in core areas."
+        return "Developing match. Consider foundational courses in this role's technology stack."
 
     def get_missing_skills(
         self,

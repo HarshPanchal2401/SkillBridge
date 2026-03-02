@@ -8,29 +8,59 @@ export interface Skill {
     source_count?: number;
 }
 
+export interface MarketSkill {
+    skill: string;
+    demand: number;
+    demand_percentage: string;
+    requirement_level: string;
+    trending?: boolean;
+    llm_validated?: boolean;
+    reasoning?: string;
+    transferability?: number;
+    gap?: number;
+}
+
 export interface GapAnalysis {
     overall_readiness: number;
-    critical_gaps: any[];
-    important_gaps: any[];
-    skill_gaps: {
-        critical: any[];
-        important: any[];
-        emerging: any[];
+    interpretation?: string;
+    readiness?: {
+        score: number;
+        interpretation: string;
+        level: string;
     };
-    immediate_learning?: any[];
-    skill_learning?: any[];
-    fetched_market_skills?: any[];
+    skills_analysis?: {
+        total_role_skills: number;
+        user_skills_matched: number;
+        skills_missing: number;
+        match_percentage: number;
+    };
+    critical_gaps: MarketSkill[];
+    important_gaps: MarketSkill[];
+    skill_gaps: {
+        critical: MarketSkill[];
+        important: MarketSkill[];
+        emerging: MarketSkill[];
+    };
+    immediate_learning?: MarketSkill[];
+    skill_learning?: MarketSkill[];
+    fetched_market_skills?: MarketSkill[];
     skills_source?: string;
-    matched_skills?: any[];
-    missing_skills?: any[];
-    strengths?: any[];
+    matched_skills?: MarketSkill[];
+    missing_skills?: MarketSkill[];
+    strengths?: MarketSkill[];
     target_role?: { id: string, title: string };
     match_percentage?: number;
-    learning_path: {
+    learning_path?: {
         immediate_focus: string[];
         next_steps: string[];
         future_skills: string[];
         estimated_months: number;
+    };
+    summary?: {
+        interpretation: string;
+        overall_readiness_pct: number;
+        critical_gap_count: number;
+        strength_count: number;
     };
 }
 
