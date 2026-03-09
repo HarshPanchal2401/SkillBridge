@@ -62,8 +62,11 @@ export default function OnboardingPage() {
             setLoading(true);
             try {
                 if (resumeFile && userId) {
+                    // uploadResume now auto-extracts skills on the backend,
+                    // but we also call extractAllSkills as a safety net to
+                    // ensure the full pipeline (LLM refinement etc.) runs.
                     await api.uploadResume(userId, resumeFile);
-                    await api.extractSkills(userId);
+                    await api.extractAllSkills(userId);
                 }
                 await refreshUser();
                 router.push('/dashboard');

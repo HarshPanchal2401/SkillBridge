@@ -60,10 +60,44 @@ def analyze_user_gaps(
         market_searcher = services.market_skill_searcher
         print(f"🔍 Searching live market skills for: {target_role}")
         live_result = market_searcher.search_role_skills(target_role)
-        market_requirements = live_result.get("skills", {})
+        live_skills  = live_result.get("skills", {})
         skills_source = live_result.get("source", "web_search")
 
-        # ========== LLM Market Skill Validation ==========
+        # ── ALWAYS USE STRUCTURED FALLBACK AS THE BASE (20-25 skills) ────────
+        # The structured fallback in role_requirements.json has exactly 20-25
+        # curated skills per role. We use it as the base and let live Tavily
+        # results override individual entries where they exist.
+        fallback_result = market_searcher._get_fallback_skills(target_role)
+        fallback_skills = fallback_result.get("skills", {})
+
+        if fallback_skills:
+            # Start from the fallback (already 20-25 curated skills)
+            # Sort fallback by frequency desc and take top 25
+            top_fallback = dict(
+                sorted(fallback_skills.items(),
+                       key=lambda x: x[1].get("frequency", 0), reverse=True)[:25]
+            )
+            # Let live search override matching entries only
+            for skill, data in live_skills.items():
+                if skill in top_fallback:
+                    top_fallback[skill] = data   # live wins when key matches
+            market_requirements = top_fallback
+            skills_source = "structured+live" if live_skills else "structured"
+        else:
+            # No structured fallback — use live results capped at 25
+            market_requirements = dict(
+                sorted(live_skills.items(),
+                       key=lambda x: x[1].get("frequency", 0), reverse=True)[:25]
+            )
+
+        # ── HARD CAP: always 20–25 skills ────────────────────────────────────
+        if len(market_requirements) > 25:
+            market_requirements = dict(
+                sorted(market_requirements.items(),
+                       key=lambda x: x[1].get("frequency", 0), reverse=True)[:25]
+            )
+
+        # ── LLM Market Skill Validation ─────────────────────────────────────
         if market_requirements and services.groq_refiner and services.groq_refiner.is_available():
             print(f"🧠 Validating {len(market_requirements)} market skills with LLM...")
             market_requirements = services.groq_refiner.validate_market_skills(
@@ -75,64 +109,42 @@ def analyze_user_gaps(
         # Print fetched/validated skills to terminal
         print(f"\n{'='*60}")
         print(f"📋 FINAL MARKET SKILLS FOR: {target_role}")
-        print(f"   Source: {skills_source}")
-        print(f"   Total Skills: {len(market_requirements)}")
+        print(f"   Source: {skills_source}  |  Total: {len(market_requirements)}")
         print(f"{'='*60}")
         for i, (skill, data) in enumerate(market_requirements.items(), 1):
             level = data.get('requirement_level', 'unknown')
-            freq = int(data.get('frequency', 0) * 100)
-            trending = "🔥" if data.get('trending', False) else ""
-            print(f"   {i:2}. {skill:<25} | {level:<10} | {freq}% demand {trending}")
+            freq  = int(data.get('frequency', 0) * 100)
+            trend = "🔥" if data.get('trending', False) else ""
+            print(f"   {i:2}. {skill:<28} | {level:<10} | {freq}% {trend}")
         print(f"{'='*60}\n")
         
-        # Fallback to sample if no live skills
+        # Safety net — should never be empty now
         if not market_requirements:
             market_requirements = get_sample_market_requirements()
             skills_source = "fallback"
         
-        # Perform contextual gap analysis
-        llm_gap_analyzer = services.llm_gap_analyzer
-        is_llm = False
-        try:
-            gap_result = llm_gap_analyzer.analyze_gaps(
-                user_skills, 
-                market_requirements,
-                target_role=target_role
-            )
-            if 'skill_gaps' in gap_result:
-                is_llm = True
-            else:
-                # Fallback if LLM returned bad format
-                raise ValueError("Incomplete LLM response")
-        except Exception as e:
-            print(f"⚠️ LLM Gap Analysis failed: {e}. Falling back to heuristic.")
-            gap_result = services.gap_analyzer.analyze_gaps(
-                user_skills, 
-                market_requirements,
-                synonym_map=services.skill_extractor.synonyms
-            )
+        # Perform contextual gap analysis — SmartGapAnalyzer is always used;
+        # GroqGapAnalyzer only enriches with reasoning if Groq key is available.
+        print(f"🔬 Running SmartGapAnalyzer for: {target_role}")
+        gap_result = services.llm_gap_analyzer.analyze_gaps(
+            user_skills,
+            market_requirements,
+            target_role=target_role
+        )
 
-        # Unified formatting for both LLM and Heuristic results
-        if is_llm:
-            gaps = gap_result.get('skill_gaps', {})
-            critical_gaps = gaps.get('critical', [])
-            important_gaps = gaps.get('important', [])
-            emerging_gaps = gaps.get('emerging', [])
-            strengths = gap_result.get('strengths', [])
-            overall_readiness = gap_result.get('overall_readiness', 0)
-            summary = {
-                "interpretation": gap_result.get('interpretation', ""),
-                "overall_readiness_pct": int(overall_readiness),
-                "critical_gap_count": len(critical_gaps),
-                "strength_count": len(strengths)
-            }
-        else:
-            critical_gaps = gap_result.get('critical_gaps', [])
-            important_gaps = gap_result.get('important_gaps', [])
-            emerging_gaps = gap_result.get('emerging_gaps', [])
-            strengths = gap_result.get('strengths', [])
-            overall_readiness = gap_result.get('overall_readiness', 0)
-            summary = gap_result.get('summary', {})
+        # Unified extraction (GroqGapAnalyzer always returns skill_gaps key)
+        gaps = gap_result.get('skill_gaps', {})
+        critical_gaps  = gaps.get('critical',  gap_result.get('critical_gaps',  []))
+        important_gaps = gaps.get('important', gap_result.get('important_gaps', []))
+        emerging_gaps  = gaps.get('emerging',  gap_result.get('emerging_gaps',  []))
+        strengths      = gap_result.get('strengths', [])
+        overall_readiness = gap_result.get('overall_readiness', 0)
+        summary = gap_result.get('summary', {
+            'interpretation': gap_result.get('interpretation', ''),
+            'overall_readiness_pct': int(overall_readiness),
+            'critical_gap_count': len(critical_gaps),
+            'strength_count': len(strengths),
+        })
 
         # Format fetched market skills for frontend display
         fetched_market_skills = []
@@ -703,7 +715,7 @@ def analyze_user_for_role(
     market_searcher = services.market_skill_searcher
     
     print(f"🔍 Searching live market skills for: {role_title}")
-    live_result = market_searcher.search_role_skills(role_title, max_skills=50)
+    live_result = market_searcher.search_role_skills(role_title, max_skills=30)
     market_requirements = live_result.get("skills", {})
     skills_source = live_result.get("source", "web_search")
     
@@ -772,46 +784,27 @@ def analyze_user_for_role(
                 'confidence': skill_dict['confidence']
             }
         
-        # Perform contextual gap analysis
-        llm_gap_analyzer = services.llm_gap_analyzer
-        is_llm = False
-        try:
-            gap_result = llm_gap_analyzer.analyze_gaps(
-                user_skills, 
-                market_requirements,
-                target_role=role_title
-            )
-            if 'skill_gaps' in gap_result:
-                is_llm = True
-            else:
-                raise ValueError("Incomplete LLM response")
-        except Exception as e:
-            print(f"⚠️ LLM Gap Analysis failed: {e}. Falling back to heuristic.")
-            gap_analyzer = services.gap_analyzer
-            synonym_map = services.skill_extractor.synonym_map
-            gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements, synonym_map=synonym_map)
+        # Perform contextual gap analysis — SmartGapAnalyzer core, Groq enriches reasoning
+        print(f"🔬 Running SmartGapAnalyzer for role: {role_title}")
+        gap_result = services.llm_gap_analyzer.analyze_gaps(
+            user_skills,
+            market_requirements,
+            target_role=role_title
+        )
 
-        # Unified formatting
-        if is_llm:
-            gaps = gap_result.get('skill_gaps', {})
-            critical_gaps = gaps.get('critical', [])
-            important_gaps = gaps.get('important', [])
-            emerging_gaps = gaps.get('emerging', [])
-            strengths = gap_result.get('strengths', [])
-            overall_readiness = gap_result.get('overall_readiness', 0)
-            summary = {
-                "interpretation": gap_result.get('interpretation', ""),
-                "overall_readiness_pct": int(overall_readiness),
-                "critical_gap_count": len(critical_gaps),
-                "strength_count": len(strengths)
-            }
-        else:
-            critical_gaps = gap_result.get('critical_gaps', [])
-            important_gaps = gap_result.get('important_gaps', [])
-            emerging_gaps = gap_result.get('emerging_gaps', [])
-            strengths = gap_result.get('strengths', [])
-            overall_readiness = gap_result.get('overall_readiness', 0)
-            summary = gap_result.get('summary', {})
+        # Unified extraction
+        gaps = gap_result.get('skill_gaps', {})
+        critical_gaps  = gaps.get('critical',  gap_result.get('critical_gaps',  []))
+        important_gaps = gaps.get('important', gap_result.get('important_gaps', []))
+        emerging_gaps  = gaps.get('emerging',  gap_result.get('emerging_gaps',  []))
+        strengths      = gap_result.get('strengths', [])
+        overall_readiness = gap_result.get('overall_readiness', 0)
+        summary = gap_result.get('summary', {
+            'interpretation': gap_result.get('interpretation', ''),
+            'overall_readiness_pct': int(overall_readiness),
+            'critical_gap_count': len(critical_gaps),
+            'strength_count': len(strengths),
+        })
 
         missing_skills = critical_gaps + important_gaps + emerging_gaps
         matched_skills = strengths
@@ -896,7 +889,7 @@ def analyze_user_for_role(
             "skill_learning": skill_learning,
             "strengths": strengths,
             "matched_skills": strengths,
-            "missing_skills": all_gaps,
+            "missing_skills": missing_skills,
             "course_recommendations": recommendations,
             "learning_path": {
                 "immediate_focus": [g['skill'] for g in immediate_learning[:3]],

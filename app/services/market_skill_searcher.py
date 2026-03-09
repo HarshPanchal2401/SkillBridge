@@ -138,7 +138,7 @@ class MarketSkillSearcher:
         self,
         role_title: str,
         force_refresh: bool = False,
-        max_skills: int = 50
+        max_skills: int = 30
     ) -> Dict:
         """
         Search the web for required skills for a given role.
@@ -373,30 +373,46 @@ class MarketSkillSearcher:
         role_lower = role_title.lower()
         matched_role = None
         
-        # Role name mappings
+        # Role name mappings — maps keywords to role_requirements.json keys
         mappings = {
+            # AI / ML
+            "ai/ml": "ai_ml_engineer",
+            "ai ml": "ai_ml_engineer",
+            "ai engineer": "ai_ml_engineer",
+            "ml engineer": "ai_ml_engineer",
+            "machine learning engineer": "ai_ml_engineer",
+            "machine learning": "machine_learning_engineer",
+            "ml": "machine_learning_engineer",
+            # Frontend
             "frontend": "frontend_developer",
             "front-end": "frontend_developer",
             "front end": "frontend_developer",
+            # Backend
             "backend": "backend_developer",
             "back-end": "backend_developer",
             "back end": "backend_developer",
+            # Full Stack
             "full stack": "fullstack_developer",
             "fullstack": "fullstack_developer",
             "full-stack": "fullstack_developer",
+            # Data
             "data science": "data_science_analyst",
             "data scientist": "data_science_analyst",
             "data analyst": "data_science_analyst",
-            "machine learning": "machine_learning_engineer",
-            "ml engineer": "machine_learning_engineer",
-            "ai engineer": "machine_learning_engineer",
-            "ai/ml": "machine_learning_engineer",
+            "data engineer": "data_engineer",
+            "data engineering": "data_engineer",
+            # DevOps
             "devops": "devops_engineer",
             "dev ops": "devops_engineer",
+            "site reliability": "devops_engineer",
+            "sre": "devops_engineer",
+            # Others
+            "software engineer": "software_engineer",
+            "software developer": "software_engineer",
             "healthcare data": "healthcare_data_analyst",
             "mobile": "mobile_developer",
             "android": "mobile_developer",
-            "ios": "mobile_developer"
+            "ios": "mobile_developer",
         }
         
         for key, value in mappings.items():

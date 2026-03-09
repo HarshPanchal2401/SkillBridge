@@ -78,6 +78,8 @@ class PrioritySkillExtractor:
         'optimized', 'improved', 'enhanced', 'maintained', 'deployed', 'automated',
         'integrated', 'migrated', 'scaled', 'refactored', 'configured', 'engineered',
         'managed', 'leveraged', 'utilized', 'established', 'contributed',
+        'analyzed', 'processed', 'trained', 'tested', 'evaluated', 'applied',
+        'used', 'worked', 'written', 'wrote', 'programmed',
     ]
 
     # Layer 5: Years of experience patterns
@@ -105,7 +107,16 @@ class PrioritySkillExtractor:
         if "skills" in skills_data and "synonyms" in skills_data:
             # First add all canonical skills
             for skill in skills_data["skills"]:
-                lookup[skill.lower()] = {skill.lower()}
+                s_lower = skill.lower()
+                lookup[s_lower] = {s_lower}
+                # Also add version without spaces (e.g. "machine learning" -> "machinelearning")
+                no_space = s_lower.replace(" ", "")
+                if no_space != s_lower and len(no_space) > 3:
+                    lookup[s_lower].add(no_space)
+                # Add hyphenated version
+                hyphenated = s_lower.replace(" ", "-")
+                if hyphenated != s_lower:
+                    lookup[s_lower].add(hyphenated)
             
             # Then add synonyms for each canonical skill
             for variant, canonical in skills_data["synonyms"].items():
@@ -116,13 +127,23 @@ class PrioritySkillExtractor:
                 else:
                     lookup[c_lower] = {c_lower, v_lower}
         else:
-            # Fallback for old format
+            # Old format: {skill: {abbr, aliases}}
             for skill, data in skills_data.items():
-                variants = {skill.lower()}
+                s_lower = skill.lower()
+                variants = {s_lower}
+                # Also add version without spaces and with hyphens
+                no_space = s_lower.replace(" ", "")
+                hyphenated = s_lower.replace(" ", "-")
+                if no_space != s_lower and len(no_space) > 3:
+                    variants.add(no_space)
+                if hyphenated != s_lower:
+                    variants.add(hyphenated)
                 if isinstance(data, dict):
-                    variants |= set(map(str.lower, data.get("abbr", [])))
-                    variants |= set(map(str.lower, data.get("aliases", [])))
-                lookup[skill.lower()] = variants
+                    for abbr in data.get("abbr", []):
+                        variants.add(abbr.lower())
+                    for alias in data.get("aliases", []):
+                        variants.add(alias.lower())
+                lookup[s_lower] = variants
         return lookup
 
     def extract_resume_text(self, pdf_path: str) -> str:
@@ -145,10 +166,16 @@ class PrioritySkillExtractor:
         return text.lower().strip()
 
     def normalize(self, text: str) -> str:
-        """Text normalization following user's script."""
+        """
+        Text normalization - FIXED to lowercase BEFORE stripping.
+        This ensures 'NumPy' -> 'numpy', not 'um y'.
+        """
+        # FIX: lowercase FIRST so CamelCase/uppercase skills are preserved
+        text = text.lower()
         text = re.sub(r"[-_/]", " ", text)
         text = re.sub(r"\([^)]*\)", "", text)
-        text = re.sub(r"[^a-z\s\.]", " ", text)
+        # Allow alphanumeric, spaces, and dots (for e.g. Node.js)
+        text = re.sub(r"[^a-z0-9\s\.]", " ", text)
         text = re.sub(r"\s+", " ", text)
         return text.strip()
 
@@ -156,18 +183,20 @@ class PrioritySkillExtractor:
         """
         Split resume text into bounded sections.
         Each section gets ONLY the text between its header and the next section header.
+        Returns a special 'unsectioned' key if no sections found.
         """
         text_lower = text.lower()
 
         # Ordered section headers (regex pattern, section name)
         # Headers must be at the START of a line to avoid matching mid-sentence words
+        # IMPROVED: more flexible patterns to catch more section header formats
         section_headers = [
-            (r'(?:^|\n)\s*(?:about\s*me|summary|objective|profile)\s*\n', 'about'),
-            (r'(?:^|\n)\s*(?:technical\s+skills|skills)\s*\n', 'skills'),
-            (r'(?:^|\n)\s*(?:work\s+experience|experience/?internship|experience|internship)\s*\n', 'experience'),
-            (r'(?:^|\n)\s*(?:projects|academic\s+projects|personal\s+projects)\s*\n', 'projects'),
-            (r'(?:^|\n)\s*(?:education)\s*\n', 'education'),
-            (r'(?:^|\n)\s*(?:certifications?|certificates?)\s*\n', 'certifications'),
+            (r'(?:^|\n)\s*(?:about\s*me|summary|objective|profile|professional\s+summary|career\s+summary)\s*\n', 'about'),
+            (r'(?:^|\n)\s*(?:technical\s+skills?|skills?\s+summary|skills?|key\s+skills?|core\s+competencies|competencies|technologies)\s*\n', 'skills'),
+            (r'(?:^|\n)\s*(?:work\s+experience|experience/?internship|professional\s+experience|experience|internship|employment)\s*\n', 'experience'),
+            (r'(?:^|\n)\s*(?:projects?|academic\s+projects?|personal\s+projects?|side\s+projects?)\s*\n', 'projects'),
+            (r'(?:^|\n)\s*(?:education|educational\s+background|academic\s+background)\s*\n', 'education'),
+            (r'(?:^|\n)\s*(?:certifications?|certificates?|awards?|achievements?)\s*\n', 'certifications'),
         ]
 
         # Find all section header positions
@@ -194,7 +223,19 @@ class PrioritySkillExtractor:
             "experience": "",
             "projects": "",
             "certifications": "",
+            "unsectioned": "",  # NEW: fallback for text with no sections
         }
+
+        if not unique_sections:
+            # No section headers found - treat entire text as unsectioned
+            sections["unsectioned"] = text_lower.strip()
+            return sections
+
+        # Check if there's text before the first section (header area, name, etc.)
+        # We can assign a small weight to it
+        first_section_start = unique_sections[0][0]
+        if first_section_start > 0:
+            sections["unsectioned"] = text_lower[:first_section_start].strip()
 
         for i, (start, end, name) in enumerate(unique_sections):
             if name not in sections:
@@ -215,8 +256,14 @@ class PrioritySkillExtractor:
         return re.search(rf"\b{re.escape(skill)}\b", text) is not None
 
     def skill_matches(self, skill: str, variants: Set[str], text: str) -> bool:
-        """Fuzzy and exact matching logic with false-positive protection."""
+        """
+        Fuzzy and exact matching logic with false-positive protection.
+        IMPROVED: also handles multi-line text with newlines treated as spaces.
+        """
+        # Normalize text for matching (lowercase, collapse whitespace)
         text = text.lower()
+        # Replace newlines with spaces to handle line-split skills
+        text = re.sub(r'\s+', ' ', text)
 
         # Exact-match-only skills: short, OS, generic phrases, or common-word skills
         if skill in self.SHORT_SKILLS or skill in self.OS_SKILLS or skill in self.GENERIC_PHRASE_SKILLS or skill in self.EXACT_MATCH_ONLY:
@@ -295,9 +342,9 @@ class PrioritySkillExtractor:
         found_verbs = set()
         # Find all positions of the skill
         for match in re.finditer(rf"\b{re.escape(skill)}\b", text_lower):
-            # Look at 120-char window around each mention
-            start = max(0, match.start() - 120)
-            end = min(len(text_lower), match.end() + 120)
+            # Look at 150-char window around each mention (increased from 120)
+            start = max(0, match.start() - 150)
+            end = min(len(text_lower), match.end() + 150)
             window = text_lower[start:end]
             for verb in self.ACTION_VERBS:
                 if verb in window:
@@ -319,9 +366,39 @@ class PrioritySkillExtractor:
                 continue
         return max_years
 
+    def _tokenize_skills_line(self, line: str) -> List[str]:
+        """
+        For a line in the skills section, generate all possible candidate phrases.
+        Handles: comma, pipe, semicolon, slash separated skills.
+        Also handles multi-word skills by generating n-grams.
+        """
+        candidates = [line]  # always keep the full line
+
+        # Split on typical skill delimiters
+        tokens = re.split(r'[,;|/•·]+', line)
+        for token in tokens:
+            t = token.strip()
+            if t and len(t) > 1:
+                candidates.append(t)
+                # Also add sub-tokens split by spaces for single-word skills
+                words = t.split()
+                if len(words) > 1:
+                    for word in words:
+                        if len(word) > 1:
+                            candidates.append(word)
+
+        return candidates
+
     def extract_skills(self, resume_text: str) -> List[Dict[str, Any]]:
         """
         Main extraction logic with multi-layer weight accumulation.
+        
+        FIXED:
+        - normalize() now lowercases first (fixes NumPy, NUMPY, etc.)
+        - Added 'unsectioned' fallback when no section headers found
+        - More flexible section header patterns
+        - Improved tokenization for skills section
+        - Better action verb list
         
         Layer 1: Section weights accumulate across sections.
         Layer 2: Contextual meaning boosters add extra weight.
@@ -342,6 +419,13 @@ class PrioritySkillExtractor:
         results = {}
         full_text = resume_text.lower()
 
+        # Assign weights for unsectioned content
+        # Using a moderate weight (between experience and certifications)
+        section_weights_extended = {
+            **self.SECTION_WEIGHTS,
+            "unsectioned": 0.20,  # default weight when no sections detected
+        }
+
         for section_name, section_text in sections.items():
             if not section_text.strip():
                 continue
@@ -349,19 +433,12 @@ class PrioritySkillExtractor:
             clean_section = self.normalize(section_text)
             lines = [l.strip() for l in clean_section.split("\n") if l.strip()]
 
-            # For Skills section: also split comma/pipe/semicolon separated items
-            # e.g. "python, sql, numpy, pandas" -> individual tokens for matching
-            if section_name == "skills":
+            # For Skills section AND unsectioned: also split comma/pipe/semicolon separated items
+            if section_name in ("skills", "unsectioned"):
                 expanded_lines = []
                 for line in lines:
-                    expanded_lines.append(line)  # keep the full line
-                    # Also add individual comma-separated tokens
-                    tokens = re.split(r'[,;|]+', line)
-                    for token in tokens:
-                        t = token.strip()
-                        if t and len(t) > 1:
-                            expanded_lines.append(t)
-                lines = expanded_lines
+                    expanded_lines.extend(self._tokenize_skills_line(line))
+                lines = list(set(expanded_lines))  # deduplicate
 
             for line in lines:
                 for skill, variants in self.skills_lookup.items():
@@ -370,7 +447,7 @@ class PrioritySkillExtractor:
                         continue
 
                     if self.skill_matches(skill, variants, line):
-                        weight = self.SECTION_WEIGHTS.get(section_name, 0.0)
+                        weight = section_weights_extended.get(section_name, 0.0)
 
                         if skill in results:
                             # Accumulate weight from new section
@@ -380,10 +457,11 @@ class PrioritySkillExtractor:
                             results[skill]["found_in"].append(section_name)
                         else:
                             # First time seeing this skill
+                            is_skills_section = section_name == "skills"
                             results[skill] = {
                                 "skill": skill,
                                 "proficiency": weight,
-                                "confidence": 0.85 + (0.05 if section_name == "skills" else 0.0),
+                                "confidence": 0.85 + (0.05 if is_skills_section else 0.0),
                                 "found_in": [section_name],
                                 "context_boost": 0.0,
                                 "evidence": line
@@ -436,6 +514,3 @@ class PrioritySkillExtractor:
         )
 
         return sorted_results
-
-
-    

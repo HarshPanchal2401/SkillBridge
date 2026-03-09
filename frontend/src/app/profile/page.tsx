@@ -102,21 +102,33 @@ export default function ProfilePage() {
         setLoading(true);
         setMessage(null);
         try {
-            await api.uploadResume(userId, file);
+            // uploadResume now auto-extracts skills on the backend
+            const uploadResult = await api.uploadResume(userId, file);
             await refreshUser();
+
+            const backendSkillCount = uploadResult?.data?.skills_extracted ?? 0;
             setMessage({
                 type: 'success',
-                text: 'Resume uploaded! Extracting intelligence...',
+                text: backendSkillCount
+                    ? `Resume uploaded! Found ${backendSkillCount} skills — refreshing analysis...`
+                    : 'Resume uploaded! Extracting intelligence...',
             });
 
             setExtracting(true);
             try {
+                // Run the full-pipeline extraction (LLM refinement, re-unification)
                 const result = await api.extractAllSkills(userId);
+                const totalSkills = result.total_skills ?? result.resume_skills ?? backendSkillCount;
+
+                // Force-bust the frontend gap-analysis cache so the new
+                // resume is reflected immediately without a page reload
+                await api.getGapAnalysis(userId, true);
+
                 await loadSkills();
                 await refreshUser();
                 setMessage({
                     type: 'success',
-                    text: `Profile analyzed! Found ${result.total_skills} skills in your repository.`,
+                    text: `Profile analyzed! Found ${totalSkills} skills. Gap analysis updated.`,
                 });
             } catch (extractError: any) {
                 setMessage({

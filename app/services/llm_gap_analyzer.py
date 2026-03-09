@@ -1,6 +1,9 @@
 """
-Groq LLM-based skill gap analysis service.
-Uses contextual understanding to compare user skills vs market demand.
+Groq LLM-based skill gap ENRICHMENT service.
+
+The core gap detection is done by SmartGapAnalyzer (deterministic, ontology-first).
+This module only ENRICHES the gaps with human-readable reasoning via Groq LLM.
+If Groq is unavailable the SmartGapAnalyzer result is returned as-is.
 """
 import os
 import json
@@ -13,150 +16,166 @@ try:
 except ImportError:
     GROQ_AVAILABLE = False
 
-GROQ_MODEL = "llama-3.3-70b-versatile"
+from app.services.gap_analyzer import SmartGapAnalyzer
+
+GROQ_MODEL   = "llama-3.3-70b-versatile"
 GROQ_TIMEOUT = 45
 
-SYSTEM_PROMPT = """You are a senior technical career strategist and AI talent matcher. 
-Your task is to perform a CONTEXTUAL skill gap analysis.
+# ── Prompt for ENRICHMENT only (not gap detection) ───────────────────────────
+ENRICH_SYSTEM = """You are a senior technical career strategist.
+You will receive a pre-computed skill gap analysis result.
+Your ONLY job is to add a short "reasoning" field (1 sentence) to each gap item
+explaining WHY this skill matters for the role and HOW urgently the user should learn it.
+Do NOT change any skill names, demands, or requirement_level values.
+Return ONLY valid JSON with the same structure you received, with "reasoning" added to each gap.
+"""
 
-You will be given:
-1. User Skills (with proficiency 0.0-1.0)
-2. Market Requirements (with demand/frequency 0.0-1.0)
+ENRICH_USER_TMPL = """Target Role: {target_role}
 
-Your goal is to identify gaps not just by name, but by SEMANTIC understanding.
-Logic Rules:
-- Contextual Matching: If user lacks "FastAPI" but has 0.9 proficiency in "Python" and "Flask", the gap for FastAPI is HIGHLY TRANSFERABLE (lower effective gap).
-- Prerequisite Logic: If a user lacks "PyTorch" and also lacks "Python", "Python" is a Critical PREREQUISITE.
-- Calculation: Effective Gap = Market Demand - (User Proficiency * Similarity_Factor).
+Gaps to enrich (add reasoning field to each):
+{gaps_json}
 
-Categorization:
-- Critical Gaps: Effective Gap > 0.6 (Must learn immediately)
-- Important Gaps: Effective Gap 0.3 - 0.6 (Strategic learning)
-- Emerging Gaps: Effective Gap < 0.3 (Nice to have / Monitor)
+Return enriched JSON array only."""
 
-Output JSON structure:
-{
-  "overall_readiness": float (0-100),
-  "interpretation": "Direct, actionable career advice",
-  "skill_gaps": {
-    "critical": [{"skill": str, "demand": float (0.0-1.0), "demand_percentage": str, "requirement_level": "critical", "reasoning": str, "transferability": float}],
-    "important": [{"skill": str, "demand": float (0.0-1.0), "demand_percentage": str, "requirement_level": "important", "reasoning": str, "transferability": float}],
-    "emerging": [{"skill": str, "demand": float (0.0-1.0), "demand_percentage": str, "requirement_level": "emerging", "reasoning": str, "transferability": float}]
-  },
-  "strengths": [{"skill": str, "proficiency": float, "demand": float}]
-}
-
-Important: Return ONLY valid JSON."""
-
-USER_PROMPT_TEMPLATE = """Target Role: {target_role}
-
-User Skills:
-{user_skills_json}
-
-Market Requirements:
-{market_requirements_json}
-
-Perform the gap analysis and return the JSON response."""
 
 class GroqGapAnalyzer:
+    """
+    Wraps SmartGapAnalyzer with optional Groq LLM enrichment.
+
+    analyze_gaps() always returns a valid result:
+      - SmartGapAnalyzer provides the authoritative gap list
+      - Groq adds "reasoning" text to each gap (best-effort, skipped on error)
+    """
+
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.getenv("GROQ_API_KEY", "")
+        self.api_key  = api_key or os.getenv("GROQ_API_KEY", "")
         self.client: Optional[Any] = None
         self.available = False
+        self._smart = SmartGapAnalyzer()
 
         if GROQ_AVAILABLE and self.api_key:
             try:
-                self.client = Groq(api_key=self.api_key)
+                self.client    = Groq(api_key=self.api_key)
                 self.available = True
-            except:
+            except Exception:
                 self.available = False
+
+    def is_available(self) -> bool:
+        return self.available
 
     def analyze_gaps(
         self,
         user_skills: Dict[str, Dict],
         market_requirements: Dict[str, Dict],
-        target_role: str = "Target Position"
+        target_role: str = "Target Position",
     ) -> Dict:
-        if not self.available:
-            # Fallback to simple logic if Groq is unavailable
-            return self._fallback_analysis(user_skills, market_requirements)
+        """
+        Run SmartGapAnalyzer then optionally enrich gaps with Groq reasoning.
+        Always returns the standard SmartGapAnalyzer dict format.
+        """
+        # 1. Authoritative gap detection (pure Python, always works)
+        result = self._smart.analyze_gaps(user_skills, market_requirements)
 
-        user_skills_simple = {k: v.get('proficiency', 0) for k, v in user_skills.items()}
-        market_req_simple = {k: v.get('frequency', 0) for k, v in market_requirements.items()}
+        # 2. Optional: enrich with Groq reasoning
+        if self.available:
+            try:
+                result = self._enrich_with_reasoning(result, target_role)
+            except Exception as e:
+                print(f"⚠️  Groq enrichment failed (using base result): {e}")
 
-        user_prompt = USER_PROMPT_TEMPLATE.format(
-            target_role=target_role,
-            user_skills_json=json.dumps(user_skills_simple, indent=2),
-            market_requirements_json=json.dumps(market_req_simple, indent=2)
+        # Reformat to match the LLM-style `skill_gaps` key expected by analysis.py
+        return {
+            "overall_readiness": result["overall_readiness"],
+            "interpretation":    result["summary"]["interpretation"],
+            "skill_gaps": {
+                "critical":  result["critical_gaps"],
+                "important": result["important_gaps"],
+                "emerging":  result["emerging_gaps"],
+            },
+            "strengths":         result["strengths"],
+            # pass through summary keys for backward compat
+            "summary":           result["summary"],
+            "critical_gaps":     result["critical_gaps"],
+            "important_gaps":    result["important_gaps"],
+            "emerging_gaps":     result["emerging_gaps"],
+        }
+
+    # ── Groq enrichment (reasoning only) ─────────────────────────────────────
+    def _enrich_with_reasoning(self, result: Dict, target_role: str) -> Dict:
+        all_gaps = (
+            result["critical_gaps"] +
+            result["important_gaps"] +
+            result["emerging_gaps"]
+        )
+        if not all_gaps:
+            return result
+
+        # Send only the minimal gap info to Groq (skill + demand + level)
+        slim = [
+            {
+                "skill":             g["skill"],
+                "demand":            g["demand"],
+                "requirement_level": g["requirement_level"],
+            }
+            for g in all_gaps
+        ]
+
+        response = self.client.chat.completions.create(
+            model=GROQ_MODEL,
+            messages=[
+                {"role": "system", "content": ENRICH_SYSTEM},
+                {"role": "user",   "content": ENRICH_USER_TMPL.format(
+                    target_role=target_role,
+                    gaps_json=json.dumps(slim, indent=2)
+                )},
+            ],
+            temperature=0.2,
+            response_format={"type": "json_object"},
+            timeout=GROQ_TIMEOUT,
         )
 
-        try:
-            response = self.client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.1,
-                response_format={"type": "json_object"}
-            )
-            
-            result = json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content
+        enriched_list = self._parse_enriched(content)
+        if not enriched_list:
             return result
-        except Exception as e:
-            print(f"Error in GroqGapAnalyzer: {e}")
-            return self._fallback_analysis(user_skills, market_requirements)
 
-    def _fallback_analysis(self, user_skills: Dict[str, Dict], market_requirements: Dict[str, Dict]) -> Dict:
-        # Simple heuristic fallback
-        critical = []
-        important = []
-        emerging = []
-        strengths = []
-        
-        matched_count = 0
-        total_market = len(market_requirements)
-        
-        for skill, market_data in market_requirements.items():
-            market_demand = market_data.get('frequency', 0)
-            user_data = user_skills.get(skill.lower()) or user_skills.get(skill)
-            user_prof = user_data.get('proficiency', 0) if user_data else 0
-            
-            if user_data:
-                matched_count += 1
-                
-            gap = max(0, (market_demand - user_prof) * 100)
-            
-            skill_info = {
-                "skill": skill,
-                "demand": market_demand,
-                "demand_percentage": f"{int(market_demand * 100)}%",
-                "requirement_level": "",
-                "reasoning": "Heuristic comparison",
-                "transferability": 0.0 if gap > 50 else 0.5
-            }
-            
-            if gap > 70:
-                skill_info["requirement_level"] = "critical"
-                critical.append(skill_info)
-            elif gap >= 30:
-                skill_info["requirement_level"] = "important"
-                important.append(skill_info)
-            elif gap > 0:
-                skill_info["requirement_level"] = "emerging"
-                emerging.append(skill_info)
-            else:
-                strengths.append(skill_info)
-                
-        readiness = (matched_count / total_market * 100) if total_market > 0 else 0
-        
-        return {
-            "overall_readiness": round(readiness, 1),
-            "interpretation": "Analysis performed using heuristic fallback.",
-            "skill_gaps": {
-                "critical": critical,
-                "important": important,
-                "emerging": emerging
-            },
-            "strengths": strengths
+        # Map skill name → reasoning
+        reasoning_map: Dict[str, str] = {
+            item["skill"]: item.get("reasoning", "")
+            for item in enriched_list
+            if isinstance(item, dict) and "skill" in item
         }
+
+        def add_reasoning(gaps: List[Dict]) -> List[Dict]:
+            for g in gaps:
+                if g["skill"] in reasoning_map:
+                    g["reasoning"] = reasoning_map[g["skill"]]
+            return gaps
+
+        result["critical_gaps"]  = add_reasoning(result["critical_gaps"])
+        result["important_gaps"] = add_reasoning(result["important_gaps"])
+        result["emerging_gaps"]  = add_reasoning(result["emerging_gaps"])
+        return result
+
+    @staticmethod
+    def _parse_enriched(content: str) -> List[Dict]:
+        """Extract list from Groq JSON response (handles wrapper objects)."""
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, list):
+                return parsed
+            # Groq sometimes wraps: {"gaps": [...]} or {"skills": [...]}
+            for key in ("gaps", "skills", "skill_gaps", "items", "data"):
+                if key in parsed and isinstance(parsed[key], list):
+                    return parsed[key]
+            # Try first list value
+            for v in parsed.values():
+                if isinstance(v, list):
+                    return v
+        except Exception:
+            pass
+        return []
+
+
+# ── backward-compat alias ────────────────────────────────────────────────────
+LLMGapAnalyzer = GroqGapAnalyzer

@@ -1,5 +1,6 @@
 """Resume upload endpoints router with enhanced validation and response format."""
 import os
+import json
 from typing import Optional
 
 from fastapi import APIRouter, File, UploadFile
@@ -108,17 +109,109 @@ async def upload_resume(user_id: int, file: UploadFile = File(...)):
                 (file_path, original_filename, user_id)
             )
         
+        conn.commit()  # Commit file path update before extraction
         logger.info(f"Uploaded resume for user {user_id}: {safe_filename}")
-        
+
+        # ── AUTO SKILL EXTRACTION ──────────────────────────────────────────────
+        # Immediately extract skills from the new resume so the gap analysis
+        # is always in sync — no manual "Sync" click required.
+        skills_extracted = 0
+        extraction_error = None
+        try:
+            skill_extractor = services.skill_extractor
+
+            # Prefer the saved text; for PDF/DOCX extract now via pdfplumber
+            extract_text = resume_text
+            if not extract_text:
+                extract_text = skill_extractor.extract_text_from_file(file_path)
+
+            if extract_text:
+                # Save extracted text for future calls
+                cursor.execute(
+                    "UPDATE users SET resume_text = ? WHERE id = ?",
+                    (extract_text, user_id)
+                )
+
+                print(f"🤖 Auto-extracting skills for user {user_id} after resume upload...")
+                skill_results = skill_extractor.extract_skills_from_resume(
+                    extract_text, file_path=file_path
+                )
+
+                # Import helpers from skills router to reuse filtering / validation
+                from app.routers.skills import (
+                    normalize_skill_name, is_valid_skill,
+                    is_technical_skill, validate_against_taxonomy, reunify_skills
+                )
+
+                # Build & filter skill list
+                skills_data = []
+                seen = set()
+                for item in skill_results:
+                    skill = item.get('skill', '')
+                    if not skill:
+                        continue
+                    norm = normalize_skill_name(skill)
+                    if not is_valid_skill(norm):
+                        continue
+                    if not is_technical_skill(norm):
+                        continue
+                    is_known, canonical = validate_against_taxonomy(norm)
+                    if is_known and canonical not in seen:
+                        seen.add(canonical)
+                        found_in = item.get('found_in', [])
+                        llm_refined = item.get('llm_refined', False)
+                        sources_data = list(found_in) if found_in else ['priority:0']
+                        if llm_refined:
+                            sources_data.append('llm_refined')
+                        skills_data.append({
+                            'skill_name': canonical,
+                            'proficiency': item.get('proficiency', 0.5),
+                            'confidence': item.get('confidence', 0.8),
+                            'sources': sources_data,
+                        })
+
+                # Re-unify fragmented multi-word skills
+                taxonomy = set(skill_extractor.skills_list)
+                skills_data = reunify_skills(skills_data, taxonomy)
+
+                # Replace old skills with fresh ones
+                cursor.execute("DELETE FROM user_skills WHERE user_id = ?", (user_id,))
+                for s in skills_data:
+                    cursor.execute(
+                        '''
+                        INSERT INTO user_skills
+                            (user_id, skill_name, proficiency, confidence, source_count, sources)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        ''',
+                        (
+                            user_id,
+                            s['skill_name'],
+                            s['proficiency'],
+                            s['confidence'],
+                            len(s['sources']),
+                            json.dumps(s['sources'])
+                        )
+                    )
+                skills_extracted = len(skills_data)
+                print(f"✅ Auto-extraction complete: {skills_extracted} skills saved for user {user_id}")
+
+        except Exception as e:
+            extraction_error = str(e)
+            logger.warning(f"Auto-extraction failed for user {user_id}: {e}")
+            print(f"⚠️ Auto-extraction failed: {e}")
+        # ── END AUTO EXTRACTION ───────────────────────────────────────────────
+
         return {
             "success": True,
-            "message": "Resume uploaded successfully",
+            "message": "Resume uploaded and skills extracted successfully" if skills_extracted else "Resume uploaded successfully",
             "data": {
                 "user_id": user_id,
                 "filename": safe_filename,
                 "file_path": file_path,
                 "file_size": len(content),
-                "file_type": file_extension
+                "file_type": file_extension,
+                "skills_extracted": skills_extracted,
+                "extraction_error": extraction_error,
             }
         }
 
@@ -156,14 +249,83 @@ def upload_resume_text(user_id: int, resume_data: schemas.ResumeUpload):
         )
         
         logger.info(f"Uploaded resume text for user {user_id}")
-        
+
+        # ── AUTO SKILL EXTRACTION ──────────────────────────────────────────────
+        # Replace old skills with fresh ones extracted from the new resume text.
+        skills_extracted = 0
+        extraction_error = None
+        try:
+            from app.routers.skills import (
+                normalize_skill_name, is_valid_skill,
+                is_technical_skill, validate_against_taxonomy, reunify_skills
+            )
+            skill_extractor = services.skill_extractor
+            skill_results = skill_extractor.extract_skills_from_resume(
+                resume_data.resume_text, file_path=file_path
+            )
+
+            skills_data = []
+            seen = set()
+            for item in skill_results:
+                skill = item.get('skill', '')
+                if not skill:
+                    continue
+                norm = normalize_skill_name(skill)
+                if not is_valid_skill(norm) or not is_technical_skill(norm):
+                    continue
+                is_known, canonical = validate_against_taxonomy(norm)
+                if is_known and canonical not in seen:
+                    seen.add(canonical)
+                    found_in = item.get('found_in', [])
+                    llm_refined = item.get('llm_refined', False)
+                    sources_data = list(found_in) if found_in else ['priority:0']
+                    if llm_refined:
+                        sources_data.append('llm_refined')
+                    skills_data.append({
+                        'skill_name': canonical,
+                        'proficiency': item.get('proficiency', 0.5),
+                        'confidence': item.get('confidence', 0.8),
+                        'sources': sources_data,
+                    })
+
+            taxonomy = set(skill_extractor.skills_list)
+            skills_data = reunify_skills(skills_data, taxonomy)
+
+            # Replace old skills with fresh ones
+            cursor.execute("DELETE FROM user_skills WHERE user_id = ?", (user_id,))
+            for s in skills_data:
+                cursor.execute(
+                    '''
+                    INSERT INTO user_skills
+                        (user_id, skill_name, proficiency, confidence, source_count, sources)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ''',
+                    (
+                        user_id,
+                        s['skill_name'],
+                        s['proficiency'],
+                        s['confidence'],
+                        len(s['sources']),
+                        json.dumps(s['sources'])
+                    )
+                )
+            skills_extracted = len(skills_data)
+            print(f"✅ Auto-extraction complete: {skills_extracted} skills saved for user {user_id}")
+        except Exception as e:
+            extraction_error = str(e)
+            logger.warning(f"Auto-extraction failed for user {user_id}: {e}")
+            print(f"⚠️ Auto-extraction failed: {e}")
+        # ── END AUTO EXTRACTION ───────────────────────────────────────────────
+
         return {
             "success": True,
-            "message": "Resume text uploaded successfully",
+            "message": "Resume text uploaded and skills extracted successfully" if skills_extracted else "Resume text uploaded successfully",
             "data": {
                 "user_id": user_id,
                 "filename": safe_filename,
-                "text_length": len(resume_data.resume_text)
+                "text_length": len(resume_data.resume_text),
+                "skills_extracted": skills_extracted,
+                "extraction_error": extraction_error,
             }
         }
 
