@@ -1,31 +1,52 @@
 """
 SmartGapAnalyzer — Deterministic, ontology-first skill gap analysis.
+Optimized for minimal latency:
+
+  • Ontology member strings are pre-normalised into frozensets at import time
+    → ontology lookup is O(|members|) set intersection, not a per-call loop.
+  • _norm() is memoised with lru_cache — each unique string is normalised once.
+  • Reverse-ontology is built at import and keyed by normalised skill name.
+  • _match() is called ONCE per market skill; that result is reused for both
+    gap classification AND the readiness score (previously called twice).
+  • Fuzzy matching uses rapidfuzz (C extension, ~20× faster), falls back to
+    SequenceMatcher when rapidfuzz is not installed.
 
 Matching priority for every market skill:
-  1. Exact match          — user has the SAME skill name
-  2. Ontology match       — market skill is an abstract category, user has ≥1 of its concrete members
-  3. Reverse-ontology     — user skill maps to a parent category that equals the market skill
+  1. Exact match          — user has the SAME skill name (set lookup O(1))
+  2. Ontology match       — market skill is an abstract category, user has ≥1
+                            of its concrete members (frozenset intersection O(k))
+  3. Reverse-ontology     — user skill maps to a parent category that equals
+                            the market skill (dict + set lookup O(1))
   4. Fuzzy name match     — close enough string (≥ 0.82 similarity)
   Only if ALL four fail → real gap.
 
 Gap severity uses:
   effective_gap = market_demand - (user_proficiency × similarity_factor)
-  Critical  : effective_gap > 0.55
-  Important : effective_gap 0.25–0.55
-  Emerging  : effective_gap < 0.25  (or if partial ontology coverage exists)
+  Critical  : effective_gap >  0.55
+  Important : effective_gap >= 0.25
+  Emerging  : effective_gap <  0.25
 """
 from __future__ import annotations
 
 import re
-from difflib import SequenceMatcher
-from typing import Dict, List, Optional, Set, Tuple
+from functools import lru_cache
+from typing import Dict, FrozenSet, List, Optional, Set, Tuple
+
+# ── fast fuzzy backend ────────────────────────────────────────────────────────
+try:
+    from rapidfuzz.distance import JaroWinkler as _rfjw
+    def _fuzzy(a: str, b: str) -> float:
+        return _rfjw.similarity(a, b)
+except ImportError:
+    from difflib import SequenceMatcher
+    def _fuzzy(a: str, b: str) -> float:  # type: ignore[misc]
+        return SequenceMatcher(None, a, b).ratio()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SKILL ONTOLOGY
 # Keys   → abstract / broad market skill names (normalised: lower, hyphen-sep)
 # Values → concrete specific skills that PROVE mastery of the key
-# A market requirement is COVERED when user has ≥1 value skill.
 # ─────────────────────────────────────────────────────────────────────────────
 SKILL_ONTOLOGY: Dict[str, List[str]] = {
 
@@ -82,6 +103,17 @@ SKILL_ONTOLOGY: Dict[str, List[str]] = {
     ],
 
     # ── Machine Learning / AI ─────────────────────────────────────────────────
+    "artificial-intelligence": [
+        "machine-learning", "deep-learning", "natural-language-processing",
+        "computer-vision", "generative-ai", "large-language-models",
+        "neural-networks", "ai", "artificial intelligence", "genai",
+        "reinforcement-learning", "tensorflow", "pytorch",
+    ],
+    "ai": [
+        "machine-learning", "deep-learning", "natural-language-processing",
+        "computer-vision", "generative-ai", "large-language-models",
+        "artificial-intelligence", "artificial intelligence"
+    ],
     "machine-learning": [
         "scikit-learn", "tensorflow", "pytorch", "keras", "xgboost",
         "lightgbm", "catboost", "sklearn", "ml", "mlflow", "sagemaker",
@@ -173,7 +205,7 @@ SKILL_ONTOLOGY: Dict[str, List[str]] = {
     ],
     "sql": [
         "mysql", "postgresql", "sqlite", "mssql", "oracle",
-        "mariadb", "sql-server", "plsql", "t-sql", "mysql",
+        "mariadb", "sql-server", "plsql", "t-sql",
     ],
 
     # ── Web / Frontend ────────────────────────────────────────────────────────
@@ -277,56 +309,69 @@ SKILL_ONTOLOGY: Dict[str, List[str]] = {
     ],
 }
 
-# Build reverse index: specific_skill → [categories it satisfies]
-_REVERSE_ONTOLOGY: Dict[str, List[str]] = {}
-for _cat, _members in SKILL_ONTOLOGY.items():
-    for _m in _members:
-        _REVERSE_ONTOLOGY.setdefault(_m, []).append(_cat)
+# ── Pre-built lookup structures (computed ONCE at import time) ────────────────
 
-
+@lru_cache(maxsize=4096)
 def _norm(s: str) -> str:
-    """Lowercase, collapse spaces/underscores to hyphens."""
+    """Lowercase, collapse spaces/underscores to hyphens. Cached."""
     return re.sub(r"[\s_]+", "-", s.lower().strip())
 
 
-def _fuzzy(a: str, b: str) -> float:
-    return SequenceMatcher(None, a, b).ratio()
+# Normalised ontology: norm_cat → frozenset of norm_member strings
+_ONTO_NORM: Dict[str, FrozenSet[str]] = {
+    _norm(cat): frozenset(_norm(m) for m in members)
+    for cat, members in SKILL_ONTOLOGY.items()
+}
+
+# Also keep a space-variant key for lookup convenience
+_ONTO_NORM_SPACE: Dict[str, FrozenSet[str]] = {
+    k.replace("-", " "): v for k, v in _ONTO_NORM.items()
+}
+
+# Reverse index: norm_specific_skill → set of norm_categories it satisfies
+_REV_ONTO: Dict[str, Set[str]] = {}
+for _cat_n, _members_n in _ONTO_NORM.items():
+    for _m in _members_n:
+        _REV_ONTO.setdefault(_m, set()).add(_cat_n)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 class SmartGapAnalyzer:
     """
-    Single deterministic gap analysis engine.
+    Single-pass, deterministic gap analysis engine.
 
-    Matching (in priority order) for each market requirement:
-      1. Exact name match
-      2. Ontology  (market skill is abstract → check concrete members)
-      3. Reverse-ontology (user's specific skill → parent category = market skill)
-      4. Fuzzy name  (≥ 0.82 similarity)
-      → Gap only when all four fail
-
-    Severity uses effective_gap = demand - (proficiency × similarity).
+    Key optimisations vs the previous version
+    ------------------------------------------
+    1. _norm()  : lru_cache — each string normalised only once.
+    2. Ontology : frozenset intersection replaces nested loops.
+    3. Reverse  : dict + set membership O(1) per user skill.
+    4. Fuzzy    : rapidfuzz (optional C extension) >> SequenceMatcher.
+    5. Single pass: readiness is accumulated IN THE SAME loop as gap
+       classification, eliminating a full second pass over market skills.
     """
 
     SIMILARITY_FACTORS = {
-        "exact":           1.00,
-        "ontology":        0.90,   # user has specific tool that covers abstract need
-        "reverse":         0.90,   # user's tool's parent matches market
-        "fuzzy":           0.80,
-        "none":            0.00,
+        "exact":    1.00,
+        "ontology": 0.90,
+        "reverse":  0.90,
+        "fuzzy":    0.80,
+        "none":     0.00,
     }
 
-    GAP_CRITICAL  = 0.55   # effective_gap >  this → Critical
-    GAP_IMPORTANT = 0.25   # effective_gap >= this → Important  else Emerging
-    FUZZY_THRESH  = 0.82   # minimum SequenceMatcher ratio to count as "same"
+    GAP_CRITICAL  = 0.55
+    GAP_IMPORTANT = 0.25
+    FUZZY_THRESH  = 0.82
 
-    SOFT_SKILLS = {
+    SOFT_SKILLS: FrozenSet[str] = frozenset({
         "communication", "leadership", "teamwork", "collaboration",
         "presentation", "public-speaking", "negotiation", "time-management",
         "adaptability", "creativity", "analytical-thinking", "attention-to-detail",
         "emotional-intelligence", "decision-making", "problem-solving",
         "critical-thinking", "customer-service", "self-motivation",
-    }
+    })
+
+    _LEVEL_MULT = {"critical": 3, "important": 2, "emerging": 1}
+    _LEVEL_ORDER = {"critical": 2, "important": 1, "emerging": 0}
 
     # ── public API ────────────────────────────────────────────────────────────
     def analyze_gaps(
@@ -339,64 +384,83 @@ class SmartGapAnalyzer:
         Compare user skills against market requirements.
 
         Args:
-            user_skills          : {skill_name: {proficiency: float, confidence: float}}
-            market_requirements  : {skill_name: {frequency: float, requirement_level: str, trending: bool}}
+            user_skills         : {skill_name: {proficiency: float, ...}}
+            market_requirements : {skill_name: {frequency: float,
+                                                requirement_level: str,
+                                                trending: bool}}
 
         Returns standard dict with critical_gaps, important_gaps, emerging_gaps,
         strengths, overall_readiness, summary.
         """
-        # Build normalised user lookup: norm_name → proficiency (0–1)
+        # ── 1. Build normalised user lookup once ──────────────────────────────
         user_norm: Dict[str, float] = {}
-        user_raw_names: Dict[str, str] = {}   # norm → original name
         for raw, data in user_skills.items():
             n = _norm(raw)
-            prof = float(data.get("proficiency", 0.5))
-            user_norm[n] = prof
-            user_raw_names[n] = raw
+            user_norm[n] = float(data.get("proficiency", 0.5))
 
         user_set: Set[str] = set(user_norm.keys())
 
+        # Pre-compute which reverse-ontology categories the user already covers
+        # user_cats: set of all category names satisfied by the user's skills
+        user_cats: Set[str] = set()
+        for us in user_set:
+            cats = _REV_ONTO.get(us)
+            if cats:
+                user_cats.update(cats)
+
+        # ── 2. Single pass over market requirements ───────────────────────────
         critical_gaps:  List[Dict] = []
         important_gaps: List[Dict] = []
         emerging_gaps:  List[Dict] = []
         strengths:      List[Dict] = []
+
+        total_w    = 0.0
+        attained_w = 0.0
 
         for raw_market, req in market_requirements.items():
             norm_market = _norm(raw_market)
             demand      = float(req.get("frequency", 0.0))
             req_level   = req.get("requirement_level", "important")
 
-            # Skip soft skills from gaps
             if norm_market in self.SOFT_SKILLS:
                 continue
 
-            base = {
-                "skill":              raw_market,
-                "demand":             round(demand, 2),
-                "demand_percentage":  f"{int(demand * 100)}%",
-                "requirement_level":  req_level,
-                "trending":           req.get("trending", False),
-                "llm_validated":      req.get("llm_validated", False),
-            }
+            mult    = self._LEVEL_MULT.get(req_level, 1)
+            weight  = demand * mult
+            total_w += weight
 
             match_type, sim_factor, matched_via, user_prof = self._match(
-                norm_market, user_set, user_norm
+                norm_market, user_set, user_norm, user_cats
             )
 
+            # accumulate readiness in the same pass
             if match_type != "none":
-                # ── Strength ──────────────────────────────────────────────
-                entry = {**base,
-                         "user_proficiency": round(user_prof, 2),
-                         "match_type":       match_type,
-                         "matched_via":      matched_via}
+                attained_w += weight * sim_factor * user_prof
+
+            base = {
+                "skill":             raw_market,
+                "demand":            round(demand, 2),
+                "demand_percentage": f"{int(demand * 100)}%",
+                "requirement_level": req_level,
+                "trending":          req.get("trending", False),
+                "llm_validated":     req.get("llm_validated", False),
+            }
+
+            effective_gap = demand - (user_prof * sim_factor)
+
+            entry = {**base, "effective_gap": round(effective_gap, 2)}
+
+            if match_type != "none":
+                entry["user_proficiency"] = round(user_prof, 2)
+                entry["match_type"] = match_type
+                entry["matched_via"] = matched_via
+
+            # A strength is when the user has the skill and their proficiency is close to or exceeds demand.
+            is_strength = (match_type != "none") and (effective_gap <= 0.20)
+
+            if is_strength:
                 strengths.append(entry)
             else:
-                # ── Gap — classify by effective_gap ───────────────────────
-                # user_prof = 0 here (no matching skill found)
-                effective_gap = demand   # = demand - 0
-
-                entry = {**base, "effective_gap": round(effective_gap, 2)}
-
                 if effective_gap > self.GAP_CRITICAL:
                     effective_level = "critical"
                 elif effective_gap >= self.GAP_IMPORTANT:
@@ -404,7 +468,6 @@ class SmartGapAnalyzer:
                 else:
                     effective_level = "emerging"
 
-                # Never escalate beyond the market's own declared level
                 final_level = self._min_level(effective_level, req_level)
                 entry["requirement_level"] = final_level
 
@@ -415,11 +478,12 @@ class SmartGapAnalyzer:
                 else:
                     emerging_gaps.append(entry)
 
-        # Sort by demand descending
+        # ── 3. Sort by demand descending ──────────────────────────────────────
         for lst in (critical_gaps, important_gaps, emerging_gaps, strengths):
             lst.sort(key=lambda x: x["demand"], reverse=True)
 
-        readiness = self._readiness(user_set, user_norm, market_requirements)
+        # ── 4. Readiness (already accumulated above) ──────────────────────────
+        readiness = round(min(attained_w / total_w * 100, 100.0), 1) if total_w else 0.0
 
         return {
             "critical_gaps":  critical_gaps,
@@ -445,46 +509,52 @@ class SmartGapAnalyzer:
         norm_market: str,
         user_set: Set[str],
         user_norm: Dict[str, float],
+        user_cats: Set[str],
     ) -> Tuple[str, float, List[str], float]:
         """
         Returns (match_type, similarity_factor, matched_via_list, user_proficiency).
         match_type ∈ {"exact", "ontology", "reverse", "fuzzy", "none"}
+
+        Complexity per call: O(k + U_fuzzy) where
+          k        = # ontology members for the market skill (≤ ~15)
+          U_fuzzy  = # user skills (only reached if exact + ontology + reverse all fail)
         """
-        # 1. Exact
+        SF = self.SIMILARITY_FACTORS
+
+        # 1. Exact — O(1)
         if norm_market in user_set:
-            return "exact", 1.0, [norm_market], user_norm[norm_market]
+            return "exact", SF["exact"], [norm_market], user_norm[norm_market]
 
-        # Also try space variant (some skills stored with spaces)
-        space_variant = norm_market.replace("-", " ")
-        if space_variant in user_set:
-            return "exact", 1.0, [space_variant], user_norm[space_variant]
+        space_v = norm_market.replace("-", " ")
+        if space_v in user_set:
+            return "exact", SF["exact"], [space_v], user_norm[space_v]
 
-        # 2. Ontology — market is abstract, look for concrete members in user skills
-        members = (
-            SKILL_ONTOLOGY.get(norm_market) or
-            SKILL_ONTOLOGY.get(norm_market.replace("-", " ")) or
-            []
+        # 2. Ontology — frozenset intersection O(k)
+        members_n: Optional[FrozenSet[str]] = (
+            _ONTO_NORM.get(norm_market) or
+            _ONTO_NORM_SPACE.get(norm_market) or
+            _ONTO_NORM.get(space_v)
         )
-        if members:
-            matched = [_norm(m) for m in members if _norm(m) in user_set]
-            if not matched:
-                # also try the raw member strings directly
-                matched = [m for m in members if m in user_set]
+        if members_n:
+            matched = list(members_n & user_set)
             if matched:
-                avg_prof = sum(user_norm.get(m, 0.5) for m in matched) / len(matched)
-                return "ontology", self.SIMILARITY_FACTORS["ontology"], matched, avg_prof
+                avg_prof = sum(user_norm[m] for m in matched) / len(matched)
+                return "ontology", SF["ontology"], matched, avg_prof
 
-        # 3. Reverse-ontology — user's skill covers a parent that IS the market skill
-        # e.g. user has "gcp" → parent is "cloud-computing" → market wants "cloud-computing"
-        for u_skill in user_set:
-            parents = _REVERSE_ONTOLOGY.get(u_skill, [])
-            # also check space variant of user skill
-            parents += _REVERSE_ONTOLOGY.get(u_skill.replace("-", " "), [])
-            normed_parents = [_norm(p) for p in parents]
-            if norm_market in normed_parents or space_variant in normed_parents:
-                return "reverse", self.SIMILARITY_FACTORS["reverse"], [u_skill], user_norm[u_skill]
+        # 3. Reverse-ontology — O(1) set membership
+        # user_cats was pre-computed: all categories covered by all user skills
+        if norm_market in user_cats or space_v in user_cats:
+            # Find which user skill(s) satisfy this category
+            covering = [
+                us for us in user_set
+                if norm_market in _REV_ONTO.get(us, set())
+                or space_v in _REV_ONTO.get(us, set())
+            ]
+            if covering:
+                avg_prof = sum(user_norm[s] for s in covering) / len(covering)
+                return "reverse", SF["reverse"], covering, avg_prof
 
-        # 4. Fuzzy name match
+        # 4. Fuzzy — O(U) but only reached when no structural match exists
         best_score = 0.0
         best_user  = ""
         for u_skill in user_set:
@@ -492,47 +562,17 @@ class SmartGapAnalyzer:
             if s > best_score:
                 best_score = s
                 best_user  = u_skill
+                if best_score >= 1.0:   # perfect hit, stop early
+                    break
         if best_score >= self.FUZZY_THRESH:
-            return "fuzzy", self.SIMILARITY_FACTORS["fuzzy"], [best_user], user_norm[best_user]
+            return "fuzzy", SF["fuzzy"], [best_user], user_norm[best_user]
 
         return "none", 0.0, [], 0.0
 
-    # ── readiness score ───────────────────────────────────────────────────────
-    def _readiness(
-        self,
-        user_set: Set[str],
-        user_norm: Dict[str, float],
-        market_requirements: Dict[str, Dict],
-    ) -> float:
-        total_w = 0.0
-        attained_w = 0.0
-        level_mult = {"critical": 3, "important": 2, "emerging": 1}
-
-        for raw_m, req in market_requirements.items():
-            demand   = float(req.get("frequency", 0.0))
-            level    = req.get("requirement_level", "important")
-            mult     = level_mult.get(level, 1)
-            weight   = demand * mult
-            total_w += weight
-
-            match_type, sim, _, user_prof = self._match(_norm(raw_m), user_set, user_norm)
-            if match_type == "none":
-                pass  # 0 contribution
-            else:
-                # credit = proficiency × similarity × demand_weight
-                attained_w += weight * sim * user_prof
-
-        if total_w == 0:
-            return 0.0
-        raw = attained_w / total_w * 100
-        return round(min(raw, 100.0), 1)
-
     # ── helpers ───────────────────────────────────────────────────────────────
-    @staticmethod
-    def _min_level(a: str, b: str) -> str:
+    def _min_level(self, a: str, b: str) -> str:
         """Return the less severe of two requirement levels."""
-        order = {"critical": 2, "important": 1, "emerging": 0}
-        return a if order.get(a, 1) <= order.get(b, 1) else b
+        return a if self._LEVEL_ORDER.get(a, 1) <= self._LEVEL_ORDER.get(b, 1) else b
 
     @staticmethod
     def _interpret(score: float) -> str:

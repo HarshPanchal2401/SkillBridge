@@ -21,6 +21,7 @@ from app.services.huggingface_skill_extractor import HuggingFaceSkillExtractor
 from app.services.market_skill_searcher import MarketSkillSearcher
 from app.services.groq_skill_refiner import GroqSkillRefiner
 from app.services.llm_gap_analyzer import GroqGapAnalyzer
+from app.services.groq_market_skill_provider import GroqMarketSkillProvider
 
 # Load environment variables
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env'))
@@ -86,6 +87,7 @@ class ServiceContainer:
         self._github_analyzer = GitHubAnalyzer(self._skill_extractor)
         self._market_skill_searcher = MarketSkillSearcher(self._tavily_api_key)
         self._llm_gap_analyzer = GroqGapAnalyzer(self._groq_api_key)
+        self._market_skill_provider = GroqMarketSkillProvider(self._groq_api_key)
         
         self._initialized = True
         logger.info("✅ Service container initialized")
@@ -111,9 +113,9 @@ class ServiceContainer:
         return self._job_analyzer
     
     @property
-    def gap_analyzer(self) -> GapAnalyzer:
+    def gap_analyzer(self) -> GroqGapAnalyzer:
         """Get the gap analyzer service."""
-        return self._gap_analyzer
+        return self._llm_gap_analyzer
     
     @property
     def course_recommender(self) -> CourseRecommender:
@@ -139,6 +141,11 @@ class ServiceContainer:
     def groq_refiner(self) -> GroqSkillRefiner:
         """Get the Groq skill refiner service."""
         return self._groq_refiner
+
+    @property
+    def market_skill_provider(self) -> GroqMarketSkillProvider:
+        """Get the single authoritative market skill provider (Groq LLM + cache)."""
+        return self._market_skill_provider
     
     @property
     def llm_gap_analyzer(self) -> GroqGapAnalyzer:

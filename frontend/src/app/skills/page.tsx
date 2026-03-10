@@ -184,8 +184,24 @@ export default function SkillsPage() {
             color: PROFICIENCY_COLORS[i % PROFICIENCY_COLORS.length],
         }));
 
-        return { topSkills, sourceData };
-    }, [skills]);
+        // Calculate dynamic learning forecast
+        let forecastMonths = 0;
+        if (gapAnalysis?.skill_gaps) {
+            const criticalGaps = gapAnalysis.skill_gaps.critical?.length || 0;
+            const importantGaps = gapAnalysis.skill_gaps.important?.length || 0;
+            const emergingGaps = gapAnalysis.skill_gaps.emerging?.length || 0;
+
+            // Simple heuristic: 1.5 months per critical, 1 month per important, 0.5 month per emerging
+            forecastMonths = (criticalGaps * 1.5) + (importantGaps * 1.0) + (emergingGaps * 0.5);
+
+            // Limit to a reasonable max
+            forecastMonths = Math.min(forecastMonths, 12);
+        }
+
+        const formattedForecast = forecastMonths > 0 ? forecastMonths.toFixed(1) : "0.0";
+
+        return { topSkills, sourceData, forecastMonths: formattedForecast };
+    }, [skills, gapAnalysis]);
 
     if (authLoading || loading) {
         return (
@@ -448,13 +464,16 @@ export default function SkillsPage() {
                                 <h4 className="text-[10px] font-bold uppercase tracking-widest">Learning Forecast</h4>
                             </div>
                             <div className="space-y-1">
-                                <p className="text-4xl font-bold tracking-tight text-gray-900">4.2<span className="text-base text-gray-500 ml-2 font-medium uppercase tracking-widest text-[10px]">Months</span></p>
+                                <p className="text-4xl font-bold tracking-tight text-gray-900">{analyticsData.forecastMonths}<span className="text-base text-gray-500 ml-2 font-medium uppercase tracking-widest text-[10px]">Months</span></p>
                                 <p className="text-xs text-gray-500 leading-relaxed">
-                                    Projected timeline to achieve full readiness for your target role based on your current learning velocity.
+                                    Projected timeline to achieve full readiness for your target role based on your current gaps.
                                 </p>
                             </div>
                             <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                <div className="h-full w-2/3 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.3)]"></div>
+                                <div
+                                    className="h-full bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.3)] transition-all duration-1000"
+                                    style={{ width: `${Math.min((parseFloat(analyticsData.forecastMonths) / 12) * 100, 100)}%` }}
+                                ></div>
                             </div>
                             <button
                                 onClick={() => router.push('/roadmap')}

@@ -19,18 +19,19 @@ import {
     Clock,
 } from 'lucide-react';
 import {
-    RadarChart,
-    PolarGrid,
-    PolarAngleAxis,
-    Radar,
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
     ResponsiveContainer,
     Tooltip,
-    AreaChart,
-    Area
+    PieChart,
+    Pie,
+    Cell
 } from 'recharts';
 
 interface DashboardData {
-    profile_completion: number;
     total_skills: number;
     total_projects: number;
     total_courses: number;
@@ -76,8 +77,7 @@ export default function DashboardPage() {
             ]);
 
             setData({
-                profile_completion: profile?.profile_completion || 0,
-                total_skills: profile?.total_skills || skills.length,
+                total_skills: skills.length,
                 total_projects: profile?.total_projects || 0,
                 total_courses: profile?.total_courses || 0,
                 skills,
@@ -91,22 +91,42 @@ export default function DashboardPage() {
     };
 
     const analyticsData = useMemo(() => {
-        if (!data?.skills) return { skillsData: [], radarData: [] };
+        if (!data?.gapAnalysis) return { comparisonData: [], gapPieData: [] };
 
-        const skillsData = data.skills.slice(0, 8).map((s, i) => ({
-            name: s.skill_name,
-            proficiency: Math.round(s.proficiency * 100),
-            color: SKILL_COLORS[i % SKILL_COLORS.length],
+        const strengths = data.gapAnalysis.strengths || [];
+        const missing = data.gapAnalysis.missing_skills || [];
+
+        // Top 5 skills comparison (User vs Market)
+        const topSkills = strengths.slice(0, 5).map((s: any) => ({
+            name: s.skill.length > 15 ? s.skill.substring(0, 15) + '...' : s.skill,
+            user: Math.round(s.user_proficiency * 100),
+            market: Math.round(s.demand * 100),
         }));
 
-        const radarData = data.skills.slice(0, 6).map(s => ({
-            skill: s.skill_name.substring(0, 10),
-            value: Math.round(s.proficiency * 100),
-            fullMark: 100,
-        }));
+        // Fill with gaps if we don't have enough strengths
+        if (topSkills.length < 5) {
+            const extra = missing.slice(0, 5 - topSkills.length).map((g: any) => ({
+                name: g.skill.length > 15 ? g.skill.substring(0, 15) + '...' : g.skill,
+                user: Math.round((g.user_proficiency || 0) * 100),
+                market: Math.round(g.demand * 100),
+            }));
+            topSkills.push(...extra);
+        }
 
-        return { skillsData, radarData };
-    }, [data?.skills]);
+        const gapMap = {
+            Critical: (data.gapAnalysis.skill_gaps?.critical || []).length,
+            Important: (data.gapAnalysis.skill_gaps?.important || []).length,
+            Emerging: (data.gapAnalysis.skill_gaps?.emerging || []).length,
+        };
+
+        const gapPieData = [
+            { name: 'Critical Gaps', value: gapMap.Critical, color: '#ef4444' },
+            { name: 'Important Gaps', value: gapMap.Important, color: '#f59e0b' },
+            { name: 'Emerging Gaps', value: gapMap.Emerging, color: '#3b82f6' },
+        ].filter(d => d.value > 0);
+
+        return { comparisonData: topSkills, gapPieData };
+    }, [data?.gapAnalysis]);
 
     if (authLoading || loading) {
         return (
@@ -160,10 +180,10 @@ export default function DashboardPage() {
                         {/* Summary Cards */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             {[
-                                { label: 'Readiness', value: `${Math.round(matchPercentage)}%`, icon: Target, color: 'text-blue-600', bg: 'bg-blue-50' },
-                                { label: 'Skills Found', value: data?.total_skills || 0, icon: Award, color: 'text-green-600', bg: 'bg-green-50' },
-                                { label: 'Projects', value: data?.total_projects || 0, icon: Briefcase, color: 'text-purple-600', bg: 'bg-purple-50' },
-                                { label: 'Completion', value: `${Math.round(data?.profile_completion || 0)}%`, icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
+                                { label: 'Market Match', value: `${Math.round(matchPercentage)}%`, icon: Target, color: 'text-blue-600', bg: 'bg-blue-50' },
+                                { label: 'Total Skills', value: data?.total_skills || 0, icon: Award, color: 'text-green-600', bg: 'bg-green-50' },
+                                { label: 'Strengths', value: data?.gapAnalysis?.strengths?.length || 0, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-50' },
+                                { label: 'Skill Gaps', value: data?.gapAnalysis?.summary?.total_gaps || 0, icon: CheckCircle2, color: 'text-amber-600', bg: 'bg-amber-50' },
                             ].map((stat, i) => (
                                 <div key={i} className="card-simple">
                                     <div className="flex items-center justify-between mb-4">
@@ -181,47 +201,53 @@ export default function DashboardPage() {
                         {/* Charts Area */}
                         <div className="grid md:grid-cols-2 gap-8">
                             <div className="card-simple h-[320px] flex flex-col">
-                                <h3 className="text-sm font-bold text-gray-900 mb-6 px-1">Skill Distribution</h3>
-                                {analyticsData.radarData.length > 0 ? (
+                                <h3 className="text-sm font-bold text-gray-900 mb-6 px-1">Top Skills: You vs Market</h3>
+                                {analyticsData.comparisonData.length > 0 ? (
                                     <div className="flex-1 min-h-0">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <RadarChart data={analyticsData.radarData}>
-                                                <PolarGrid stroke="#f3f4f6" />
-                                                <PolarAngleAxis dataKey="skill" tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 600 }} />
-                                                <Radar
-                                                    name="Current"
-                                                    dataKey="value"
-                                                    stroke="#22c55e"
-                                                    fill="#22c55e"
-                                                    fillOpacity={0.15}
-                                                    strokeWidth={2}
-                                                />
-                                            </RadarChart>
+                                            <BarChart data={analyticsData.comparisonData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                                                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                                                <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                                                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '12px' }} />
+                                                <Bar dataKey="user" name="Your Level" fill="#22c55e" radius={[4, 4, 0, 0]} barSize={20} />
+                                                <Bar dataKey="market" name="Market Demand" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
+                                            </BarChart>
                                         </ResponsiveContainer>
                                     </div>
                                 ) : (
-                                    <div className="flex-1 flex items-center justify-center text-gray-400 text-xs">No data available</div>
+                                    <div className="flex-1 flex items-center justify-center text-gray-400 text-xs">Analyze a role to see market comparison</div>
                                 )}
                             </div>
 
                             <div className="card-simple h-[320px] flex flex-col">
-                                <h3 className="text-sm font-bold text-gray-900 mb-6 px-1">Proficiency Over Time</h3>
-                                {analyticsData.skillsData.length > 0 ? (
-                                    <div className="flex-1 min-h-0">
+                                <h3 className="text-sm font-bold text-gray-900 mb-6 px-1">Gap Severity Breakdown</h3>
+                                {analyticsData.gapPieData.length > 0 ? (
+                                    <div className="flex-1 min-h-0 relative">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={analyticsData.skillsData}>
-                                                <defs>
-                                                    <linearGradient id="colorProf" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.1} />
-                                                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                                                    </linearGradient>
-                                                </defs>
-                                                <Area type="monotone" dataKey="proficiency" stroke="#22c55e" strokeWidth={2} fillOpacity={1} fill="url(#colorProf)" />
-                                            </AreaChart>
+                                            <PieChart>
+                                                <Pie
+                                                    data={analyticsData.gapPieData}
+                                                    innerRadius={60}
+                                                    outerRadius={90}
+                                                    paddingAngle={5}
+                                                    dataKey="value"
+                                                    stroke="none"
+                                                >
+                                                    {analyticsData.gapPieData.map((entry: any, index: number) => (
+                                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                                    ))}
+                                                </Pie>
+                                                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '12px' }} />
+                                            </PieChart>
                                         </ResponsiveContainer>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                            <span className="text-3xl font-black text-gray-900">{data?.gapAnalysis?.summary?.total_gaps || 0}</span>
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Total Gaps</span>
+                                        </div>
                                     </div>
                                 ) : (
-                                    <div className="flex-1 flex items-center justify-center text-gray-400 text-xs">No data available</div>
+                                    <div className="flex-1 flex items-center justify-center text-gray-400 text-xs">Analyze a role to see gap breakdown</div>
                                 )}
                             </div>
                         </div>
@@ -289,19 +315,28 @@ export default function DashboardPage() {
                             </button>
                         </div>
 
-                        {/* Profile Completion Prompt */}
-                        <div className="card-simple bg-green-50/50 border-green-100 shadow-sm">
-                            <h3 className="text-lg font-bold text-gray-900 mb-2">Resume Intelligence</h3>
-                            <p className="text-sm text-gray-600 leading-relaxed mb-6">
-                                Keep your profile updated to get the most accurate career insights and market analysis.
-                            </p>
-                            <button
-                                onClick={() => router.push('/profile')}
-                                className="w-full py-3 bg-green-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-green-700 transition-all flex items-center justify-center gap-2 shadow-sm"
-                            >
-                                <FileText size={16} />
-                                Update Profile
-                            </button>
+                        {/* Detailed Skill Summary */}
+                        <div className="card-simple bg-blue-50/30 border-blue-100 shadow-sm">
+                            <h3 className="text-lg font-bold text-gray-900 mb-4">Your Skill Summary</h3>
+                            <div className="space-y-4 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+                                {data?.skills?.slice().sort((a, b) => b.proficiency - a.proficiency).map((skill, index) => (
+                                    <div key={index} className="flex flex-col gap-1.5">
+                                        <div className="flex justify-between items-center px-1">
+                                            <span className="text-xs font-bold text-gray-700 uppercase">{skill.skill_name}</span>
+                                            <span className="text-[10px] font-black text-green-600">{Math.round(skill.proficiency * 100)}%</span>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-green-500 rounded-full"
+                                                style={{ width: `${Math.round(skill.proficiency * 100)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                                {!data?.skills?.length && (
+                                    <p className="text-sm text-gray-500 italic text-center py-4">No skills detected yet. Upload your resume or add projects.</p>
+                                )}
+                            </div>
                         </div>
 
                         {/* Tips Card */}

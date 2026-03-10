@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from './api';
 
@@ -214,15 +214,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const gapPromiseRef = useRef<Promise<any> | null>(null);
+
     const refreshGapAnalysis = async (refresh = false) => {
         if (!user?.id) return null;
+
+        if (gapPromiseRef.current) {
+            return gapPromiseRef.current;
+        }
+
         try {
-            const data = await api.getGapAnalysis(user.id, refresh);
+            const promise = api.getGapAnalysis(user.id, refresh);
+            gapPromiseRef.current = promise;
+
+            const data = await promise;
             setGapAnalysis(data);
             return data;
         } catch (error) {
             console.error('Failed to refresh gap analysis:', error);
             return null;
+        } finally {
+            gapPromiseRef.current = null;
         }
     };
 

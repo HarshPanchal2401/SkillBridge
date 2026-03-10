@@ -56,69 +56,13 @@ def analyze_user_gaps(
                 'confidence': skill_dict['confidence']
             }
         
-        # Use Tavily market skill searcher for live skills
-        market_searcher = services.market_skill_searcher
-        print(f"🔍 Searching live market skills for: {target_role}")
-        live_result = market_searcher.search_role_skills(target_role)
-        live_skills  = live_result.get("skills", {})
-        skills_source = live_result.get("source", "web_search")
+        # ── Single authoritative market skill source (Groq LLM + 7-day cache) ──
+        provider = services.market_skill_provider
+        print(f"📋 Fetching market skills for: {target_role}")
+        market_requirements = provider.get_skills(target_role)
+        skills_source = "groq_llm"
 
-        # ── ALWAYS USE STRUCTURED FALLBACK AS THE BASE (20-25 skills) ────────
-        # The structured fallback in role_requirements.json has exactly 20-25
-        # curated skills per role. We use it as the base and let live Tavily
-        # results override individual entries where they exist.
-        fallback_result = market_searcher._get_fallback_skills(target_role)
-        fallback_skills = fallback_result.get("skills", {})
-
-        if fallback_skills:
-            # Start from the fallback (already 20-25 curated skills)
-            # Sort fallback by frequency desc and take top 25
-            top_fallback = dict(
-                sorted(fallback_skills.items(),
-                       key=lambda x: x[1].get("frequency", 0), reverse=True)[:25]
-            )
-            # Let live search override matching entries only
-            for skill, data in live_skills.items():
-                if skill in top_fallback:
-                    top_fallback[skill] = data   # live wins when key matches
-            market_requirements = top_fallback
-            skills_source = "structured+live" if live_skills else "structured"
-        else:
-            # No structured fallback — use live results capped at 25
-            market_requirements = dict(
-                sorted(live_skills.items(),
-                       key=lambda x: x[1].get("frequency", 0), reverse=True)[:25]
-            )
-
-        # ── HARD CAP: always 20–25 skills ────────────────────────────────────
-        if len(market_requirements) > 25:
-            market_requirements = dict(
-                sorted(market_requirements.items(),
-                       key=lambda x: x[1].get("frequency", 0), reverse=True)[:25]
-            )
-
-        # ── LLM Market Skill Validation ─────────────────────────────────────
-        if market_requirements and services.groq_refiner and services.groq_refiner.is_available():
-            print(f"🧠 Validating {len(market_requirements)} market skills with LLM...")
-            market_requirements = services.groq_refiner.validate_market_skills(
-                target_role, 
-                market_requirements
-            )
-            skills_source = f"{skills_source}_llm_validated"
-        
-        # Print fetched/validated skills to terminal
-        print(f"\n{'='*60}")
-        print(f"📋 FINAL MARKET SKILLS FOR: {target_role}")
-        print(f"   Source: {skills_source}  |  Total: {len(market_requirements)}")
-        print(f"{'='*60}")
-        for i, (skill, data) in enumerate(market_requirements.items(), 1):
-            level = data.get('requirement_level', 'unknown')
-            freq  = int(data.get('frequency', 0) * 100)
-            trend = "🔥" if data.get('trending', False) else ""
-            print(f"   {i:2}. {skill:<28} | {level:<10} | {freq}% {trend}")
-        print(f"{'='*60}\n")
-        
-        # Safety net — should never be empty now
+        # Safety net — should never be empty
         if not market_requirements:
             market_requirements = get_sample_market_requirements()
             skills_source = "fallback"
@@ -228,22 +172,9 @@ def get_recommended_courses(
         target_role = user_dict.get('target_role') or 'Data Analyst'
         location = user_dict.get('location', 'United States')
 
-        if services.has_tavily_api():
-            # Use real-time search for much better accuracy
-            market_searcher = services.market_skill_searcher
-            print(f"🔍 Searching live market skills for recommended courses: {target_role} (Refresh: {refresh})")
-            live_result = market_searcher.search_role_skills(target_role, force_refresh=refresh)
-            market_requirements = live_result.get("skills", {})
-        elif services.has_linkedin_api():
-            linkedin_fetcher = services.linkedin_fetcher
-            job_analyzer = services.job_analyzer
-            
-            # Note: linkedin_fetcher doesn't have a direct refresh but clearing cache works
-            jobs_data = linkedin_fetcher.fetch_jobs(target_role, location, limit=30)
-            jobs = linkedin_fetcher.get_job_details(jobs_data)
-            market_requirements = job_analyzer.aggregate_job_requirements(jobs)
-        else:
-            market_requirements = get_sample_market_requirements()
+        # ── Single market skill source ────────────────────────────────────────
+        provider = services.market_skill_provider
+        market_requirements = provider.get_skills(target_role)
         
         # Perform gap analysis
         gap_analyzer = services.gap_analyzer
@@ -636,16 +567,10 @@ def get_live_market_skills(
         Skills dictionary with frequency, requirement level, and trending status
     """
     services = get_services()
-    market_searcher = services.market_skill_searcher
-    
-    # Search for role skills
-    result = market_searcher.search_role_skills(
-        role_title=role_name,
-        force_refresh=force_refresh,
-        max_skills=max_skills
-    )
-    
-    skills = result.get("skills", {})
+    provider = services.market_skill_provider
+
+    result_skills = provider.get_skills(role_name, force_refresh=force_refresh)
+    skills = result_skills
     
     # Categorize skills
     critical = [s for s, d in skills.items() if d.get("requirement_level") == "critical"]
@@ -711,47 +636,40 @@ def analyze_user_for_role(
     except Exception as e:
         print(f"⚠️ Failed to update target_role for user {user_id}: {e}")
     
-    # Always use live market skills from Tavily search
-    market_searcher = services.market_skill_searcher
-    
-    print(f"🔍 Searching live market skills for: {role_title}")
-    live_result = market_searcher.search_role_skills(role_title, max_skills=30)
-    market_requirements = live_result.get("skills", {})
-    skills_source = live_result.get("source", "web_search")
-    
-    # Print fetched skills to terminal
+    # ── Single authoritative market skill source ─────────────────────────────
+    provider = services.market_skill_provider
+    print(f"📋 Fetching Groq LLM market skills for: {role_title}")
+    market_requirements = provider.get_skills(role_title)
+    skills_source = "groq_llm"
+
+    # Log fetched skills
     print(f"\n{'='*60}")
-    print(f"📋 FETCHED MARKET SKILLS FOR: {role_title}")
-    print(f"   Source: {skills_source}")
+    print(f"📋 MARKET SKILLS FOR: {role_title}")
     print(f"   Total Skills: {len(market_requirements)}")
     print(f"{'='*60}")
     for i, (skill, data) in enumerate(market_requirements.items(), 1):
         level = data.get('requirement_level', 'unknown')
         freq = int(data.get('frequency', 0) * 100)
         trending = "🔥" if data.get('trending', False) else ""
-        print(f"   {i:2}. {skill:<25} | {level:<10} | {freq}% demand {trending}")
+        print(f"   {i:2}. {skill:<25} | {level:<10} | {freq}% {trending}")
     print(f"{'='*60}\n")
-    
-    # Fallback to static data only if live search returns nothing
+
+    # Fallback only if Groq returned nothing
     if not market_requirements:
-        print(f"⚠️ No live skills found, checking fallback data")
-        # Try to find a matching role in static data
+        print(f"⚠️ No skills returned, using static fallback")
         role_lower = role_name.lower()
         matched_role_id = None
-        
         for rid, rdata in roles_data.items():
             if rid == role_name or rdata.get("title", "").lower() == role_lower:
                 matched_role_id = rid
                 break
-        
         if matched_role_id:
             market_requirements = roles_data[matched_role_id].get("skills", {})
             skills_source = "fallback"
-            print(f"   ✅ Using fallback data for: {matched_role_id}")
         else:
             raise HTTPException(
-                status_code=400, 
-                detail=f"No skills found for role '{role_title}'. Please check your internet connection or try a different role."
+                status_code=400,
+                detail=f"No skills found for role '{role_title}'. Please try again."
             )
 
     

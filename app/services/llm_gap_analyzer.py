@@ -19,23 +19,39 @@ except ImportError:
 from app.services.gap_analyzer import SmartGapAnalyzer
 
 GROQ_MODEL   = "llama-3.3-70b-versatile"
-GROQ_TIMEOUT = 45
+GROQ_TIMEOUT = 15    # reduced from 45 s — fail fast, base result is always valid
+GROQ_MAX_GAPS = 10   # only enrich top N gaps to keep prompt small
 
-# ── Prompt for ENRICHMENT only (not gap detection) ───────────────────────────
-ENRICH_SYSTEM = """You are a senior technical career strategist.
-You will receive a pre-computed skill gap analysis result.
-Your ONLY job is to add a short "reasoning" field (1 sentence) to each gap item
-explaining WHY this skill matters for the role and HOW urgently the user should learn it.
-Do NOT change any skill names, demands, or requirement_level values.
-Return ONLY valid JSON with the same structure you received, with "reasoning" added to each gap.
+# ── Prompt for Contextual Gap Evaluation ──────────────────────────────────────
+EVAL_SYSTEM = """You are a senior technical career strategist.
+You receive a list of the user's existing skills and a list of "Missing Skills" (gaps) detected by a strict keyword matcher.
+Sometimes the strict matcher makes mistakes by flagging a broad category as a gap when the user already knows a specific subset of it (e.g. flagging "AI" as a gap when the user knows "Machine Learning" and "Deep Learning" or flagging "Frontend" when they know "React").
+
+Your job:
+1. Review each gap in the context of the user's existing skills.
+2. If the user's existing skills conceptually cover the gap (or a large portion of it), mark action as "remove" (meaning it's a false positive gap and they actually have the skill).
+3. If it is a true gap, mark action as "keep" and provide a 1-sentence "reasoning" on why it matters.
+
+Return ONLY valid JSON.
+Schema:
+[
+  {
+    "skill": "<gap-skill-name>",
+    "action": "keep" | "remove",
+    "reasoning": "<1 sentence why it matters OR why it is covered by existing skills>"
+  }
+]
 """
 
-ENRICH_USER_TMPL = """Target Role: {target_role}
+EVAL_USER_TMPL = """Target Role: {target_role}
 
-Gaps to enrich (add reasoning field to each):
+User's Existing Skills:
+{user_skills_list}
+
+Detected Gaps to evaluate:
 {gaps_json}
 
-Return enriched JSON array only."""
+Return the evaluated JSON array:"""
 
 
 class GroqGapAnalyzer:
@@ -76,12 +92,12 @@ class GroqGapAnalyzer:
         # 1. Authoritative gap detection (pure Python, always works)
         result = self._smart.analyze_gaps(user_skills, market_requirements)
 
-        # 2. Optional: enrich with Groq reasoning
+        # 2. Optional: contextual evaluation with Groq
         if self.available:
             try:
-                result = self._enrich_with_reasoning(result, target_role)
+                result = self._contextualize_gaps(result, user_skills, target_role)
             except Exception as e:
-                print(f"⚠️  Groq enrichment failed (using base result): {e}")
+                print(f"⚠️  Groq contextualization failed (using base result): {e}")
 
         # Reformat to match the LLM-style `skill_gaps` key expected by analysis.py
         return {
@@ -100,8 +116,8 @@ class GroqGapAnalyzer:
             "emerging_gaps":     result["emerging_gaps"],
         }
 
-    # ── Groq enrichment (reasoning only) ─────────────────────────────────────
-    def _enrich_with_reasoning(self, result: Dict, target_role: str) -> Dict:
+    # ── Groq Contextual Gap Evaluation ─────────────────────────────────────────
+    def _contextualize_gaps(self, result: Dict, user_skills: Dict, target_role: str) -> Dict:
         all_gaps = (
             result["critical_gaps"] +
             result["important_gaps"] +
@@ -110,51 +126,91 @@ class GroqGapAnalyzer:
         if not all_gaps:
             return result
 
-        # Send only the minimal gap info to Groq (skill + demand + level)
-        slim = [
+        # Limit to top GROQ_MAX_GAPS by demand to keep the prompt small & fast
+        top_gaps = sorted(all_gaps, key=lambda g: g["demand"], reverse=True)[:GROQ_MAX_GAPS]
+
+        # Send only the minimal gap info to Groq
+        slim_gaps = [
             {
                 "skill":             g["skill"],
                 "demand":            g["demand"],
-                "requirement_level": g["requirement_level"],
             }
-            for g in all_gaps
+            for g in top_gaps
         ]
+        
+        user_skills_list = list(user_skills.keys())
 
         response = self.client.chat.completions.create(
             model=GROQ_MODEL,
             messages=[
-                {"role": "system", "content": ENRICH_SYSTEM},
-                {"role": "user",   "content": ENRICH_USER_TMPL.format(
+                {"role": "system", "content": EVAL_SYSTEM},
+                {"role": "user",   "content": EVAL_USER_TMPL.format(
                     target_role=target_role,
-                    gaps_json=json.dumps(slim, indent=2)
+                    user_skills_list=", ".join(user_skills_list),
+                    gaps_json=json.dumps(slim_gaps, indent=2)
                 )},
             ],
-            temperature=0.2,
+            temperature=0.0,   # 0.0 for strict analytical evaluation
+            max_tokens=600,
             response_format={"type": "json_object"},
             timeout=GROQ_TIMEOUT,
         )
 
         content = response.choices[0].message.content
-        enriched_list = self._parse_enriched(content)
-        if not enriched_list:
+        evaluated_list = self._parse_enriched(content)
+        if not evaluated_list:
             return result
 
-        # Map skill name → reasoning
-        reasoning_map: Dict[str, str] = {
-            item["skill"]: item.get("reasoning", "")
-            for item in enriched_list
+        # Actions map: skill -> {"action": "keep"|"remove", "reasoning": "..."}
+        eval_map: Dict[str, Dict] = {
+            item["skill"]: {
+                "action": item.get("action", "keep").lower(),
+                "reasoning": item.get("reasoning", "")
+            }
+            for item in evaluated_list
             if isinstance(item, dict) and "skill" in item
         }
 
-        def add_reasoning(gaps: List[Dict]) -> List[Dict]:
-            for g in gaps:
-                if g["skill"] in reasoning_map:
-                    g["reasoning"] = reasoning_map[g["skill"]]
-            return gaps
+        # Filter gaps and promote false positives to strengths
+        def process_gap_list(gaps_list: List[Dict]) -> List[Dict]:
+            kept = []
+            for g in gaps_list:
+                evaluation = eval_map.get(g["skill"])
+                if evaluation:
+                    if evaluation["action"] == "remove":
+                        # False positive gap -> promote to strength!
+                        g["match_type"] = "contextual_llm"
+                        g["matched_via"] = ["LLM semantic deduction"]
+                        g["user_proficiency"] = g.get("demand", 0.5) # assume they meet it if LLM removed it
+                        g["reasoning"] = evaluation["reasoning"]
+                        # Remove effective_gap from strengths to keep schema clean
+                        g.pop("effective_gap", None)
+                        result["strengths"].append(g)
+                    else:
+                        g["reasoning"] = evaluation["reasoning"]
+                        kept.append(g)
+                else:
+                    kept.append(g)
+            return kept
 
-        result["critical_gaps"]  = add_reasoning(result["critical_gaps"])
-        result["important_gaps"] = add_reasoning(result["important_gaps"])
-        result["emerging_gaps"]  = add_reasoning(result["emerging_gaps"])
+        result["critical_gaps"]  = process_gap_list(result["critical_gaps"])
+        result["important_gaps"] = process_gap_list(result["important_gaps"])
+        result["emerging_gaps"]  = process_gap_list(result["emerging_gaps"])
+        
+        # Sort strengths since we appended to it
+        result["strengths"].sort(key=lambda x: x.get("demand", 0), reverse=True)
+        
+        # Update summary counts manually since we moved items around
+        result["summary"]["critical_gap_count"] = len(result["critical_gaps"])
+        result["summary"]["important_gap_count"] = len(result["important_gaps"])
+        result["summary"]["emerging_gap_count"] = len(result["emerging_gaps"])
+        result["summary"]["strength_count"] = len(result["strengths"])
+        result["summary"]["total_gaps"] = (
+            len(result["critical_gaps"]) + 
+            len(result["important_gaps"]) + 
+            len(result["emerging_gaps"])
+        )
+        
         return result
 
     @staticmethod
