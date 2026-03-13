@@ -13,6 +13,8 @@ export interface MarketSkill {
     demand: number;
     demand_percentage: string;
     requirement_level: string;
+    priority_label?: string;
+    priority_id?: string;
     trending?: boolean;
     llm_validated?: boolean;
     reasoning?: string;
@@ -165,9 +167,42 @@ export const api = {
         return data.data || data;
     },
 
+    getCurrentRoadmapStatus: async (userId: number | string): Promise<any> => {
+        try {
+            const res = await fetchApi(`/api/roadmaps/users/${userId}/current`);
+            return res.data || res;
+        } catch {
+            return { has_active_roadmap: false };
+        }
+    },
+
+    generateRoadmap: async (data: { user_id: number | string; target_role: string; roadmap_type: string; language: string }): Promise<any> => {
+        const res = await fetchApi('/api/roadmaps/generate', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+        return res.data || res;
+    },
+
+    syncRoadmapProgress: async (data: any): Promise<any> => {
+        const res = await fetchApi('/api/roadmaps/sync-progress', {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+        return res.data || res;
+    },
+
+    chatWithRoadmapAI: async (data: { user_id: number | string; message: string; context_milestone_id?: string; history?: any[] }): Promise<any> => {
+        const res = await fetchApi('/api/roadmaps/chat', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+        return res.data || res;
+    },
+
     getUserRoadmap: async (userId: string): Promise<any> => {
         try {
-            const data = await fetchApi(`/api/users/${userId}/roadmap`);
+            const data = await fetchApi(`/api/roadmaps/users/${userId}/roadmap`);
             return data.data || data;
         } catch (error: any) {
             // Return empty roadmap if not found

@@ -1,363 +1,296 @@
-"""Roadmap endpoints router - Career roadmaps with progress tracking."""
-import json
-import os
-from datetime import datetime
 from typing import Optional
+import json
+from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-
 from app.database import get_db
+from app.services.roadmap_generator import RoadmapGenerator
+from app.services.youtube_service import YoutubeService
 
-router = APIRouter(prefix="/api", tags=["Roadmaps"])
+router = APIRouter(prefix="/api/roadmaps", tags=["Roadmaps"])
 
-# Load roadmaps data
-ROADMAPS_FILE = os.path.join(os.path.dirname(__file__), '..', 'data', 'roadmaps.json')
+# Initialize services
+roadmap_gen = RoadmapGenerator()
+youtube_service = YoutubeService()
 
+class RoadmapCreateRequest(BaseModel):
+    user_id: int
+    target_role: str
+    roadmap_type: str = "personal"  # "personal" or "full"
+    language: str = "English"
 
-def load_roadmaps():
-    """Load roadmaps from JSON file."""
-    try:
-        with open(ROADMAPS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Error loading roadmaps: {e}")
-        return {"domains": []}
-
-
-class MilestoneProgressUpdate(BaseModel):
+class ProgressSyncRequest(BaseModel):
+    user_id: int
     milestone_id: str
-    status: str  # 'not_started', 'in_progress', 'completed'
+    video_id: str
+    current_time: int
+    watched_seconds: int
+    total_duration: int
+    is_completed: bool = False
 
+class RoadmapChatRequest(BaseModel):
+    user_id: int
+    message: str
+    context_milestone_id: Optional[str] = None
 
-class RoadmapSelection(BaseModel):
-    domain: str
+# Helper for aggregated skill fetching
+def get_user_knowledge_base_skills(user_id: int):
+    """Aggregates skills from User Skills, Projects, Courses, and Certifications."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # 1. Base skills (Resume/GitHub/Manual)
+        cursor.execute("SELECT skill_name, proficiency FROM user_skills WHERE user_id = ?", (user_id,))
+        skills = {row["skill_name"].lower().strip(): {"proficiency": row["proficiency"]} for row in cursor.fetchall()}
+        
+        # 2. Project skills
+        cursor.execute("SELECT tech_stack, skills_extracted FROM projects WHERE user_id = ?", (user_id,))
+        for row in cursor.fetchall():
+            try:
+                # Check both tech_stack and skills_extracted
+                for field in ["tech_stack", "skills_extracted"]:
+                    if row[field]:
+                        stack = json.loads(row[field])
+                        if isinstance(stack, str): stack = json.loads(stack)
+                        for s in stack:
+                            s_norm = s.lower().strip()
+                            if s_norm and s_norm not in skills:
+                                skills[s_norm] = {"proficiency": 0.6}
+            except: continue
+            
+        # 3. Course skills
+        cursor.execute("SELECT skills_extracted FROM courses WHERE user_id = ?", (user_id,))
+        for row in cursor.fetchall():
+            try:
+                extracted = json.loads(row["skills_extracted"]) if row["skills_extracted"] else []
+                if isinstance(extracted, str): extracted = json.loads(extracted)
+                for s in extracted:
+                    s_norm = s.lower().strip()
+                    if s_norm:
+                        if s_norm not in skills:
+                            skills[s_norm] = {"proficiency": 0.7}
+                        else:
+                            skills[s_norm]["proficiency"] = max(skills[s_norm]["proficiency"], 0.7)
+            except: continue
 
+        # 4. Certification skills
+        cursor.execute("SELECT skills_covered FROM certifications WHERE user_id = ?", (user_id,))
+        for row in cursor.fetchall():
+            try:
+                covered = json.loads(row["skills_covered"]) if row["skills_covered"] else []
+                if isinstance(covered, str): covered = json.loads(covered)
+                for s in covered:
+                    s_norm = s.lower().strip()
+                    if s_norm:
+                        if s_norm not in skills:
+                            skills[s_norm] = {"proficiency": 0.8}
+                        else:
+                            skills[s_norm]["proficiency"] = max(skills[s_norm]["proficiency"], 0.8)
+            except: continue
+                    
+    return skills
 
-# ===== ROADMAP LISTING ENDPOINTS =====
-
-@router.get("/roadmaps")
-def get_all_roadmaps():
-    """Get all available career roadmaps."""
-    data = load_roadmaps()
-    
-    # Return simplified list for overview
-    roadmaps = []
-    for domain in data.get('domains', []):
-        roadmaps.append({
-            'id': domain['id'],
-            'name': domain['name'],
-            'description': domain['description'],
-            'icon': domain['icon'],
-            'color': domain['color'],
-            'estimatedDuration': domain['estimatedDuration'],
-            'totalMilestones': len(domain.get('milestones', []))
-        })
-    
+# Standard Response Helper
+def standard_response(data: any = None, message: str = "Operation completed"):
     return {
-        "message": "Available roadmaps",
-        "total": len(roadmaps),
-        "roadmaps": roadmaps
+        "success": True,
+        "message": message,
+        "data": data
     }
 
+# ===== DYNAMIC ROADMAP ENDPOINTS =====
 
-@router.get("/roadmaps/{domain}")
-def get_roadmap(domain: str):
-    """Get a specific roadmap by domain ID."""
-    data = load_roadmaps()
+@router.post("/generate")
+async def generate_personalized_roadmap(request: RoadmapCreateRequest):
+    """Generate a custom AI-powered roadmap based on user gaps and market demand."""
+    # 1. Aggregate user's entire knowledge base (Resume + Projects + Courses + Certs)
+    user_skills = get_user_knowledge_base_skills(request.user_id)
     
-    for d in data.get('domains', []):
-        if d['id'] == domain:
-            return {
-                "message": f"Roadmap for {d['name']}",
-                "roadmap": d
-            }
-    
-    raise HTTPException(status_code=404, detail=f"Roadmap '{domain}' not found")
-
-
-# ===== USER ROADMAP PROGRESS ENDPOINTS =====
-
-@router.get("/users/{user_id}/roadmap")
-def get_user_roadmap(user_id: int):
-    """Get user's selected roadmap and progress."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        
-        # Verify user exists
-        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        user = cursor.fetchone()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Get user's selected roadmap
-        cursor.execute(
-            "SELECT * FROM user_roadmaps WHERE user_id = ? ORDER BY started_at DESC LIMIT 1",
-            (user_id,)
-        )
-        user_roadmap = cursor.fetchone()
-        
-        if not user_roadmap:
-            return {
-                "message": "No roadmap selected",
-                "has_roadmap": False,
-                "roadmap": None,
-                "progress": []
-            }
-        
-        user_roadmap_dict = dict(user_roadmap)
-        domain = user_roadmap_dict['domain']
-        
-        # Get the roadmap data
-        data = load_roadmaps()
-        roadmap_data = None
-        for d in data.get('domains', []):
-            if d['id'] == domain:
-                roadmap_data = d
-                break
-        
-        if not roadmap_data:
-            return {
-                "message": "Roadmap data not found",
-                "has_roadmap": False,
-                "roadmap": None,
-                "progress": []
-            }
-        
-        # Get progress for all milestones
-        cursor.execute(
-            "SELECT * FROM roadmap_progress WHERE user_id = ? AND domain = ?",
-            (user_id, domain)
-        )
-        progress_rows = cursor.fetchall()
-        
-        # Build progress map
-        progress_map = {}
-        for row in progress_rows:
-            row_dict = dict(row)
-            progress_map[row_dict['milestone_id']] = {
-                'status': row_dict['status'],
-                'started_at': row_dict['started_at'],
-                'completed_at': row_dict['completed_at']
-            }
-        
-        # Get user skills
-        cursor.execute("SELECT skill_name, proficiency FROM user_skills WHERE user_id = ?", (user_id,))
-        user_skills = {row['skill_name'].lower(): row['proficiency'] for row in cursor.fetchall()}
-        
-        # Enrich milestones with progress and skill matching
-        milestones_with_progress = []
-        completed_count = 0
-        for milestone in roadmap_data['milestones']:
-            ms_id = milestone['id']
-            progress = progress_map.get(ms_id, {'status': 'not_started', 'started_at': None, 'completed_at': None})
-            
-            # Calculate skill completion for this milestone
-            required_skills = milestone.get('skills', [])
-            matched_skills = 0
-            skill_details = []
-            
-            for skill in required_skills:
-                skill_lower = skill.lower()
-                user_prof = user_skills.get(skill_lower, 0)
-                has_skill = user_prof >= 0.3  # Consider skill acquired if proficiency >= 30%
-                if has_skill:
-                    matched_skills += 1
-                skill_details.append({
-                    'name': skill,
-                    'hasSkill': has_skill,
-                    'proficiency': round(user_prof * 100)
-                })
-            
-            skill_completion = (matched_skills / len(required_skills) * 100) if required_skills else 0
-            
-            if progress['status'] == 'completed':
-                completed_count += 1
-            
-            milestones_with_progress.append({
-                **milestone,
-                'progress': progress,
-                'skillCompletion': round(skill_completion),
-                'skillDetails': skill_details
-            })
-        
-        # Calculate overall progress
-        total_milestones = len(roadmap_data['milestones'])
-        overall_progress = (completed_count / total_milestones * 100) if total_milestones > 0 else 0
-        
-        return {
-            "message": "User roadmap with progress",
-            "has_roadmap": True,
-            "domain": domain,
-            "started_at": user_roadmap_dict['started_at'],
-            "overall_progress": round(overall_progress),
-            "completed_milestones": completed_count,
-            "total_milestones": total_milestones,
-            "roadmap": {
-                **roadmap_data,
-                'milestones': milestones_with_progress
-            }
-        }
-
-
-@router.post("/users/{user_id}/roadmap/select")
-def select_roadmap(user_id: int, selection: RoadmapSelection):
-    """Select a roadmap for the user to follow."""
-    # Verify roadmap exists
-    data = load_roadmaps()
-    roadmap_exists = any(d['id'] == selection.domain for d in data.get('domains', []))
-    
-    if not roadmap_exists:
-        raise HTTPException(status_code=404, detail=f"Roadmap '{selection.domain}' not found")
-    
-    with get_db() as conn:
-        cursor = conn.cursor()
-        
-        # Verify user exists
-        cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
-        if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Check if user already has this roadmap
-        cursor.execute(
-            "SELECT id FROM user_roadmaps WHERE user_id = ? AND domain = ?",
-            (user_id, selection.domain)
-        )
-        existing = cursor.fetchone()
-        
-        if existing:
-            return {
-                "message": "Roadmap already selected",
-                "domain": selection.domain,
-                "already_exists": True
-            }
-        
-        # Insert new roadmap selection
-        now = datetime.now().isoformat()
-        cursor.execute(
-            "INSERT INTO user_roadmaps (user_id, domain, started_at) VALUES (?, ?, ?)",
-            (user_id, selection.domain, now)
-        )
-        conn.commit()
-        
-        return {
-            "message": f"Roadmap '{selection.domain}' selected",
-            "domain": selection.domain,
-            "started_at": now,
-            "already_exists": False
-        }
-
-
-@router.put("/users/{user_id}/roadmap/progress")
-def update_milestone_progress(user_id: int, update: MilestoneProgressUpdate):
-    """Update progress on a specific milestone."""
-    valid_statuses = ['not_started', 'in_progress', 'completed']
-    if update.status not in valid_statuses:
+    # Relax requirement for full roadmap
+    if not user_skills and request.roadmap_type == "personal":
         raise HTTPException(
-            status_code=400,
-            detail=f"Invalid status. Must be one of: {valid_statuses}"
+            status_code=400, 
+            detail="Knowledge base is empty. Please extract skills or add projects first for a personal path."
         )
+
+    # 2. Generate roadmap structure
+    roadmap_data = await roadmap_gen.generate_roadmap(
+        user_id=request.user_id,
+        target_role=request.target_role,
+        user_skills=user_skills or {},
+        roadmap_type=request.roadmap_type,
+        language=request.language
+    )
     
+    if not roadmap_data or "error" in roadmap_data:
+        raise HTTPException(status_code=400, detail=roadmap_data.get("error", "Failed to generate roadmap"))
+
     with get_db() as conn:
         cursor = conn.cursor()
-        
-        # Verify user exists
-        cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
-        if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Get user's current roadmap
-        cursor.execute(
-            "SELECT domain FROM user_roadmaps WHERE user_id = ? ORDER BY started_at DESC LIMIT 1",
-            (user_id,)
-        )
-        roadmap = cursor.fetchone()
-        
-        if not roadmap:
-            raise HTTPException(status_code=400, detail="No roadmap selected. Select a roadmap first.")
-        
-        domain = roadmap['domain']
-        
-        # Verify milestone exists in roadmap
-        data = load_roadmaps()
-        milestone_exists = False
-        for d in data.get('domains', []):
-            if d['id'] == domain:
-                milestone_exists = any(m['id'] == update.milestone_id for m in d.get('milestones', []))
-                break
-        
-        if not milestone_exists:
-            raise HTTPException(status_code=404, detail=f"Milestone '{update.milestone_id}' not found in roadmap")
-        
+        # 3. Store in database
         now = datetime.now().isoformat()
-        
-        # Check existing progress
         cursor.execute(
-            "SELECT id, status FROM roadmap_progress WHERE user_id = ? AND domain = ? AND milestone_id = ?",
-            (user_id, domain, update.milestone_id)
+            """INSERT INTO user_roadmaps 
+               (user_id, domain, roadmap_type, target_role, language_preference, started_at) 
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (request.user_id, request.target_role, request.roadmap_type, request.target_role, request.language, now)
         )
-        existing = cursor.fetchone()
+        roadmap_id = cursor.lastrowid
         
-        if existing:
-            # Update existing progress
-            completed_at = now if update.status == 'completed' else None
-            started_at = now if update.status == 'in_progress' and existing['status'] == 'not_started' else None
-            
-            if started_at:
-                cursor.execute(
-                    "UPDATE roadmap_progress SET status = ?, started_at = ? WHERE id = ?",
-                    (update.status, started_at, existing['id'])
-                )
-            elif completed_at:
-                cursor.execute(
-                    "UPDATE roadmap_progress SET status = ?, completed_at = ? WHERE id = ?",
-                    (update.status, completed_at, existing['id'])
-                )
-            else:
-                cursor.execute(
-                    "UPDATE roadmap_progress SET status = ? WHERE id = ?",
-                    (update.status, existing['id'])
-                )
-        else:
-            # Insert new progress
-            started_at = now if update.status in ['in_progress', 'completed'] else None
-            completed_at = now if update.status == 'completed' else None
-            
+        # 4. Initialize milestone progress
+        for ms in roadmap_data["milestones"]:
             cursor.execute(
-                """INSERT INTO roadmap_progress (user_id, domain, milestone_id, status, started_at, completed_at)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (user_id, domain, update.milestone_id, update.status, started_at, completed_at)
+                """INSERT INTO roadmap_progress 
+                   (user_id, roadmap_id, domain, milestone_id, milestone_name, milestone_description, skills, status, youtube_playlist_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (request.user_id, roadmap_id, request.target_role, ms["id"], ms["name"], ms["description"], 
+                 json.dumps(ms.get("skills", [])), "not_started", 
+                 ms["resources"][0]["url"] if ms.get("resources") and len(ms["resources"]) > 0 else None)
             )
         
         conn.commit()
-        
-        return {
-            "message": f"Milestone '{update.milestone_id}' updated to '{update.status}'",
-            "milestone_id": update.milestone_id,
-            "status": update.status,
-            "updated_at": now
-        }
+        return standard_response(roadmap_data, "Roadmap generated successfully")
 
-
-@router.delete("/users/{user_id}/roadmap")
-def remove_user_roadmap(user_id: int):
-    """Remove user's roadmap selection and progress."""
+@router.put("/sync-progress")
+def sync_roadmap_progress(request: ProgressSyncRequest):
+    """Sync live watch time and video progress."""
     with get_db() as conn:
         cursor = conn.cursor()
         
-        # Verify user exists
-        cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
-        if not cursor.fetchone():
-            raise HTTPException(status_code=404, detail="User not found")
+        # Get user's active roadmap
+        cursor.execute(
+            "SELECT domain FROM user_roadmaps WHERE user_id = ? ORDER BY started_at DESC LIMIT 1",
+            (request.user_id,)
+        )
+        roadmap = cursor.fetchone()
+        if not roadmap:
+            raise HTTPException(status_code=404, detail="No active roadmap found")
+            
+        domain = roadmap["domain"]
+        status = "completed" if request.is_completed else "in_progress"
         
-        # Delete progress
-        cursor.execute("DELETE FROM roadmap_progress WHERE user_id = ?", (user_id,))
-        
-        # Delete roadmap selection
-        cursor.execute("DELETE FROM user_roadmaps WHERE user_id = ?", (user_id,))
-        
+        cursor.execute(
+            """UPDATE roadmap_progress 
+               SET status = ?, 
+                   current_video_id = ?, 
+                   current_video_time = ?, 
+                   watched_duration_seconds = watched_duration_seconds + ?,
+                   total_duration_seconds = ?,
+                   updated_at = CURRENT_TIMESTAMP
+               WHERE user_id = ? AND domain = ? AND milestone_id = ?""",
+            (status, request.video_id, request.current_time, request.watched_seconds, 
+             request.total_duration, request.user_id, domain, request.milestone_id)
+        )
         conn.commit()
         
-        return {
-            "message": "Roadmap and progress removed",
-            "user_id": user_id
+    return standard_response(None, "Progress synced")
+
+@router.post("/chat")
+async def chat_with_roadmap_ai(request: RoadmapChatRequest):
+    """Roadmap-aware AI chatbot."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        # Get context
+        cursor.execute(
+            "SELECT target_role, roadmap_type FROM user_roadmaps WHERE user_id = ? ORDER BY started_at DESC LIMIT 1",
+            (request.user_id,)
+        )
+        roadmap = cursor.fetchone()
+        
+    context = f"User is following a {roadmap['roadmap_type'] if roadmap else 'general'} roadmap for {roadmap['target_role'] if roadmap else 'technical roles'}."
+    if request.context_milestone_id:
+        context += f" Currently focused on milestone: {request.context_milestone_id}."
+
+    # Using Groq to reply
+    from app.services.groq_market_skill_provider import GroqMarketSkillProvider
+    ai = GroqMarketSkillProvider()
+    
+    prompt = f"""
+    Context: {context}
+    User Question: {request.message}
+    
+    Provide a helpful, encouraging answer. Keep it technical and practical.
+    """
+    
+    response = ai.client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    
+    return standard_response({"reply": response.choices[0].message.content})
+
+@router.get("/users/{user_id}/current")
+def get_current_status(user_id: int):
+    """Get summarized progress and detailed roadmap data."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        # Join on roadmap_id if available, otherwise domain as fallback for old data
+        cursor.execute(
+            """SELECT ur.id, ur.target_role, ur.roadmap_type, ur.domain, ur.language_preference, ur.started_at,
+                      COUNT(rp.id) as total_milestones,
+                      SUM(CASE WHEN rp.status = 'completed' THEN 1 ELSE 0 END) as completed_milestones,
+                      SUM(rp.watched_duration_seconds) as total_watched_seconds
+               FROM user_roadmaps ur
+               LEFT JOIN roadmap_progress rp ON 
+                  (rp.roadmap_id = ur.id) OR 
+                  (rp.roadmap_id IS NULL AND ur.user_id = rp.user_id AND ur.domain = rp.domain)
+               WHERE ur.user_id = ?
+               GROUP BY ur.id
+               ORDER BY ur.started_at DESC LIMIT 1""",
+            (user_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            return standard_response({"has_active_roadmap": False})
+        
+        # Fetch detailed milestones for the current roadmap specifically
+        cursor.execute(
+            """SELECT milestone_id as id, milestone_name as name, milestone_description as description, 
+                      skills, status, youtube_playlist_id, 
+                      current_video_id, current_video_time,
+                      started_at, completed_at, watched_duration_seconds, total_duration_seconds
+               FROM roadmap_progress 
+               WHERE (roadmap_id = ?) OR 
+                     (roadmap_id IS NULL AND user_id = ? AND domain = ?)""",
+            (row["id"], user_id, row["domain"])
+        )
+        milestones_raw = [dict(r) for r in cursor.fetchall()]
+        
+        milestones = []
+        for m in milestones_raw:
+            milestones.append({
+                "id": m["id"],
+                "name": m["name"],
+                "description": m["description"],
+                "skills": json.loads(m["skills"]) if m["skills"] else [],
+                "youtube_playlist_id": m["youtube_playlist_id"],
+                "current_video_id": m["current_video_id"],
+                "current_video_time": m["current_video_time"],
+                "progress": {
+                    "status": m["status"],
+                    "started_at": m["started_at"],
+                    "completed_at": m["completed_at"],
+                    "watched_duration_seconds": m["watched_duration_seconds"] or 0,
+                    "total_duration_seconds": m["total_duration_seconds"] or 0
+                }
+            })
+        
+        data = {
+            "has_active_roadmap": True,
+            "role": row["target_role"],
+            "type": row["roadmap_type"],
+            "progress_percent": round((row["completed_milestones"] / row["total_milestones"]) * 100) if row["total_milestones"] else 0,
+            "hours_spent": round((row["total_watched_seconds"] or 0) / 3600, 1),
+            "roadmap": {
+                "id": str(row["id"]),
+                "title": f"{row['target_role']} Mastery Path",
+                "description": f"AI-powered {row['roadmap_type']} roadmap for {row['target_role']}",
+                "roadmap_type": row["roadmap_type"],
+                "target_role": row["target_role"],
+                "language": row["language_preference"],
+                "milestones": milestones,
+                "created_at": row["started_at"],
+                "last_accessed": row["started_at"]
+            }
         }
+        return standard_response(data)

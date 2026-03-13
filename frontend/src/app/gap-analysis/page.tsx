@@ -26,8 +26,10 @@ import {
 interface SkillGap {
     skill: string;
     gap: number;
-    demand_percentage: number;
+    demand_percentage: string;
     requirement_level: string;
+    priority_label?: string;
+    priority_id?: string;
     reasoning?: string;
     transferability?: number;
     market_demand?: number;
@@ -398,11 +400,20 @@ export default function GapAnalysisPage() {
                                                     </div>
 
                                                     <div className="mt-auto flex justify-between items-center">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-none">Critical</span>
-                                                            {gap.transferability !== undefined && gap.transferability > 0.4 && (
-                                                                <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-0.5">
-                                                                    <Wifi size={8} /> Transferable
+                                                        <div className="flex flex-col gap-1">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-[9px] font-black text-red-500 uppercase tracking-widest leading-none">
+                                                                    {gap.priority_label || 'Critical'}
+                                                                </span>
+                                                                {gap.transferability !== undefined && gap.transferability > 0.4 && (
+                                                                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-0.5">
+                                                                        <Wifi size={8} /> Transferable
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {gap.priority_id === 'immediate' && (
+                                                                <span className="text-[7px] font-bold text-red-400 uppercase tracking-tighter">
+                                                                    Action Required
                                                                 </span>
                                                             )}
                                                         </div>
@@ -435,11 +446,21 @@ export default function GapAnalysisPage() {
                                                     </div>
 
                                                     <div className="mt-auto flex justify-between items-center">
-                                                        <div className="flex items-center gap-1.5">
-                                                            <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest leading-none">Important</span>
-                                                            {gap.transferability !== undefined && gap.transferability > 0.6 && (
-                                                                <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-0.5">
-                                                                    <Wifi size={8} /> High Transfer
+                                                        <div className="flex flex-col gap-1">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className={`text-[9px] font-black uppercase tracking-widest leading-none ${gap.priority_id === 'low' ? 'text-blue-500' : 'text-amber-500'
+                                                                    }`}>
+                                                                    {gap.priority_label || 'Important'}
+                                                                </span>
+                                                                {gap.transferability !== undefined && gap.transferability > 0.6 && (
+                                                                    <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-0.5">
+                                                                        <Wifi size={8} /> High Transfer
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {gap.priority_id === 'low' && (
+                                                                <span className="text-[7px] font-bold text-gray-400 uppercase tracking-tighter">
+                                                                    Maintenance Level
                                                                 </span>
                                                             )}
                                                         </div>

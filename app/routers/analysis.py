@@ -550,18 +550,18 @@ def get_role_requirements(role_id: str):
 def get_live_market_skills(
     role_name: str,
     force_refresh: bool = False,
-    max_skills: int = 50
+    max_skills: int = 30
 ):
     """
     Fetch current trending skills for a role from the internet.
     
-    Uses Tavily API to search for latest skill requirements.
-    Results are cached for 24 hours unless force_refresh is True.
+    Uses Tavily API or Groq LLM to search for latest skill requirements.
+    Results are cached for 24 hours (Tavily) or 7 days (Groq).
     
     Args:
         role_name: Job role title (e.g., "Frontend Developer", "Data Scientist")
         force_refresh: If True, bypass cache and search fresh
-        max_skills: Maximum number of skills to return (default 20)
+        max_skills: Maximum number of skills to return (default 30)
     
     Returns:
         Skills dictionary with frequency, requirement level, and trending status
@@ -569,8 +569,14 @@ def get_live_market_skills(
     services = get_services()
     provider = services.market_skill_provider
 
-    result_skills = provider.get_skills(role_name, force_refresh=force_refresh)
-    skills = result_skills
+    skills = provider.get_skills(role_name, force_refresh=force_refresh)
+    
+    # Enforce max_skills limit if more are returned
+    if len(skills) > max_skills:
+        skills = dict(
+            sorted(skills.items(), key=lambda x: x[1].get('frequency', 0), reverse=True)
+            [:max_skills]
+        )
     
     # Categorize skills
     critical = [s for s, d in skills.items() if d.get("requirement_level") == "critical"]
@@ -581,8 +587,6 @@ def get_live_market_skills(
     return {
         "message": "Live market skills fetched",
         "role": role_name,
-        "source": result.get("source", "unknown"),
-        "searched_at": result.get("searched_at"),
         "total_skills": len(skills),
         "critical_skills": critical,
         "important_skills": important,

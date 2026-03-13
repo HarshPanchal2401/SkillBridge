@@ -471,6 +471,24 @@ class SmartGapAnalyzer:
                 final_level = self._min_level(effective_level, req_level)
                 entry["requirement_level"] = final_level
 
+                # Add learning priority based on the size of the gap (percentage)
+                # High gap percentage (80%+) means high learnable / immediate focus.
+                if effective_gap >= 0.80:
+                    priority_label = "Learn Immediate"
+                    priority_id = "immediate"
+                elif effective_gap >= 0.50:
+                    priority_label = "High Priority"
+                    priority_id = "high"
+                elif effective_gap >= 0.25:
+                    priority_label = "Important"
+                    priority_id = "medium"
+                else:
+                    priority_label = "Low Importance"
+                    priority_id = "low"
+                
+                entry["priority_label"] = priority_label
+                entry["priority_id"] = priority_id
+
                 if final_level == "critical":
                     critical_gaps.append(entry)
                 elif final_level == "important":

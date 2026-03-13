@@ -352,12 +352,16 @@ def init_db() -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
             domain TEXT NOT NULL,
+            roadmap_type TEXT DEFAULT 'personal', -- 'personal' or 'full'
+            target_role TEXT,
+            language_preference TEXT DEFAULT 'English',
             started_at TEXT,
+            last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
         )
     ''')
     
-    # Create roadmap_progress table (tracks progress on individual milestones)
+    # Create roadmap_progress table (tracks progress on individual milestones/steps)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS roadmap_progress (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -365,6 +369,13 @@ def init_db() -> None:
             domain TEXT NOT NULL,
             milestone_id TEXT NOT NULL,
             status TEXT DEFAULT 'not_started',
+            youtube_playlist_id TEXT,
+            total_videos INTEGER DEFAULT 0,
+            watched_videos INTEGER DEFAULT 0,
+            total_duration_seconds INTEGER DEFAULT 0,
+            watched_duration_seconds INTEGER DEFAULT 0,
+            current_video_id TEXT,
+            current_video_time INTEGER DEFAULT 0,
             started_at TEXT,
             completed_at TEXT,
             FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
@@ -381,14 +392,29 @@ def init_db() -> None:
     
     # Migration: add missing columns if missing (for existing databases)
     columns_to_add = [
-        ("resume_filename", "TEXT"),
-        ("specialization", "TEXT")
+        ("users", "resume_filename", "TEXT"),
+        ("users", "specialization", "TEXT"),
+        ("user_roadmaps", "roadmap_type", "TEXT DEFAULT 'personal'"),
+        ("user_roadmaps", "target_role", "TEXT"),
+        ("user_roadmaps", "language_preference", "TEXT DEFAULT 'English'"),
+        ("user_roadmaps", "last_accessed", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ("roadmap_progress", "youtube_playlist_id", "TEXT"),
+        ("roadmap_progress", "total_videos", "INTEGER DEFAULT 0"),
+        ("roadmap_progress", "watched_videos", "INTEGER DEFAULT 0"),
+        ("roadmap_progress", "total_duration_seconds", "INTEGER DEFAULT 0"),
+        ("roadmap_progress", "watched_duration_seconds", "INTEGER DEFAULT 0"),
+        ("roadmap_progress", "current_video_id", "TEXT"),
+        ("roadmap_progress", "current_video_time", "INTEGER DEFAULT 0"),
+        ("roadmap_progress", "milestone_name", "TEXT"),
+        ("roadmap_progress", "milestone_description", "TEXT"),
+        ("roadmap_progress", "skills", "TEXT"),
+        ("roadmap_progress", "roadmap_id", "INTEGER")
     ]
     
-    for col_name, col_type in columns_to_add:
+    for table, col_name, col_type in columns_to_add:
         try:
-            cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
-            logger.info(f"✅ Added column {col_name} to users table")
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}")
+            logger.info(f"✅ Added column {col_name} to {table} table")
         except sqlite3.OperationalError:
             pass  # Column already exists
     

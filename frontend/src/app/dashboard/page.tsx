@@ -30,6 +30,7 @@ import {
     Pie,
     Cell
 } from 'recharts';
+import RoadmapProgressWidget from '@/components/RoadmapProgressWidget';
 
 interface DashboardData {
     total_skills: number;
@@ -45,6 +46,7 @@ export default function DashboardPage() {
     const { user, profile, gapAnalysis, loading: authLoading, userId, refreshGapAnalysis } = useAuth();
     const router = useRouter();
     const [data, setData] = useState<DashboardData | null>(null);
+    const [roadmapStatus, setRoadmapStatus] = useState<any>({ has_active_roadmap: false });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -71,9 +73,9 @@ export default function DashboardPage() {
                 currentGapAnalysis = await refreshGapAnalysis();
             }
 
-            const [skills] = await Promise.all([
+            const [skills, roadmap] = await Promise.all([
                 api.getUserSkills(userId).catch(() => []),
-                // api.getGapAnalysis(userId) is now handled by refreshGapAnalysis if needed
+                api.getCurrentRoadmapStatus(userId)
             ]);
 
             setData({
@@ -83,6 +85,7 @@ export default function DashboardPage() {
                 skills,
                 gapAnalysis: currentGapAnalysis,
             });
+            setRoadmapStatus(roadmap);
         } catch (error) {
             console.error('Failed to load dashboard:', error);
         } finally {
@@ -280,6 +283,8 @@ export default function DashboardPage() {
                     {/* Right Column: Actions & Profile */}
                     <div className="lg:col-span-4 space-y-6">
                         {/* Quick Actions */}
+                        <RoadmapProgressWidget status={roadmapStatus} />
+
                         <div className="space-y-3">
                             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Quick Actions</h3>
                             <button

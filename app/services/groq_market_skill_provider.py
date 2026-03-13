@@ -45,7 +45,7 @@ except ImportError:
 GROQ_MODEL   = "llama-3.3-70b-versatile"
 GROQ_TIMEOUT = 30          # seconds — Groq is fast, 30 s is generous
 CACHE_TTL_DAYS = 7         # how long cached skill sets stay valid
-MAX_SKILLS   = 25          # cap on skills returned per role
+MAX_SKILLS   = 30          # cap on skills returned per role
 
 _CACHE_DIR       = os.path.join("app", "data", "skills_cache")
 _FALLBACK_FILE   = os.path.join("app", "data", "role_requirements.json")
@@ -60,7 +60,7 @@ Your task is to return the definitive list of skills required for a given job ro
 Rules:
 1. Include ONLY technical skills (tools, languages, frameworks, platforms).
    Do NOT include generic soft skills like "communication", "teamwork", etc.
-2. Return between 15 and 25 skills — the sweet spot for a real job description.
+2. Return up to 30 essential technical skills — provide a comprehensive yet focused list.
 3. Classify each skill:
    - "critical"  : A fundamental must-have; most job postings require it.
    - "important" : Strongly preferred; many postings mention it.
@@ -70,6 +70,7 @@ Rules:
 5. Set "trending": true for skills that are gaining significant traction in
    2025-2026 job postings (e.g. GenAI, Rust, Kafka, LangChain).
 6. Use canonical, lowercase skill names (e.g. "python", "react", "kubernetes").
+7. ONLY include significant skills with a frequency ≥ 0.10.
 
 Return ONLY valid JSON — no prose, no markdown, no code fences.
 
@@ -304,6 +305,11 @@ class GroqMarketSkillProvider:
             level = data.get("requirement_level", "important")
             if not isinstance(freq, (int, float)) or not (0.0 <= freq <= 1.0):
                 continue
+            
+            # Filter out low-demand skills (< 10%)
+            if freq < 0.10:
+                continue
+
             if level not in valid_levels:
                 level = "important"
             clean[skill.lower().strip()] = {
