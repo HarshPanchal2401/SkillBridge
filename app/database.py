@@ -376,8 +376,10 @@ def init_db() -> None:
             watched_duration_seconds INTEGER DEFAULT 0,
             current_video_id TEXT,
             current_video_time INTEGER DEFAULT 0,
+            roadmap_id INTEGER,
             started_at TEXT,
             completed_at TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
         )
     ''')
@@ -408,7 +410,9 @@ def init_db() -> None:
         ("roadmap_progress", "milestone_name", "TEXT"),
         ("roadmap_progress", "milestone_description", "TEXT"),
         ("roadmap_progress", "skills", "TEXT"),
-        ("roadmap_progress", "roadmap_id", "INTEGER")
+        ("roadmap_progress", "roadmap_id", "INTEGER"),
+        ("roadmap_progress", "resources", "TEXT"),
+        ("roadmap_progress", "updated_at", "TIMESTAMP")
     ]
     
     for table, col_name, col_type in columns_to_add:

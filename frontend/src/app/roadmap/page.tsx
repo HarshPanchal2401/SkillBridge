@@ -32,7 +32,8 @@ import {
     RefreshCcw,
     Gamepad2,
     BrainCircuit,
-    Loader2
+    Loader2,
+    Layers
 } from 'lucide-react';
 
 interface Milestone {
@@ -43,7 +44,9 @@ interface Milestone {
     estimatedWeeks: number;
     prerequisites?: string[];
     skills: string[];
+    difficulty?: 'beginner' | 'intermediate' | 'advanced';
     youtube_playlist_id?: string;
+    resources?: any[];
     current_video_id?: string;
     current_video_time?: number;
     progress: {
@@ -65,13 +68,17 @@ interface Roadmap {
     milestones: Milestone[];
     created_at: string;
     last_accessed: string;
+    overall_readiness?: number;
+    trending_highlights?: string[];
 }
 
 export default function RoadmapPage() {
     const { user, loading: authLoading, userId } = useAuth();
     const router = useRouter();
     const [loading, setLoading] = useState(true);
-    const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
+    const [fullRoadmap, setFullRoadmap] = useState<Roadmap | null>(null);
+    const [personalRoadmap, setPersonalRoadmap] = useState<Roadmap | null>(null);
+    const [activeTab, setActiveTab] = useState<'personal' | 'full'>('personal');
     const [roadmapStatus, setRoadmapStatus] = useState<any>(null);
     const [activeMilestone, setActiveMilestone] = useState<Milestone | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -91,12 +98,18 @@ export default function RoadmapPage() {
         setLoading(true);
         try {
             const result = await api.getCurrentRoadmapStatus(String(userId));
+            setRoadmapStatus(result);
             if (result.has_active_roadmap) {
-                setRoadmap(result.roadmap);
-                setRoadmapStatus(result);
-                // Set first incomplete milestone as active
-                const next = result.roadmap.milestones.find((m: Milestone) => m.progress.status !== 'completed') || result.roadmap.milestones[0];
-                setActiveMilestone(next);
+                setFullRoadmap(result.full_path);
+                setPersonalRoadmap(result.personal_path);
+
+                // Determine which one to show
+                const active = result.personal_path || result.full_path || result.latest;
+                if (active) {
+                    setActiveTab(active.roadmap_type);
+                    const next = active.milestones.find((m: Milestone) => m.progress.status !== 'completed') || active.milestones[0];
+                    setActiveMilestone(next);
+                }
             }
         } catch (error) {
             console.error('Failed to load roadmap:', error);
@@ -105,14 +118,35 @@ export default function RoadmapPage() {
         }
     };
 
+    const toggleTab = (tab: 'personal' | 'full') => {
+        const r = tab === 'personal' ? personalRoadmap : fullRoadmap;
+        if (r) {
+            setActiveTab(tab);
+            const next = r.milestones.find(m => m.progress.status !== 'completed') || r.milestones[0];
+            setActiveMilestone(next);
+        } else {
+            // If roadmap doesn't exist, trigger generation
+            generateRoadmap(tab);
+        }
+    };
+
+    const roadmap = activeTab === 'personal' ? personalRoadmap : fullRoadmap;
+
     const generateRoadmap = async (type: 'personal' | 'full') => {
         if (!userId) return;
         setIsGenerating(true);
         setGenType(type);
         try {
+            // Priority: 1. User Profile Role, 2. Roadmap Status Role (if not SW Engineer), 3. AI/ML Engineer default
+            const targetRole = user?.target_role ||
+                (roadmapStatus?.target_role !== "Software Engineer" ? roadmapStatus?.target_role : null) ||
+                "AI/ML Engineer";
+
+            console.log(`Generating ${type} roadmap for role: ${targetRole}`);
+
             await api.generateRoadmap({
                 user_id: userId,
-                target_role: roadmapStatus?.target_role || "Software Engineer",
+                target_role: targetRole,
                 roadmap_type: type,
                 language: "English"
             });
@@ -169,7 +203,7 @@ export default function RoadmapPage() {
                             className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
                         >
                             {isGenerating && genType === 'personal' ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
-                            Generate Personal Path
+                            Generate Gap-Filler Path
                         </button>
                     </div>
 
@@ -178,7 +212,7 @@ export default function RoadmapPage() {
                         <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 mb-6 group-hover:bg-gray-900 group-hover:text-white transition-colors duration-300">
                             <Map size={28} />
                         </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-3">Full Mastery Path</h3>
+                        <h3 className="text-xl font-bold text-gray-900 mb-3">0-to-Mastery Path</h3>
                         <p className="text-gray-500 text-sm leading-relaxed mb-8">
                             A comprehensive roadmap covering everything needed for the role, from basics to expert level.
                         </p>
@@ -188,7 +222,7 @@ export default function RoadmapPage() {
                             className="w-full py-4 bg-white text-gray-900 border-2 border-gray-100 rounded-2xl font-bold text-xs uppercase tracking-widest hover:border-gray-900 transition-all flex items-center justify-center gap-2"
                         >
                             {isGenerating && genType === 'full' ? <Loader2 className="animate-spin" size={16} /> : <Zap size={16} />}
-                            Generate Full Path
+                            Generate 0-to-Mastery Path
                         </button>
                     </div>
                 </div>
@@ -206,13 +240,60 @@ export default function RoadmapPage() {
                             <BrainCircuit size={20} />
                         </div>
                         <div>
-                            <h1 className="text-lg font-bold text-gray-900 tracking-tight">{roadmap.title}</h1>
+                            <h1 className="text-lg font-bold text-gray-900 tracking-tight">{roadmap?.title || "Mastery Path"}</h1>
                             <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 px-1">
-                                <span className="uppercase tracking-widest">{roadmap.roadmap_type} PATH</span>
+                                <span className="uppercase tracking-widest underline decoration-blue-500/30 underline-offset-4">{activeTab === 'personal' ? 'Gap-Filler' : '0-to-Mastery'} PATH</span>
                                 <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
-                                <span className="uppercase tracking-widest">{roadmap.milestones.length} MILESTONES</span>
+                                <span className="uppercase tracking-widest">{roadmap?.milestones.length || 0} MILESTONES</span>
+                                <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
+                                <span className="text-blue-600 uppercase tracking-widest">{roadmap?.overall_readiness || 0}% READY</span>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Trending Highlights */}
+                    {roadmap?.trending_highlights && roadmap.trending_highlights.length > 0 && (
+                        <div className="hidden xl:flex items-center gap-2">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Trending:</span>
+                            <div className="flex gap-1.5">
+                                {roadmap.trending_highlights.slice(0, 3).map((skill: string, i: number) => (
+                                    <span key={i} className="px-2 py-1 bg-amber-50 text-amber-600 rounded-md text-[9px] font-black uppercase tracking-tighter border border-amber-100 flex items-center gap-1">
+                                        <Zap size={10} fill="currentColor" />
+                                        {skill}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Switcher Tabs */}
+                    <div className="flex bg-gray-50 p-1.5 rounded-2xl border border-gray-100 items-center">
+                        <button
+                            onClick={() => toggleTab('personal')}
+                            disabled={isGenerating}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'personal'
+                                ? 'bg-white text-blue-600 shadow-sm border border-gray-100'
+                                : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
+                                }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Sparkles size={12} />
+                                {!personalRoadmap ? '✨ Generate Gap-Filler' : 'Gap-Filler'}
+                            </div>
+                        </button>
+                        <button
+                            onClick={() => toggleTab('full')}
+                            disabled={isGenerating}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'full'
+                                ? 'bg-white text-blue-600 shadow-sm border border-gray-100'
+                                : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
+                                }`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Zap size={12} />
+                                {!fullRoadmap ? '✨ Generate 0-to-Mastery' : '0-to-Mastery'}
+                            </div>
+                        </button>
                     </div>
                     <div className="flex items-center gap-3">
                         <button
@@ -241,7 +322,8 @@ export default function RoadmapPage() {
                                     initialTime={activeMilestone.current_video_time}
                                     onProgressUpdate={(p) => {
                                         // Update local state for immediate feedback
-                                        setRoadmap(prev => {
+                                        const setter = activeTab === 'personal' ? setPersonalRoadmap : setFullRoadmap;
+                                        setter(prev => {
                                             if (!prev) return null;
                                             return {
                                                 ...prev,
@@ -257,8 +339,13 @@ export default function RoadmapPage() {
                                 <div className="p-8">
                                     <div className="flex items-center justify-between mb-6">
                                         <div className="space-y-1">
-                                            <div className="inline-flex items-center gap-2 px-2 py-0.5 bg-blue-50 text-blue-600 rounded-md text-[10px] font-bold uppercase tracking-wider">
-                                                Active Milestone
+                                            <div className="flex items-center gap-2">
+                                                <div className="inline-flex items-center gap-2 px-2 py-0.5 bg-blue-50 text-blue-600 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                                                    Active Milestone
+                                                </div>
+                                                <div className={`inline-flex items-center gap-2 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${activeMilestone.difficulty === 'beginner' ? 'bg-green-50 text-green-600' : activeMilestone.difficulty === 'intermediate' ? 'bg-orange-50 text-orange-600' : 'bg-purple-50 text-purple-600'}`}>
+                                                    {activeMilestone.difficulty || 'intermediate'}
+                                                </div>
                                             </div>
                                             <h2 className="text-2xl font-black text-gray-900">{activeMilestone.name}</h2>
                                         </div>
@@ -266,20 +353,104 @@ export default function RoadmapPage() {
                                             <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Estimated</div>
                                             <div className="flex items-center gap-1.5 text-gray-900 font-bold">
                                                 <Clock size={16} className="text-blue-500" />
-                                                {activeMilestone.estimatedWeeks} Weeks
+                                                {activeMilestone.estimatedWeeks || 1} Weeks
                                             </div>
                                         </div>
                                     </div>
                                     <p className="text-gray-500 font-medium leading-relaxed mb-8">
                                         {activeMilestone.description}
                                     </p>
-                                    <div className="flex flex-wrap gap-2">
+                                    {/* Skills list */}
+                                    <div className="flex flex-wrap gap-2 mb-8">
                                         {activeMilestone.skills.map((skill, i) => (
-                                            <span key={i} className="px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-[11px] font-bold border border-gray-100">
+                                            <span key={i} className="px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-[11px] font-bold border border-gray-100 flex items-center gap-1.5">
+                                                {roadmap?.trending_highlights?.includes(skill.toLowerCase()) && <Zap size={10} className="text-amber-500" fill="currentColor" />}
                                                 {skill}
                                             </span>
                                         ))}
                                     </div>
+
+                                    {/* NEW: Multi-Resource Section */}
+                                    {activeMilestone.resources && activeMilestone.resources.length > 0 && (
+                                        <div className="mt-8 pt-8 border-t border-gray-100">
+                                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                                <Layers size={16} className="text-blue-600" />
+                                                Recommended Mastery Paths
+                                            </h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {activeMilestone.resources.map((res: any, idx: number) => {
+                                                    const isCurrent = activeMilestone.youtube_playlist_id === res.url;
+                                                    return (
+                                                        <div
+                                                            key={idx}
+                                                            onClick={() => {
+                                                                // 1. Update active milestone immediately for UI responsiveness
+                                                                setActiveMilestone({
+                                                                    ...activeMilestone,
+                                                                    youtube_playlist_id: res.url,
+                                                                    current_video_id: '',
+                                                                    current_video_time: 0
+                                                                });
+
+                                                                // 2. Persist in the roadmap list state
+                                                                const setter = activeTab === 'personal' ? setPersonalRoadmap : setFullRoadmap;
+                                                                setter(prev => {
+                                                                    if (!prev) return null;
+                                                                    return {
+                                                                        ...prev,
+                                                                        milestones: prev.milestones.map(m =>
+                                                                            m.id === activeMilestone.id
+                                                                                ? {
+                                                                                    ...m,
+                                                                                    youtube_playlist_id: res.url,
+                                                                                    current_video_id: '',
+                                                                                    current_video_time: 0
+                                                                                }
+                                                                                : m
+                                                                        )
+                                                                    };
+                                                                });
+                                                            }}
+                                                            className={`p-4 rounded-2xl border transition-all cursor-pointer group hover:shadow-md ${isCurrent ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-gray-100'}`}
+                                                        >
+                                                            <div className="flex gap-4">
+                                                                <div className="relative w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+                                                                    <img src={res.thumbnail} alt={res.title} className="w-full h-full object-cover" />
+                                                                    <div className={`absolute inset-0 flex items-center justify-center bg-black/40 ${isCurrent ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 transition-opacity`}>
+                                                                        <Play size={20} className="text-white fill-current" />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-tighter mb-1">{res.platform || 'YouTube'}</p>
+                                                                    <h4 className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight mb-1">{res.title}</h4>
+                                                                    {isCurrent && (
+                                                                        <div className="flex items-center gap-1 text-green-600">
+                                                                            <CheckCircle2 size={10} />
+                                                                            <span className="text-[9px] font-bold">Currently Studying</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {!(activeMilestone.resources && activeMilestone.resources.length > 0) && (
+                                        <div className="mt-10 p-6 bg-blue-50/50 rounded-2xl border border-blue-100/50 text-center">
+                                            <p className="text-xs font-bold text-blue-800 mb-2">💡 Upgrade Available</p>
+                                            <p className="text-[10px] text-blue-600 font-medium leading-relaxed">
+                                                This roadmap was generated before multi-resource support.
+                                                <button
+                                                    onClick={() => generateRoadmap(activeTab)}
+                                                    className="underline ml-1 font-black hover:text-blue-800"
+                                                >
+                                                    Regenerate now
+                                                </button> to see 2-3 expert playlists per milestone!
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -329,13 +500,18 @@ export default function RoadmapPage() {
                                                 {isCompleted ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h4 className={`text-sm font-bold truncate ${isActive ? 'text-white' : 'text-gray-900'}`}>
-                                                    {milestone.name}
-                                                </h4>
+                                                <div className="flex items-center justify-between gap-2 mb-0.5">
+                                                    <h4 className={`text-sm font-bold truncate ${isActive ? 'text-white' : 'text-gray-900'}`}>
+                                                        {milestone.name}
+                                                    </h4>
+                                                    <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${isActive ? 'bg-white/20 text-white' : 'bg-gray-50 text-gray-400'}`}>
+                                                        {milestone.difficulty || 'int'}
+                                                    </span>
+                                                </div>
                                                 <div className={`mt-1 flex items-center gap-2 text-[10px] font-bold ${isActive ? 'text-blue-100' : 'text-gray-400'}`}>
                                                     <span>{milestone.skills.length} skills</span>
                                                     <span className="w-0.5 h-0.5 bg-current opacity-30 rounded-full"></span>
-                                                    <span className="uppercase">{milestone.estimatedWeeks}w</span>
+                                                    <span className="uppercase">{milestone.estimatedWeeks || 1}w</span>
                                                 </div>
 
                                                 {/* Mini progress bar */}
@@ -375,6 +551,23 @@ export default function RoadmapPage() {
                         </div>
                     </div>
 
+                    {/* Overall Progress Gauge */}
+                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-black text-gray-900 uppercase tracking-widest text-xs">Readiness Score</h3>
+                            <div className="text-xs font-black text-blue-600">{roadmap?.overall_readiness || 0}%</div>
+                        </div>
+                        <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden mb-3">
+                            <div
+                                className="h-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)] transition-all duration-1000"
+                                style={{ width: `${roadmap?.overall_readiness || 0}%` }}
+                            ></div>
+                        </div>
+                        <p className="text-[10px] text-gray-400 font-medium leading-relaxed">
+                            This score represents your current readiness for the **{roadmap?.target_role}** role based on your knowledge base.
+                        </p>
+                    </div>
+
                     <div className="bg-gradient-to-br from-indigo-900 to-blue-900 rounded-3xl p-6 text-white shadow-xl">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="p-2 bg-white/10 rounded-xl">
@@ -391,7 +584,7 @@ export default function RoadmapPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 

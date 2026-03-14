@@ -114,6 +114,15 @@ export default function GapAnalysisPage() {
             // Trigger the role analysis (which now has simplified logic)
             const result = await api.analyzeUserForRole(user.id || '', selectedRole);
             setAnalysis(result);
+
+            // NEW: Automatically trigger roadmap regeneration for the personal path in background
+            // This ensures that clicking "Analyze" also keeps the personalized roadmap in sync.
+            api.generateRoadmap({
+                user_id: user.id || '',
+                target_role: selectedRole,
+                roadmap_type: 'personal',
+                language: "English"
+            }).catch(e => console.error("Roadmap auto-sync failed:", e));
         } catch (err: any) {
             setError(err.message || 'Failed to analyze gaps');
         } finally {

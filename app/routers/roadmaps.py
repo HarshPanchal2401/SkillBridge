@@ -22,11 +22,12 @@ class RoadmapCreateRequest(BaseModel):
 class ProgressSyncRequest(BaseModel):
     user_id: int
     milestone_id: str
-    video_id: str
-    current_time: int
-    watched_seconds: int
-    total_duration: int
-    is_completed: bool = False
+    youtube_playlist_id: Optional[str] = None
+    current_video_id: str
+    current_video_time: int
+    watched_duration_seconds: int
+    total_duration_seconds: int
+    status: str = "in_progress"
 
 class RoadmapChatRequest(BaseModel):
     user_id: int
@@ -139,13 +140,16 @@ async def generate_personalized_roadmap(request: RoadmapCreateRequest):
         
         # 4. Initialize milestone progress
         for ms in roadmap_data["milestones"]:
+            resources_json = json.dumps(ms.get("resources", []))
+            first_playlist_url = ms["resources"][0]["url"] if ms.get("resources") and len(ms["resources"]) > 0 else None
+            
             cursor.execute(
                 """INSERT INTO roadmap_progress 
-                   (user_id, roadmap_id, domain, milestone_id, milestone_name, milestone_description, skills, status, youtube_playlist_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (user_id, roadmap_id, domain, milestone_id, milestone_name, milestone_description, skills, status, youtube_playlist_id, resources)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (request.user_id, roadmap_id, request.target_role, ms["id"], ms["name"], ms["description"], 
                  json.dumps(ms.get("skills", [])), "not_started", 
-                 ms["resources"][0]["url"] if ms.get("resources") and len(ms["resources"]) > 0 else None)
+                 first_playlist_url, resources_json)
             )
         
         conn.commit()
@@ -157,29 +161,32 @@ def sync_roadmap_progress(request: ProgressSyncRequest):
     with get_db() as conn:
         cursor = conn.cursor()
         
-        # Get user's active roadmap
+        # Get user's active roadmap (most recent)
         cursor.execute(
-            "SELECT domain FROM user_roadmaps WHERE user_id = ? ORDER BY started_at DESC LIMIT 1",
+            "SELECT id, domain FROM user_roadmaps WHERE user_id = ? ORDER BY started_at DESC LIMIT 1",
             (request.user_id,)
         )
         roadmap = cursor.fetchone()
         if not roadmap:
             raise HTTPException(status_code=404, detail="No active roadmap found")
             
+        roadmap_id = roadmap["id"]
         domain = roadmap["domain"]
-        status = "completed" if request.is_completed else "in_progress"
         
+        # Update progress
+        # Note: watched_duration_seconds is treated as absolute for the current video
         cursor.execute(
             """UPDATE roadmap_progress 
                SET status = ?, 
                    current_video_id = ?, 
                    current_video_time = ?, 
-                   watched_duration_seconds = watched_duration_seconds + ?,
+                   watched_duration_seconds = ?,
                    total_duration_seconds = ?,
                    updated_at = CURRENT_TIMESTAMP
-               WHERE user_id = ? AND domain = ? AND milestone_id = ?""",
-            (status, request.video_id, request.current_time, request.watched_seconds, 
-             request.total_duration, request.user_id, domain, request.milestone_id)
+               WHERE user_id = ? AND roadmap_id = ? AND milestone_id = ?""",
+            (request.status, request.current_video_id, request.current_video_time, 
+             request.watched_duration_seconds, request.total_duration_seconds, 
+             request.user_id, roadmap_id, request.milestone_id)
         )
         conn.commit()
         
@@ -221,76 +228,88 @@ async def chat_with_roadmap_ai(request: RoadmapChatRequest):
 
 @router.get("/users/{user_id}/current")
 def get_current_status(user_id: int):
-    """Get summarized progress and detailed roadmap data."""
+    """Get summarized progress and detailed roadmap data for both types."""
     with get_db() as conn:
         cursor = conn.cursor()
-        # Join on roadmap_id if available, otherwise domain as fallback for old data
-        cursor.execute(
-            """SELECT ur.id, ur.target_role, ur.roadmap_type, ur.domain, ur.language_preference, ur.started_at,
-                      COUNT(rp.id) as total_milestones,
-                      SUM(CASE WHEN rp.status = 'completed' THEN 1 ELSE 0 END) as completed_milestones,
-                      SUM(rp.watched_duration_seconds) as total_watched_seconds
-               FROM user_roadmaps ur
-               LEFT JOIN roadmap_progress rp ON 
-                  (rp.roadmap_id = ur.id) OR 
-                  (rp.roadmap_id IS NULL AND ur.user_id = rp.user_id AND ur.domain = rp.domain)
-               WHERE ur.user_id = ?
-               GROUP BY ur.id
-               ORDER BY ur.started_at DESC LIMIT 1""",
-            (user_id,)
-        )
-        row = cursor.fetchone()
-        if not row:
-            return standard_response({"has_active_roadmap": False})
         
-        # Fetch detailed milestones for the current roadmap specifically
-        cursor.execute(
-            """SELECT milestone_id as id, milestone_name as name, milestone_description as description, 
-                      skills, status, youtube_playlist_id, 
-                      current_video_id, current_video_time,
-                      started_at, completed_at, watched_duration_seconds, total_duration_seconds
-               FROM roadmap_progress 
-               WHERE (roadmap_id = ?) OR 
-                     (roadmap_id IS NULL AND user_id = ? AND domain = ?)""",
-            (row["id"], user_id, row["domain"])
-        )
-        milestones_raw = [dict(r) for r in cursor.fetchall()]
-        
-        milestones = []
-        for m in milestones_raw:
-            milestones.append({
-                "id": m["id"],
-                "name": m["name"],
-                "description": m["description"],
-                "skills": json.loads(m["skills"]) if m["skills"] else [],
-                "youtube_playlist_id": m["youtube_playlist_id"],
-                "current_video_id": m["current_video_id"],
-                "current_video_time": m["current_video_time"],
-                "progress": {
-                    "status": m["status"],
-                    "started_at": m["started_at"],
-                    "completed_at": m["completed_at"],
-                    "watched_duration_seconds": m["watched_duration_seconds"] or 0,
-                    "total_duration_seconds": m["total_duration_seconds"] or 0
-                }
-            })
-        
-        data = {
-            "has_active_roadmap": True,
-            "role": row["target_role"],
-            "type": row["roadmap_type"],
-            "progress_percent": round((row["completed_milestones"] / row["total_milestones"]) * 100) if row["total_milestones"] else 0,
-            "hours_spent": round((row["total_watched_seconds"] or 0) / 3600, 1),
-            "roadmap": {
+        # Helper to fetch a roadmap by type
+        def fetch_latest_roadmap(rt_type: str):
+            cursor.execute(
+                """SELECT ur.id, ur.target_role, ur.roadmap_type, ur.domain, ur.language_preference, ur.started_at,
+                          COUNT(rp.id) as total_milestones,
+                          SUM(CASE WHEN rp.status = 'completed' THEN 1 ELSE 0 END) as completed_milestones,
+                          SUM(rp.watched_duration_seconds) as total_watched_seconds
+                   FROM user_roadmaps ur
+                   LEFT JOIN roadmap_progress rp ON rp.roadmap_id = ur.id
+                   WHERE ur.user_id = ? AND ur.roadmap_type = ?
+                   GROUP BY ur.id
+                   ORDER BY ur.started_at DESC LIMIT 1""",
+                (user_id, rt_type)
+            )
+            row = cursor.fetchone()
+            if not row: return None
+            
+            # Fetch milestones
+            cursor.execute(
+                """SELECT milestone_id as id, milestone_name as name, milestone_description as description, 
+                          skills, status, youtube_playlist_id, resources,
+                          current_video_id, current_video_time,
+                          started_at, completed_at, watched_duration_seconds, total_duration_seconds
+                   FROM roadmap_progress 
+                   WHERE roadmap_id = ?""",
+                (row["id"],)
+            )
+            milestones_raw = [dict(r) for r in cursor.fetchall()]
+            
+            milestones = []
+            for m in milestones_raw:
+                milestones.append({
+                    "id": m["id"],
+                    "name": m["name"],
+                    "description": m["description"],
+                    "skills": json.loads(m["skills"]) if m["skills"] else [],
+                    "youtube_playlist_id": m["youtube_playlist_id"],
+                    "resources": json.loads(m["resources"]) if m.get("resources") else [],
+                    "current_video_id": m["current_video_id"],
+                    "current_video_time": m["current_video_time"],
+                    "progress": {
+                        "status": m["status"],
+                        "started_at": m["started_at"],
+                        "completed_at": m["completed_at"],
+                        "watched_duration_seconds": m["watched_duration_seconds"] or 0,
+                        "total_duration_seconds": m["total_duration_seconds"] or 0
+                    }
+                })
+                
+            # Find current active milestone
+            active_ms = next((m for m in milestones if m["progress"]["status"] != "completed"), milestones[0] if milestones else None)
+            
+            return {
                 "id": str(row["id"]),
-                "title": f"{row['target_role']} Mastery Path",
-                "description": f"AI-powered {row['roadmap_type']} roadmap for {row['target_role']}",
+                "title": f"{row['target_role']} Mastery Path" if rt_type == "full" else f"{row['target_role']} Personal Path",
                 "roadmap_type": row["roadmap_type"],
                 "target_role": row["target_role"],
-                "language": row["language_preference"],
+                "progress_percent": round((row["completed_milestones"] / row["total_milestones"]) * 100) if row["total_milestones"] else 0,
+                "hours_spent": round((row["total_watched_seconds"] or 0) / 3600, 1),
+                "active_milestone": {
+                    "id": active_ms["id"],
+                    "name": active_ms["name"]
+                } if active_ms else None,
                 "milestones": milestones,
-                "created_at": row["started_at"],
-                "last_accessed": row["started_at"]
+                "created_at": row["started_at"]
             }
-        }
-        return standard_response(data)
+
+        full_path = fetch_latest_roadmap("full")
+        personal_path = fetch_latest_roadmap("personal")
+        
+        # Fallback to general latest if specific types not found (for legacy data)
+        latest = None
+        if not full_path and not personal_path:
+            latest = fetch_latest_roadmap(None) # fetches latest regardless of type
+
+        return standard_response({
+            "has_active_roadmap": full_path is not None or personal_path is not None or latest is not None,
+            "full_path": full_path,
+            "personal_path": personal_path,
+            "latest": latest or personal_path or full_path # compatible with old frontend
+        })

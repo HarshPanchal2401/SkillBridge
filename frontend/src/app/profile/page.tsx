@@ -126,10 +126,29 @@ export default function ProfilePage() {
 
                 await loadSkills();
                 await refreshUser();
+
+                // NEW: Automatically trigger roadmap regeneration for the personal path
                 setMessage({
                     type: 'success',
-                    text: `Profile analyzed! Found ${totalSkills} skills. Gap analysis updated.`,
+                    text: `Profile analyzed! Found ${totalSkills} skills. Rebuilding personalized roadmap...`,
                 });
+
+                try {
+                    await api.generateRoadmap({
+                        user_id: userId,
+                        target_role: formData.target_role || user?.target_role || "AI/ML Engineer",
+                        roadmap_type: 'personal',
+                        language: "English"
+                    });
+
+                    setMessage({
+                        type: 'success',
+                        text: `Success! Profile analyzed and roadmap updated for ${formData.target_role || user?.target_role}.`,
+                    });
+                } catch (roadmapError) {
+                    console.error('Roadmap auto-refresh failed:', roadmapError);
+                    // Don't set error message as profile was still updated
+                }
             } catch (extractError: any) {
                 setMessage({
                     type: 'error',
