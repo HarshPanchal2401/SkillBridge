@@ -17,6 +17,7 @@ import {
     CheckCircle2,
     ArrowUpRight,
     Clock,
+    Map
 } from 'lucide-react';
 import {
     BarChart,
@@ -30,7 +31,7 @@ import {
     Pie,
     Cell
 } from 'recharts';
-import RoadmapProgressWidget from '@/components/RoadmapProgressWidget';
+
 
 interface DashboardData {
     total_skills: number;
@@ -46,7 +47,6 @@ export default function DashboardPage() {
     const { user, profile, gapAnalysis, loading: authLoading, userId, refreshGapAnalysis } = useAuth();
     const router = useRouter();
     const [data, setData] = useState<DashboardData | null>(null);
-    const [roadmapStatus, setRoadmapStatus] = useState<any>({ has_active_roadmap: false });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -73,10 +73,7 @@ export default function DashboardPage() {
                 currentGapAnalysis = await refreshGapAnalysis();
             }
 
-            const [skills, roadmap] = await Promise.all([
-                api.getUserSkills(userId).catch(() => []),
-                api.getCurrentRoadmapStatus(userId)
-            ]);
+            const skills = await api.getUserSkills(userId).catch(() => []);
 
             setData({
                 total_skills: skills.length,
@@ -85,7 +82,6 @@ export default function DashboardPage() {
                 skills,
                 gapAnalysis: currentGapAnalysis,
             });
-            setRoadmapStatus(roadmap);
         } catch (error) {
             console.error('Failed to load dashboard:', error);
         } finally {
@@ -283,25 +279,9 @@ export default function DashboardPage() {
                     {/* Right Column: Actions & Profile */}
                     <div className="lg:col-span-4 space-y-6">
                         {/* Quick Actions */}
-                        <RoadmapProgressWidget status={roadmapStatus} />
 
                         <div className="space-y-3">
                             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Quick Actions</h3>
-                            <button
-                                onClick={() => router.push('/roadmap')}
-                                className="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:border-green-100 hover:bg-green-50/30 transition-all group shadow-sm"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors">
-                                        <Clock size={20} />
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="text-sm font-bold text-gray-900">Career Roadmap</p>
-                                        <p className="text-[11px] text-gray-500">View your step-by-step path</p>
-                                    </div>
-                                </div>
-                                <ChevronRight size={16} className="text-gray-300 group-hover:text-green-600" />
-                            </button>
 
                             <button
                                 onClick={() => router.push('/recommendations')}
@@ -314,6 +294,22 @@ export default function DashboardPage() {
                                     <div className="text-left">
                                         <p className="text-sm font-bold text-gray-900">Skill Gap Training</p>
                                         <p className="text-[11px] text-gray-500">Explore recommended courses</p>
+                                    </div>
+                                </div>
+                                <ChevronRight size={16} className="text-gray-300 group-hover:text-green-600" />
+                            </button>
+
+                            <button
+                                onClick={() => router.push('/roadmap')}
+                                className="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:border-green-100 hover:bg-green-50/30 transition-all group shadow-sm"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center group-hover:bg-green-600 group-hover:text-white transition-colors">
+                                        <Map size={20} />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-sm font-bold text-gray-900">AI Career Roadmap</p>
+                                        <p className="text-[11px] text-gray-500">View your personalized path</p>
                                     </div>
                                 </div>
                                 <ChevronRight size={16} className="text-gray-300 group-hover:text-green-600" />

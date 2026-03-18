@@ -53,7 +53,6 @@ graph TD
     %% Final Outputs
     Compare --> Findings[Identify Gaps & Readiness Score]
     Findings --> Recs[Course Recommendations]
-    Recs --> Roadmap[Career Roadmap Generation]
     
     %% Styling
     style HF_Extract fill:#f9f,stroke:#333,stroke-width:2px

@@ -1,590 +1,550 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '../../lib/auth';
-import { api } from '../../lib/api';
-import YouTubePlayer from '../../components/YouTubePlayer';
-import RoadmapChat from '../../components/RoadmapChat';
+import React, { useState, useEffect } from 'react';
 import {
-    Map,
-    CheckCircle2,
-    Circle,
-    Clock,
-    ChevronDown,
-    ChevronUp,
-    BookOpen,
-    ExternalLink,
-    Play,
-    Award,
-    ArrowRight,
-    Sparkles,
-    Target,
-    Lock,
-    ChevronRight,
-    ArrowUpRight,
-    Star,
-    Zap,
-    Flag,
-    MessageSquare,
-    Video,
-    History,
-    RefreshCcw,
-    Gamepad2,
-    BrainCircuit,
-    Loader2,
-    Layers
+    Sparkles, Map, Rocket, Clock, ShieldCheck, Zap,
+    ChevronRight, Play, CheckCircle2, Circle,
+    MessageSquare, Layout, BarChart, BookOpen,
+    ArrowRight, Award, BrainCircuit, Globe,
+    X, MonitorPlay, Bot
 } from 'lucide-react';
+import Link from 'next/link';
+import YouTube, { YouTubeProps } from 'react-youtube';
+import { useAuth } from '@/lib/auth';
+import { api } from '@/lib/api';
+import TutorChat from '@/components/TutorChat';
 
-interface Milestone {
-    id: string;
-    name: string;
-    description: string;
-    order: number;
-    estimatedWeeks: number;
-    prerequisites?: string[];
-    skills: string[];
-    difficulty?: 'beginner' | 'intermediate' | 'advanced';
-    youtube_playlist_id?: string;
-    resources?: any[];
-    current_video_id?: string;
-    current_video_time?: number;
-    progress: {
-        status: 'not_started' | 'in_progress' | 'completed';
-        started_at: string | null;
-        completed_at: string | null;
-        watched_duration_seconds: number;
-        total_duration_seconds: number;
-    };
-}
-
-interface Roadmap {
-    id: string;
-    title: string;
-    description: string;
-    roadmap_type: 'personal' | 'full';
-    target_role: string;
-    language: string;
-    milestones: Milestone[];
-    created_at: string;
-    last_accessed: string;
-    overall_readiness?: number;
-    trending_highlights?: string[];
+// Helper to extract YouTube video ID from various URL formats
+function extractVideoId(url: string): string {
+    if (!url) return '';
+    try {
+        const parsed = new URL(url);
+        if (parsed.hostname === 'youtu.be') return parsed.pathname.slice(1);
+        const v = parsed.searchParams.get('v');
+        if (v) return v;
+    } catch { }
+    // Bare 11-char ID
+    if (url.length === 11 && /^[a-zA-Z0-9_-]+$/.test(url)) return url;
+    return '';
 }
 
 export default function RoadmapPage() {
-    const { user, loading: authLoading, userId } = useAuth();
-    const router = useRouter();
+    const { user } = useAuth();
     const [loading, setLoading] = useState(true);
-    const [fullRoadmap, setFullRoadmap] = useState<Roadmap | null>(null);
-    const [personalRoadmap, setPersonalRoadmap] = useState<Roadmap | null>(null);
-    const [activeTab, setActiveTab] = useState<'personal' | 'full'>('personal');
-    const [roadmapStatus, setRoadmapStatus] = useState<any>(null);
-    const [activeMilestone, setActiveMilestone] = useState<Milestone | null>(null);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [genType, setGenType] = useState<'personal' | 'full'>('personal');
-    const [showChat, setShowChat] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [roadmap, setRoadmap] = useState<any>(null);
+    const [activeTab, setActiveTab] = useState<'fast-track' | 'full'>('fast-track');
+
+    // Video player state
+    const [playerOpen, setPlayerOpen] = useState(false);
+    const [activeVideo, setActiveVideo] = useState<{ id: string; title: string; url: string; searchQuery?: string } | null>(null);
+    const [hasWatched, setHasWatched] = useState(false);
+    const [videoLoading, setVideoLoading] = useState(false);
+
+    // Tutor chat state
+    const [tutorOpen, setTutorOpen] = useState(false);
 
     useEffect(() => {
-        if (!authLoading && !user) {
-            router.push('/login');
-        } else if (userId) {
-            loadRoadmap();
+        if (user?.id) {
+            fetchRoadmap();
         }
-    }, [user, authLoading, userId]);
+    }, [user]);
 
-    const loadRoadmap = async () => {
-        if (!userId) return;
+    const fetchRoadmap = async () => {
         setLoading(true);
         try {
-            const result = await api.getCurrentRoadmapStatus(String(userId));
-            setRoadmapStatus(result);
-            if (result.has_active_roadmap) {
-                setFullRoadmap(result.full_path);
-                setPersonalRoadmap(result.personal_path);
-
-                // Determine which one to show
-                const active = result.personal_path || result.full_path || result.latest;
-                if (active) {
-                    setActiveTab(active.roadmap_type);
-                    const next = active.milestones.find((m: Milestone) => m.progress.status !== 'completed') || active.milestones[0];
-                    setActiveMilestone(next);
-                }
+            const userId = user?.id;
+            if (!userId) return;
+            const data = await api.getLatestRoadmap(userId);
+            if (data.roadmap_data) {
+                setRoadmap(data.roadmap_data);
             }
-        } catch (error) {
-            console.error('Failed to load roadmap:', error);
+        } catch (err) {
+            setError('Failed to load roadmap. Try generating a new one.');
         } finally {
             setLoading(false);
         }
     };
 
-    const toggleTab = (tab: 'personal' | 'full') => {
-        const r = tab === 'personal' ? personalRoadmap : fullRoadmap;
-        if (r) {
-            setActiveTab(tab);
-            const next = r.milestones.find(m => m.progress.status !== 'completed') || r.milestones[0];
-            setActiveMilestone(next);
-        } else {
-            // If roadmap doesn't exist, trigger generation
-            generateRoadmap(tab);
-        }
-    };
-
-    const roadmap = activeTab === 'personal' ? personalRoadmap : fullRoadmap;
-
-    const generateRoadmap = async (type: 'personal' | 'full') => {
-        if (!userId) return;
-        setIsGenerating(true);
-        setGenType(type);
+    const handleGenerate = async () => {
+        setLoading(true);
         try {
-            // Priority: 1. User Profile Role, 2. Roadmap Status Role (if not SW Engineer), 3. AI/ML Engineer default
-            const targetRole = user?.target_role ||
-                (roadmapStatus?.target_role !== "Software Engineer" ? roadmapStatus?.target_role : null) ||
-                "AI/ML Engineer";
-
-            console.log(`Generating ${type} roadmap for role: ${targetRole}`);
-
-            await api.generateRoadmap({
-                user_id: userId,
-                target_role: targetRole,
-                roadmap_type: type,
-                language: "English"
-            });
-            await loadRoadmap();
-        } catch (error) {
-            console.error('Failed to generate roadmap:', error);
+            const userId = user?.id;
+            if (!userId) {
+                setError('User not authenticated');
+                return;
+            }
+            const data = await api.generateRoadmap(userId);
+            setRoadmap(data.roadmap);
+        } catch (err) {
+            setError('Generation failed. Please check your connection.');
         } finally {
-            setIsGenerating(false);
+            setLoading(false);
         }
     };
 
-    if (authLoading || loading) {
+    const handleVideoClick = async (video: any) => {
+        const url = video.url || '';
+        let vid = extractVideoId(url);
+        const title = video.title || 'Unknown Video';
+        const channel = video.channel || '';
+
+        setPlayerOpen(true);
+        setHasWatched(false);
+        setTutorOpen(false);
+        setVideoLoading(true);
+
+        // If no video ID from URL, search for it via backend
+        if (!vid) {
+            try {
+                const result = await api.findVideo(title, channel);
+                vid = result.video_id;
+                setActiveVideo({
+                    id: vid,
+                    title: title,
+                    url: url || `https://www.youtube.com/watch?v=${vid}`,
+                    searchQuery: result.search_query
+                });
+            } catch (err) {
+                console.error('Failed to find video:', err);
+                setActiveVideo({
+                    id: '',
+                    title: title,
+                    url: url,
+                    searchQuery: `${title} ${channel}`
+                });
+            }
+        } else {
+            setActiveVideo({
+                id: vid,
+                title: title,
+                url: url
+            });
+        }
+
+        setVideoLoading(false);
+    };
+
+    const handleOpenTutor = () => {
+        if (activeVideo) {
+            setTutorOpen(true);
+        }
+    };
+
+    const handleClosePlayer = () => {
+        setPlayerOpen(false);
+        setActiveVideo(null);
+        setHasWatched(false);
+        setTutorOpen(false);
+    };
+
+    const onPlayerStateChange: YouTubeProps['onStateChange'] = (event) => {
+        // State 0 = ended, 2 = paused
+        if (event.data === 0 || event.data === 2) {
+            setHasWatched(true);
+        }
+    };
+
+    const playerOpts: YouTubeProps['opts'] = {
+        height: '100%',
+        width: '100%',
+        playerVars: {
+            autoplay: 1,
+            modestbranding: 1,
+            rel: 0,
+        },
+    };
+
+    if (loading) {
         return (
-            <div className="flex flex-col items-center justify-center h-[80vh] space-y-4">
-                <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-                <p className="text-gray-400 font-medium animate-pulse">Building your learning path...</p>
+            <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 animate-pulse">
+                <div className="w-16 h-16 bg-green-100 rounded-2xl flex items-center justify-center mb-4">
+                    <BrainCircuit size={32} className="text-green-500 animate-spin-slow" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Brainstorming your path...</h2>
+                <p className="text-gray-400 text-sm mt-2">Connecting to AI Mentor & analyzing market trends</p>
             </div>
         );
     }
 
     if (!roadmap) {
         return (
-            <div className="max-w-4xl mx-auto py-12 px-6">
-                <div className="text-center space-y-6 mb-12">
-                    <div className="w-20 h-20 bg-blue-50 rounded-3xl flex items-center justify-center text-4xl shadow-sm border border-blue-100 mx-auto">
-                        🚀
+            <div className="max-w-4xl mx-auto py-12 px-6 animate-fade-in">
+                <div className="bg-white border-2 border-dashed border-gray-100 rounded-[3rem] p-12 text-center shadow-sm">
+                    <div className="w-20 h-20 bg-green-50 text-green-600 rounded-3xl flex items-center justify-center mx-auto mb-6 transform hover:rotate-12 transition-transform duration-500">
+                        <Map size={40} />
                     </div>
-                    <div className="space-y-3">
-                        <h1 className="text-4xl font-black text-gray-900 tracking-tight">
-                            Personalized Path to <span className="text-blue-600">Mastery</span>
-                        </h1>
-                        <p className="text-gray-500 font-medium max-w-xl mx-auto text-lg">
-                            Ready to level up? Choose how you want to build your roadmap. We'll find the best resources and guide you with AI.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Personalized Option */}
-                    <div className="group relative p-8 bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all duration-300">
-                        <div className="absolute -top-4 -right-4 bg-blue-600 text-white text-[10px] font-black px-4 py-1.5 rounded-full shadow-lg transform group-hover:scale-110 transition-transform">
-                            RECOMMENDED
-                        </div>
-                        <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-6 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
-                            <BrainCircuit size={28} />
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-3">Gap-Filler Path</h3>
-                        <p className="text-gray-500 text-sm leading-relaxed mb-8">
-                            Analyzes your current skills and creates a path to bridge the gap to your target role. Efficiency focused.
-                        </p>
-                        <button
-                            onClick={() => generateRoadmap('personal')}
-                            disabled={isGenerating}
-                            className="w-full py-4 bg-gray-900 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
-                        >
-                            {isGenerating && genType === 'personal' ? <Loader2 className="animate-spin" size={16} /> : <Sparkles size={16} />}
-                            Generate Gap-Filler Path
-                        </button>
-                    </div>
-
-                    {/* Full Option */}
-                    <div className="group p-8 bg-white rounded-3xl border border-gray-100 shadow-sm hover:shadow-xl hover:border-gray-200 transition-all duration-300">
-                        <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 mb-6 group-hover:bg-gray-900 group-hover:text-white transition-colors duration-300">
-                            <Map size={28} />
-                        </div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-3">0-to-Mastery Path</h3>
-                        <p className="text-gray-500 text-sm leading-relaxed mb-8">
-                            A comprehensive roadmap covering everything needed for the role, from basics to expert level.
-                        </p>
-                        <button
-                            onClick={() => generateRoadmap('full')}
-                            disabled={isGenerating}
-                            className="w-full py-4 bg-white text-gray-900 border-2 border-gray-100 rounded-2xl font-bold text-xs uppercase tracking-widest hover:border-gray-900 transition-all flex items-center justify-center gap-2"
-                        >
-                            {isGenerating && genType === 'full' ? <Loader2 className="animate-spin" size={16} /> : <Zap size={16} />}
-                            Generate 0-to-Mastery Path
-                        </button>
-                    </div>
+                    <h1 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">Personalized Career Roadmaps</h1>
+                    <p className="text-gray-400 max-w-md mx-auto mb-8 leading-relaxed">
+                        Ready to bridge the gap? Our AI will analyze your skills and create
+                        a personalized learning path tailored for your target role.
+                    </p>
+                    <button
+                        onClick={handleGenerate}
+                        className="px-10 py-4 bg-gray-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-gray-800 transition-all shadow-xl active:scale-95 flex items-center gap-3 mx-auto"
+                    >
+                        <Sparkles size={18} className="text-amber-400" />
+                        Generate My AI Roadmap
+                    </button>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#f8fafc]">
-            {/* Header */}
-            <div className="bg-white border-b border-gray-200 sticky top-0 z-30">
-                <div className="max-w-[1600px] mx-auto px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-                            <BrainCircuit size={20} />
-                        </div>
-                        <div>
-                            <h1 className="text-lg font-bold text-gray-900 tracking-tight">{roadmap?.title || "Mastery Path"}</h1>
-                            <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 px-1">
-                                <span className="uppercase tracking-widest underline decoration-blue-500/30 underline-offset-4">{activeTab === 'personal' ? 'Gap-Filler' : '0-to-Mastery'} PATH</span>
-                                <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
-                                <span className="uppercase tracking-widest">{roadmap?.milestones.length || 0} MILESTONES</span>
-                                <span className="w-1 h-1 bg-gray-200 rounded-full"></span>
-                                <span className="text-blue-600 uppercase tracking-widest">{roadmap?.overall_readiness || 0}% READY</span>
+        <div className="max-w-7xl mx-auto py-8 px-6 animate-fade-in">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+                <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-600 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 border border-green-100">
+                        <Zap size={12} />
+                        Live AI Roadmap
+                    </div>
+                    <h1 className="text-4xl font-black text-gray-900 tracking-tight">
+                        Target: <span className="text-green-600 font-black">{roadmap.readiness_summary?.top_gap_category || "Industry Ready"}</span>
+                    </h1>
+                    <p className="text-gray-400 mt-2 font-medium flex items-center gap-2">
+                        <Globe size={14} /> Market Analysis: {roadmap.readiness_summary?.market_analysis || "Optimized for 2024 Hiring"}
+                    </p>
+                </div>
+
+                <div className="flex bg-gray-100 p-1 rounded-2xl">
+                    <button
+                        onClick={() => setActiveTab('fast-track')}
+                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'fast-track'
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        Skill-Gap (Fast)
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('full')}
+                        className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${activeTab === 'full'
+                            ? 'bg-white text-gray-900 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                            }`}
+                    >
+                        Full Journey (0-100)
+                    </button>
+                </div>
+            </div>
+
+            {activeTab === 'fast-track' ? (
+                <div className="grid lg:grid-cols-3 gap-8">
+                    {/* Main Content */}
+                    <div className="lg:col-span-2 space-y-8">
+                        {roadmap.fast_track_roadmap?.map((item: any, idx: number) => (
+                            <div key={idx} className="group relative bg-white border border-gray-100 rounded-3xl p-8 hover:border-green-200 transition-all duration-300 shadow-sm hover:shadow-xl">
+                                <div className="flex items-start gap-6">
+                                    <div className="w-14 h-14 bg-gray-50 text-gray-300 rounded-2xl flex items-center justify-center shrink-0 group-hover:bg-green-500 group-hover:text-white transition-all duration-500">
+                                        <span className="text-xl font-black">{idx + 1}</span>
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h3 className="text-xl font-bold text-gray-900 group-hover:text-green-600 transition-colors uppercase tracking-tight">{item.skill}</h3>
+                                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${item.gap_severity === 'Critical' ? 'bg-rose-50 text-rose-600' : 'bg-amber-50 text-amber-600'
+                                                }`}>
+                                                {item.gap_severity || "Mandatory"}
+                                            </span>
+                                        </div>
+                                        <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                                            {item.importance || item.rationale}
+                                        </p>
+
+                                        <div className="grid md:grid-cols-3 gap-4 mb-6">
+                                            <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Estimated Time</p>
+                                                <p className="text-sm font-bold text-gray-900">{item.estimated_time || "24h Total"}</p>
+                                            </div>
+                                            <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Target Score</p>
+                                                <p className="text-sm font-bold text-gray-900">{item.target_proficiency ? `${(item.target_proficiency * 100).toFixed(0)}%` : "0.85"}</p>
+                                            </div>
+                                            <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                                <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Difficulty</p>
+                                                <p className="text-sm font-bold text-gray-900">{item.difficulty}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Video Cards */}
+                                        <div className="space-y-3">
+                                            {item.videos?.map((video: any, vIdx: number) => {
+                                                const vid = extractVideoId(video.url || '');
+                                                return (
+                                                    <div
+                                                        key={vIdx}
+                                                        onClick={() => handleVideoClick(video)}
+                                                        className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:bg-gradient-to-r hover:from-emerald-50/50 hover:to-white cursor-pointer transition-all group/video active:scale-[0.98] hover:border-emerald-200 hover:shadow-md"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="relative w-12 h-12 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center group-hover/video:bg-rose-600 group-hover/video:text-white transition-all overflow-hidden shrink-0">
+                                                                {vid ? (
+                                                                    <>
+                                                                        <img
+                                                                            src={`https://img.youtube.com/vi/${vid}/default.jpg`}
+                                                                            alt=""
+                                                                            className="absolute inset-0 w-full h-full object-cover rounded-xl opacity-80 group-hover/video:opacity-40 transition-opacity"
+                                                                        />
+                                                                        <Play size={16} fill="currentColor" className="relative z-10 drop-shadow-lg" />
+                                                                    </>
+                                                                ) : (
+                                                                    <Play size={16} fill="currentColor" />
+                                                                )}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-bold text-gray-900 group-hover/video:text-emerald-700 transition-colors line-clamp-1">{video.title}</p>
+                                                                <p className="text-[10px] text-gray-400 font-medium">{video.channel} • {video.duration}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full uppercase border border-emerald-100">▶ Watch & Learn</span>
+                                                            <ChevronRight size={14} className="text-gray-300 group-hover/video:translate-x-1 transition-transform" />
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        ))}
                     </div>
 
-                    {/* Trending Highlights */}
-                    {roadmap?.trending_highlights && roadmap.trending_highlights.length > 0 && (
-                        <div className="hidden xl:flex items-center gap-2">
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Trending:</span>
-                            <div className="flex gap-1.5">
-                                {roadmap.trending_highlights.slice(0, 3).map((skill: string, i: number) => (
-                                    <span key={i} className="px-2 py-1 bg-amber-50 text-amber-600 rounded-md text-[9px] font-black uppercase tracking-tighter border border-amber-100 flex items-center gap-1">
-                                        <Zap size={10} fill="currentColor" />
-                                        {skill}
-                                    </span>
+                    {/* Right Sidebar - Readiness Score */}
+                    <div className="space-y-8">
+                        <div className="bg-gray-900 text-white rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-green-500 opacity-20 blur-3xl -mr-16 -mt-16"></div>
+                            <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+                                <Award className="text-green-400" size={20} />
+                                Career Readiness
+                            </h3>
+                            <div className="flex items-center justify-center mb-8">
+                                <div className="relative w-44 h-44 flex items-center justify-center">
+                                    <svg className="w-full h-full transform -rotate-90">
+                                        <circle
+                                            cx="88"
+                                            cy="88"
+                                            r="75"
+                                            stroke="currentColor"
+                                            strokeWidth="14"
+                                            fill="transparent"
+                                            className="text-gray-800"
+                                        />
+                                        <circle
+                                            cx="88"
+                                            cy="88"
+                                            r="75"
+                                            stroke="currentColor"
+                                            strokeWidth="14"
+                                            fill="transparent"
+                                            strokeDasharray={471}
+                                            strokeDashoffset={471 - (471 * (roadmap.readiness_summary?.current_score || 0.65))}
+                                            strokeLinecap="round"
+                                            className="text-green-500 transition-all duration-1000 ease-out"
+                                        />
+                                    </svg>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                        <span className="text-4xl font-black">{(roadmap.readiness_summary?.current_score * 100).toFixed(0)}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-400 text-center italic">
+                                You're almost there! Complete the {roadmap.fast_track_roadmap?.length || 0} modules above to hit 90%.
+                            </p>
+                        </div>
+
+                        <div className="bg-white border border-gray-100 rounded-[2.5rem] p-8">
+                            <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2 uppercase tracking-wide text-sm">
+                                <Sparkles className="text-amber-400" size={16} />
+                                SkillBridge Insights
+                            </h4>
+                            <ul className="space-y-4">
+                                <li className="flex gap-3">
+                                    <div className="w-5 h-5 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                                        <CheckCircle2 size={12} />
+                                    </div>
+                                    <p className="text-xs text-gray-500 leading-relaxed">Click any video to watch it and then chat with your AI tutor about the content.</p>
+                                </li>
+                                <li className="flex gap-3">
+                                    <div className="w-5 h-5 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                                        <Bot size={12} />
+                                    </div>
+                                    <p className="text-xs text-gray-500 leading-relaxed">The AI Tutor reads the video transcript and can quiz you, explain concepts, or summarize key points.</p>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                /* Full Career Roadmap View */
+                <div className="space-y-12">
+                    {['beginner_milestones', 'intermediate_milestones', 'advanced_milestones'].map((phase, pIdx) => (
+                        <div key={phase} className="animate-fade-in" style={{ animationDelay: `${pIdx * 150}ms` }}>
+                            <h2 className="text-2xl font-black text-gray-900 mb-6 flex items-center gap-4 capitalize">
+                                <div className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center text-sm">
+                                    {pIdx + 1}
+                                </div>
+                                {phase.replace('_', ' ')}
+                            </h2>
+                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {roadmap.full_roadmap?.[phase]?.map((milestone: any, mIdx: number) => (
+                                    <div key={mIdx} className="group bg-white border border-gray-100 p-6 rounded-3xl hover:border-green-200 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                                        <h4 className="font-bold text-gray-900 mb-2 truncate group-hover:text-green-600 transition-colors uppercase tracking-tight">{milestone.milestone || milestone.skill}</h4>
+                                        <p className="text-xs text-gray-400 line-clamp-3 mb-4 leading-relaxed">{milestone.outcome || milestone.description || "Mastering the fundamental concepts."}</p>
+                                        <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-50">
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{milestone.timeline || "2-3 Days"}</span>
+                                            <div className="w-7 h-7 border-2 border-gray-100 rounded-full flex items-center justify-center text-gray-200 group-hover:bg-green-500 group-hover:border-green-500 group-hover:text-white transition-all duration-300">
+                                                <CheckCircle2 size={16} />
+                                            </div>
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         </div>
-                    )}
+                    ))}
 
-                    {/* Switcher Tabs */}
-                    <div className="flex bg-gray-50 p-1.5 rounded-2xl border border-gray-100 items-center">
-                        <button
-                            onClick={() => toggleTab('personal')}
-                            disabled={isGenerating}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'personal'
-                                ? 'bg-white text-blue-600 shadow-sm border border-gray-100'
-                                : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
-                                }`}
-                        >
-                            <div className="flex items-center gap-2">
-                                <Sparkles size={12} />
-                                {!personalRoadmap ? '✨ Generate Gap-Filler' : 'Gap-Filler'}
-                            </div>
-                        </button>
-                        <button
-                            onClick={() => toggleTab('full')}
-                            disabled={isGenerating}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'full'
-                                ? 'bg-white text-blue-600 shadow-sm border border-gray-100'
-                                : 'text-gray-400 hover:text-gray-600 hover:bg-white/50'
-                                }`}
-                        >
-                            <div className="flex items-center gap-2">
-                                <Zap size={12} />
-                                {!fullRoadmap ? '✨ Generate 0-to-Mastery' : '0-to-Mastery'}
-                            </div>
-                        </button>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => setShowChat(!showChat)}
-                            className={`p-2.5 rounded-xl border transition-all flex items-center gap-2 font-bold text-[10px] uppercase tracking-wider ${showChat ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-100 hover:border-blue-200'
-                                }`}
-                        >
-                            <MessageSquare size={16} />
-                            {showChat ? 'Hide Tutor' : 'Ask AI Tutor'}
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="max-w-[1600px] mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Main Player Area */}
-                <div className="lg:col-span-8 space-y-6">
-                    {activeMilestone ? (
-                        <>
-                            <div className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
-                                <YouTubePlayer
-                                    videoId={activeMilestone.current_video_id || ''}
-                                    userId={userId!}
-                                    milestoneId={activeMilestone.id}
-                                    playlistId={activeMilestone.youtube_playlist_id}
-                                    initialTime={activeMilestone.current_video_time}
-                                    onProgressUpdate={(p) => {
-                                        // Update local state for immediate feedback
-                                        const setter = activeTab === 'personal' ? setPersonalRoadmap : setFullRoadmap;
-                                        setter(prev => {
-                                            if (!prev) return null;
-                                            return {
-                                                ...prev,
-                                                milestones: prev.milestones.map(m =>
-                                                    m.id === activeMilestone.id
-                                                        ? { ...m, progress: { ...m.progress, watched_duration_seconds: (p / 100) * (m.progress.total_duration_seconds || 100) } }
-                                                        : m
-                                                )
-                                            };
-                                        });
-                                    }}
-                                />
-                                <div className="p-8">
-                                    <div className="flex items-center justify-between mb-6">
-                                        <div className="space-y-1">
-                                            <div className="flex items-center gap-2">
-                                                <div className="inline-flex items-center gap-2 px-2 py-0.5 bg-blue-50 text-blue-600 rounded-md text-[10px] font-bold uppercase tracking-wider">
-                                                    Active Milestone
-                                                </div>
-                                                <div className={`inline-flex items-center gap-2 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${activeMilestone.difficulty === 'beginner' ? 'bg-green-50 text-green-600' : activeMilestone.difficulty === 'intermediate' ? 'bg-orange-50 text-orange-600' : 'bg-purple-50 text-purple-600'}`}>
-                                                    {activeMilestone.difficulty || 'intermediate'}
-                                                </div>
-                                            </div>
-                                            <h2 className="text-2xl font-black text-gray-900">{activeMilestone.name}</h2>
-                                        </div>
-                                        <div className="text-right">
-                                            <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Estimated</div>
-                                            <div className="flex items-center gap-1.5 text-gray-900 font-bold">
-                                                <Clock size={16} className="text-blue-500" />
-                                                {activeMilestone.estimatedWeeks || 1} Weeks
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p className="text-gray-500 font-medium leading-relaxed mb-8">
-                                        {activeMilestone.description}
-                                    </p>
-                                    {/* Skills list */}
-                                    <div className="flex flex-wrap gap-2 mb-8">
-                                        {activeMilestone.skills.map((skill, i) => (
-                                            <span key={i} className="px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-[11px] font-bold border border-gray-100 flex items-center gap-1.5">
-                                                {roadmap?.trending_highlights?.includes(skill.toLowerCase()) && <Zap size={10} className="text-amber-500" fill="currentColor" />}
-                                                {skill}
+                    {/* Project Phase */}
+                    <div className="bg-green-50/50 rounded-[3.5rem] p-12 border border-green-100 animate-fade-in" style={{ animationDelay: '450ms' }}>
+                        <h2 className="text-3xl font-black text-gray-900 mb-8 flex items-center gap-4">
+                            <Rocket className="text-green-600" size={32} />
+                            The Project Phase
+                        </h2>
+                        <div className="grid md:grid-cols-2 gap-8">
+                            {roadmap.full_roadmap?.portfolio_projects?.map((proj: any, prIdx: number) => (
+                                <div key={prIdx} className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-white hover:border-green-200 transition-all duration-300 group">
+                                    <h4 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-green-600 transition-colors uppercase tracking-tight">{proj.title}</h4>
+                                    <p className="text-sm text-gray-500 mb-6 leading-relaxed">{proj.description || "Building a production-ready application to demonstrate mastery."}</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {proj.stack?.map((tech: string, tIdx: number) => (
+                                            <span key={tIdx} className="px-3 py-1 bg-gray-50 text-gray-500 text-[10px] font-bold rounded-lg border border-gray-100 uppercase tracking-wider">
+                                                {tech}
                                             </span>
                                         ))}
                                     </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
 
-                                    {/* NEW: Multi-Resource Section */}
-                                    {activeMilestone.resources && activeMilestone.resources.length > 0 && (
-                                        <div className="mt-8 pt-8 border-t border-gray-100">
-                                            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                                <Layers size={16} className="text-blue-600" />
-                                                Recommended Mastery Paths
-                                            </h3>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {activeMilestone.resources.map((res: any, idx: number) => {
-                                                    const isCurrent = activeMilestone.youtube_playlist_id === res.url;
-                                                    return (
-                                                        <div
-                                                            key={idx}
-                                                            onClick={() => {
-                                                                // 1. Update active milestone immediately for UI responsiveness
-                                                                setActiveMilestone({
-                                                                    ...activeMilestone,
-                                                                    youtube_playlist_id: res.url,
-                                                                    current_video_id: '',
-                                                                    current_video_time: 0
-                                                                });
+                    {/* Career Preparation */}
+                    <div className="bg-gray-900 text-white rounded-[3.5rem] p-12 border border-gray-800 animate-fade-in" style={{ animationDelay: '600ms' }}>
+                        <div className="max-w-3xl mx-auto text-center">
+                            <h2 className="text-3xl font-black mb-6 flex items-center justify-center gap-4">
+                                <ShieldCheck className="text-green-400" size={32} />
+                                Career Ready Phase
+                            </h2>
+                            <p className="text-gray-400 mb-10 leading-relaxed">
+                                Transitioning from learning to performing. Focus on interview algorithms, system design patterns, and industrial behavioral competencies.
+                            </p>
+                            <div className="flex flex-wrap justify-center gap-4">
+                                {roadmap.full_roadmap?.career_preparation?.map((item: any, iIdx: number) => (
+                                    <div key={iIdx} className="px-6 py-3 bg-gray-800 rounded-2xl border border-gray-700 text-sm font-bold hover:bg-gray-700 transition-colors">
+                                        {item.focus || item}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
-                                                                // 2. Persist in the roadmap list state
-                                                                const setter = activeTab === 'personal' ? setPersonalRoadmap : setFullRoadmap;
-                                                                setter(prev => {
-                                                                    if (!prev) return null;
-                                                                    return {
-                                                                        ...prev,
-                                                                        milestones: prev.milestones.map(m =>
-                                                                            m.id === activeMilestone.id
-                                                                                ? {
-                                                                                    ...m,
-                                                                                    youtube_playlist_id: res.url,
-                                                                                    current_video_id: '',
-                                                                                    current_video_time: 0
-                                                                                }
-                                                                                : m
-                                                                        )
-                                                                    };
-                                                                });
-                                                            }}
-                                                            className={`p-4 rounded-2xl border transition-all cursor-pointer group hover:shadow-md ${isCurrent ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-gray-100'}`}
-                                                        >
-                                                            <div className="flex gap-4">
-                                                                <div className="relative w-24 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-                                                                    <img src={res.thumbnail} alt={res.title} className="w-full h-full object-cover" />
-                                                                    <div className={`absolute inset-0 flex items-center justify-center bg-black/40 ${isCurrent ? 'opacity-100' : 'opacity-0'} group-hover:opacity-100 transition-opacity`}>
-                                                                        <Play size={20} className="text-white fill-current" />
-                                                                    </div>
-                                                                </div>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-tighter mb-1">{res.platform || 'YouTube'}</p>
-                                                                    <h4 className="text-xs font-bold text-gray-900 line-clamp-2 leading-tight mb-1">{res.title}</h4>
-                                                                    {isCurrent && (
-                                                                        <div className="flex items-center gap-1 text-green-600">
-                                                                            <CheckCircle2 size={10} />
-                                                                            <span className="text-[9px] font-bold">Currently Studying</span>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {!(activeMilestone.resources && activeMilestone.resources.length > 0) && (
-                                        <div className="mt-10 p-6 bg-blue-50/50 rounded-2xl border border-blue-100/50 text-center">
-                                            <p className="text-xs font-bold text-blue-800 mb-2">💡 Upgrade Available</p>
-                                            <p className="text-[10px] text-blue-600 font-medium leading-relaxed">
-                                                This roadmap was generated before multi-resource support.
-                                                <button
-                                                    onClick={() => generateRoadmap(activeTab)}
-                                                    className="underline ml-1 font-black hover:text-blue-800"
-                                                >
-                                                    Regenerate now
-                                                </button> to see 2-3 expert playlists per milestone!
-                                            </p>
-                                        </div>
-                                    )}
+            {/* ====== VIDEO PLAYER MODAL ====== */}
+            {playerOpen && activeVideo && (
+                <>
+                    {/* Modal Backdrop */}
+                    <div
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-fade-in"
+                        onClick={handleClosePlayer}
+                    />
+
+                    {/* Modal Content */}
+                    <div className="fixed inset-4 md:inset-8 lg:inset-12 bg-gray-950 rounded-3xl z-50 flex flex-col overflow-hidden shadow-2xl animate-scale-in border border-white/10">
+                        {/* Modal Header */}
+                        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-gray-900 to-gray-950 border-b border-white/10">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-rose-600 rounded-lg flex items-center justify-center text-white">
+                                    <MonitorPlay size={16} />
+                                </div>
+                                <div>
+                                    <h3 className="text-white font-bold text-sm line-clamp-1 max-w-[400px]">{activeVideo.title}</h3>
+                                    <p className="text-gray-500 text-[10px] font-mono">Video ID: {activeVideo.id || 'N/A'}</p>
                                 </div>
                             </div>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={handleOpenTutor}
+                                    className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${hasWatched
+                                        ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 animate-pulse-subtle'
+                                        : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                                        }`}
+                                >
+                                    <Bot size={14} />
+                                    {hasWatched ? '🧠 Ask AI Tutor' : 'Ask Tutor'}
+                                </button>
+                                <button
+                                    onClick={handleClosePlayer}
+                                    className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        </div>
 
-                            {/* Chat Integration */}
-                            {showChat && (
-                                <RoadmapChat
-                                    userId={userId!}
-                                    milestoneId={activeMilestone.id}
-                                    milestoneName={activeMilestone.name}
+                        {/* YouTube Player */}
+                        <div className="flex-1 bg-black flex items-center justify-center relative">
+                            {videoLoading ? (
+                                <div className="text-center text-gray-400 p-8 animate-pulse">
+                                    <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                        <BrainCircuit size={32} className="text-emerald-400 animate-spin" />
+                                    </div>
+                                    <h3 className="text-lg font-bold text-white mb-2">Finding Video...</h3>
+                                    <p className="text-sm">Searching YouTube for the best match</p>
+                                </div>
+                            ) : activeVideo?.id ? (
+                                <YouTube
+                                    videoId={activeVideo.id}
+                                    opts={playerOpts}
+                                    onStateChange={onPlayerStateChange}
+                                    className="absolute inset-0 w-full h-full"
+                                    iframeClassName="w-full h-full"
+                                />
+                            ) : (
+                                /* Fallback: YouTube search embed via iframe */
+                                <iframe
+                                    src={`https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(activeVideo?.searchQuery || activeVideo?.title || '')}`}
+                                    className="absolute inset-0 w-full h-full"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
                                 />
                             )}
-                        </>
-                    ) : (
-                        <div className="flex items-center justify-center h-[500px] bg-white rounded-3xl border border-gray-100 shadow-sm text-gray-400">
-                            <p className="font-bold">Select a milestone to start learning</p>
-                        </div>
-                    )}
-                </div>
-
-                {/* Sidebar Milestones */}
-                <div className="lg:col-span-4 space-y-6">
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="font-black text-gray-900 uppercase tracking-widest text-xs">Milestones</h3>
-                            <button className="text-[10px] font-bold text-blue-600 uppercase tracking-widest flex items-center gap-1">
-                                <History size={12} />
-                                Timeline
-                            </button>
-                        </div>
-                        <div className="space-y-3">
-                            {roadmap.milestones.map((milestone, idx) => {
-                                const isActive = activeMilestone?.id === milestone.id;
-                                const isCompleted = milestone.progress.status === 'completed';
-
-                                return (
-                                    <button
-                                        key={milestone.id}
-                                        onClick={() => setActiveMilestone(milestone)}
-                                        className={`w-full p-4 rounded-2xl border text-left transition-all duration-300 group ${isActive
-                                            ? 'bg-blue-600 border-blue-600 shadow-blue-200 shadow-lg'
-                                            : 'bg-white border-gray-100 hover:border-blue-200'
-                                            }`}
-                                    >
-                                        <div className="flex items-start gap-4">
-                                            <div className={`mt-1 p-2 rounded-xl transition-colors ${isActive ? 'bg-white text-blue-600' : isCompleted ? 'bg-green-50 text-green-600' : 'bg-gray-50 text-gray-400'
-                                                }`}>
-                                                {isCompleted ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between gap-2 mb-0.5">
-                                                    <h4 className={`text-sm font-bold truncate ${isActive ? 'text-white' : 'text-gray-900'}`}>
-                                                        {milestone.name}
-                                                    </h4>
-                                                    <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded ${isActive ? 'bg-white/20 text-white' : 'bg-gray-50 text-gray-400'}`}>
-                                                        {milestone.difficulty || 'int'}
-                                                    </span>
-                                                </div>
-                                                <div className={`mt-1 flex items-center gap-2 text-[10px] font-bold ${isActive ? 'text-blue-100' : 'text-gray-400'}`}>
-                                                    <span>{milestone.skills.length} skills</span>
-                                                    <span className="w-0.5 h-0.5 bg-current opacity-30 rounded-full"></span>
-                                                    <span className="uppercase">{milestone.estimatedWeeks || 1}w</span>
-                                                </div>
-
-                                                {/* Mini progress bar */}
-                                                {!isCompleted && milestone.progress.watched_duration_seconds > 0 && (
-                                                    <div className="mt-2 h-1 bg-black/10 rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full ${isActive ? 'bg-white' : 'bg-blue-500'}`}
-                                                            style={{ width: `${Math.min(100, (milestone.progress.watched_duration_seconds / (milestone.progress.total_duration_seconds || 100)) * 100)}%` }}
-                                                        ></div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {!isActive && !isCompleted && (
-                                                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <ChevronRight size={16} className="text-gray-300" />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </button>
-                                );
-                            })}
                         </div>
 
-                        <div className="mt-8 pt-6 border-t border-gray-50">
-                            <div className="flex items-center justify-between mb-4">
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest font-mono">Total Progress</span>
-                                <span className="text-xs font-black text-blue-600">
-                                    {Math.round((roadmap.milestones.filter(m => m.progress.status === 'completed').length / roadmap.milestones.length) * 100)}%
-                                </span>
+                        {/* Bottom Bar */}
+                        <div className="px-6 py-3 bg-gradient-to-r from-gray-900 to-gray-950 border-t border-white/10 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {hasWatched && (
+                                    <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1 animate-fade-in">
+                                        <CheckCircle2 size={12} />
+                                        Video Watched
+                                    </span>
+                                )}
                             </div>
-                            <div className="h-3 bg-gray-50 rounded-full overflow-hidden p-0.5 border border-gray-100">
-                                <div
-                                    className="h-full bg-blue-600 rounded-full shadow-lg shadow-blue-200 transition-all duration-1000"
-                                    style={{ width: `${(roadmap.milestones.filter(m => m.progress.status === 'completed').length / roadmap.milestones.length) * 100}%` }}
-                                ></div>
-                            </div>
+                            <p className="text-[10px] text-gray-500 font-medium">
+                                Pause or finish the video, then chat with your AI Tutor about the content
+                            </p>
                         </div>
                     </div>
+                </>
+            )}
 
-                    {/* Overall Progress Gauge */}
-                    <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-black text-gray-900 uppercase tracking-widest text-xs">Readiness Score</h3>
-                            <div className="text-xs font-black text-blue-600">{roadmap?.overall_readiness || 0}%</div>
-                        </div>
-                        <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden mb-3">
-                            <div
-                                className="h-full bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)] transition-all duration-1000"
-                                style={{ width: `${roadmap?.overall_readiness || 0}%` }}
-                            ></div>
-                        </div>
-                        <p className="text-[10px] text-gray-400 font-medium leading-relaxed">
-                            This score represents your current readiness for the **{roadmap?.target_role}** role based on your knowledge base.
-                        </p>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-indigo-900 to-blue-900 rounded-3xl p-6 text-white shadow-xl">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-2 bg-white/10 rounded-xl">
-                                <Award size={20} className="text-blue-200" />
-                            </div>
-                            <h3 className="font-bold">Next Milestone</h3>
-                        </div>
-                        <p className="text-blue-100 text-sm font-medium mb-6">
-                            Complete this roadmap to earn a "Verified {roadmap.target_role}" profile badge.
-                        </p>
-                        <button className="w-full py-3 bg-white text-indigo-900 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-50 transition-colors">
-                            Claim Reward
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div >
+            {/* ====== TUTOR CHAT SIDEBAR ====== */}
+            <TutorChat
+                isOpen={tutorOpen}
+                onClose={() => setTutorOpen(false)}
+                videoId={activeVideo?.id || ''}
+                videoTitle={activeVideo?.title || ''}
+            />
+        </div>
     );
 }
-

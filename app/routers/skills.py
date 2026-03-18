@@ -11,7 +11,7 @@ from app.routers.dependencies import get_services
 
 router = APIRouter(prefix="/api/skills", tags=["Skills"])
 
-# Soft skills to filter out - these aren't actionable for gap analysis/roadmaps
+# Soft skills to filter out - these aren't actionable for gap analysis
 SOFT_SKILLS = {
     'communication', 'leadership', 'project-management', 'problem-solving',
     'critical-thinking', 'teamwork', 'collaboration', 'presentation',

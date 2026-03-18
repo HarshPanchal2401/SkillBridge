@@ -27,7 +27,8 @@ from app.routers import (
     resume_router,
     jobs_router,
     analysis_router,
-    roadmaps_router
+    roadmaps_router,
+    tutor_router
 )
 
 
@@ -104,7 +105,6 @@ app = FastAPI(
     - **Gap Analysis**: Compare skills against market requirements
     - **Course Recommendations**: AI-powered course suggestions
     - **GitHub Analysis**: Extract skills from repositories
-    - **Roadmaps**: Learning paths for career development
     
     ## API Response Format
     All endpoints return responses in a standardized format:
@@ -236,8 +236,7 @@ def read_root():
                 "skills": "/api/skills",
                 "jobs": "/api/jobs",
                 "analysis": "/api/users/{user_id}/gap-analysis",
-                "courses": "/api/courses/search/{skill}",
-                "roadmaps": "/api/roadmaps"
+                "courses": "/api/courses/search/{skill}"
             }
         }
     }
@@ -298,6 +297,7 @@ app.include_router(resume_router)
 app.include_router(jobs_router)
 app.include_router(analysis_router)
 app.include_router(roadmaps_router)
+app.include_router(tutor_router)
 
 
 # ===== MAIN ENTRY POINT =====

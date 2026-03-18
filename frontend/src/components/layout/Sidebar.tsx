@@ -14,14 +14,13 @@ import {
     Briefcase,
     Sparkles,
     Target,
-    Map,
     ChevronRight,
     Search,
     Zap,
-    PanelLeft
+    PanelLeft,
+    Map
 } from 'lucide-react';
 import { useState } from 'react';
-
 const navItems = [
     { href: '/dashboard', label: 'Overview', icon: Home },
     { href: '/skills', label: 'Skill Gap', icon: BarChart3 },

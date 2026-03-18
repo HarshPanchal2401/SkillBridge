@@ -346,41 +346,31 @@ def init_db() -> None:
         )
     ''')
     
-    # Create user_roadmaps table (tracks which roadmap a user is following)
+    # Create user_roadmaps table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS user_roadmaps (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
-            domain TEXT NOT NULL,
-            roadmap_type TEXT DEFAULT 'personal', -- 'personal' or 'full'
-            target_role TEXT,
-            language_preference TEXT DEFAULT 'English',
-            started_at TEXT,
-            last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            target_role TEXT NOT NULL,
+            roadmap_data TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
         )
     ''')
     
-    # Create roadmap_progress table (tracks progress on individual milestones/steps)
+    # Create roadmap_progress table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS roadmap_progress (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
-            domain TEXT NOT NULL,
-            milestone_id TEXT NOT NULL,
+            roadmap_id INTEGER NOT NULL,
+            skill_name TEXT NOT NULL,
             status TEXT DEFAULT 'not_started',
-            youtube_playlist_id TEXT,
-            total_videos INTEGER DEFAULT 0,
-            watched_videos INTEGER DEFAULT 0,
-            total_duration_seconds INTEGER DEFAULT 0,
-            watched_duration_seconds INTEGER DEFAULT 0,
-            current_video_id TEXT,
-            current_video_time INTEGER DEFAULT 0,
-            roadmap_id INTEGER,
-            started_at TEXT,
-            completed_at TEXT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+            completion_percentage INTEGER DEFAULT 0,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+            FOREIGN KEY (roadmap_id) REFERENCES user_roadmaps (id) ON DELETE CASCADE
         )
     ''')
     
@@ -390,29 +380,14 @@ def init_db() -> None:
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_projects_user ON projects(user_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_skills_user ON user_skills(user_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_skills_name ON user_skills(skill_name)')
-    cursor.execute('CREATE INDEX IF NOT EXISTS idx_roadmap_user ON roadmap_progress(user_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_roadmaps_user ON user_roadmaps(user_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_progress_user ON roadmap_progress(user_id)')
+    cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_progress_unique ON roadmap_progress(user_id, roadmap_id, skill_name)')
     
     # Migration: add missing columns if missing (for existing databases)
     columns_to_add = [
         ("users", "resume_filename", "TEXT"),
-        ("users", "specialization", "TEXT"),
-        ("user_roadmaps", "roadmap_type", "TEXT DEFAULT 'personal'"),
-        ("user_roadmaps", "target_role", "TEXT"),
-        ("user_roadmaps", "language_preference", "TEXT DEFAULT 'English'"),
-        ("user_roadmaps", "last_accessed", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
-        ("roadmap_progress", "youtube_playlist_id", "TEXT"),
-        ("roadmap_progress", "total_videos", "INTEGER DEFAULT 0"),
-        ("roadmap_progress", "watched_videos", "INTEGER DEFAULT 0"),
-        ("roadmap_progress", "total_duration_seconds", "INTEGER DEFAULT 0"),
-        ("roadmap_progress", "watched_duration_seconds", "INTEGER DEFAULT 0"),
-        ("roadmap_progress", "current_video_id", "TEXT"),
-        ("roadmap_progress", "current_video_time", "INTEGER DEFAULT 0"),
-        ("roadmap_progress", "milestone_name", "TEXT"),
-        ("roadmap_progress", "milestone_description", "TEXT"),
-        ("roadmap_progress", "skills", "TEXT"),
-        ("roadmap_progress", "roadmap_id", "INTEGER"),
-        ("roadmap_progress", "resources", "TEXT"),
-        ("roadmap_progress", "updated_at", "TIMESTAMP")
+        ("users", "specialization", "TEXT")
     ]
     
     for table, col_name, col_type in columns_to_add:
@@ -437,7 +412,7 @@ def reset_db() -> None:
     
     # Drop all tables
     tables = [
-        'roadmap_progress', 'user_roadmaps', 'user_skills',
+        'user_skills',
         'work_experience', 'certifications', 'projects', 'courses', 'users'
     ]
     
@@ -460,7 +435,7 @@ def get_db_stats() -> Dict[str, Any]:
         cursor = conn.cursor()
         
         tables = ['users', 'courses', 'projects', 'certifications', 
-                  'work_experience', 'user_skills', 'user_roadmaps', 'roadmap_progress']
+                  'work_experience', 'user_skills']
         
         for table in tables:
             cursor.execute(f'SELECT COUNT(*) as count FROM {table}')

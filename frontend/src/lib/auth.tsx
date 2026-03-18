@@ -36,6 +36,7 @@ interface AuthContextType {
     loading: boolean;
     userId: string | null;
     login: (email: string) => Promise<void>;
+    register: (data: any) => Promise<void>;
     logout: () => void;
     refreshUser: () => Promise<void>;
     refreshGapAnalysis: (refresh?: boolean) => Promise<any>;
@@ -149,6 +150,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const register = async (data: any) => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/users/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Registration failed');
+            }
+
+            const userData = await res.json();
+            const newUser: User = {
+                id: String(userData.id),
+                name: userData.name || data.name,
+                email: userData.email || data.email,
+                education: userData.education || data.education || '',
+                specialization: userData.specialization || '',
+                university: userData.university || data.university || '',
+                location: userData.location || data.location || '',
+                target_role: userData.target_role || data.target_role || '',
+                github_url: userData.github_url || '',
+                linkedin_url: userData.linkedin_url || '',
+                has_resume: userData.has_resume || !!(userData.resume_path || userData.resume_text),
+                resume_filename: userData.resume_filename || '',
+            };
+
+            const newProfile: Profile = {
+                profile_completion: 0,
+                total_skills: 0,
+                total_projects: 0,
+                total_courses: 0
+            };
+
+            setUser(newUser);
+            setProfile(newProfile);
+
+            localStorage.setItem('user', JSON.stringify(newUser));
+            localStorage.setItem('profile', JSON.stringify(newProfile));
+        } catch (error) {
+            console.error('Registration error:', error);
+            throw error;
+        }
+    };
+
     const logout = () => {
         setUser(null);
         setProfile(null);
@@ -246,6 +294,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             loading,
             userId: user?.id || null,
             login,
+            register,
             logout,
             refreshUser,
             refreshGapAnalysis

@@ -62,12 +62,6 @@ interface GapAnalysisResult {
     strengths: any[];
     course_recommendations: any[];
     skills_source?: string;
-    learning_path: {
-        immediate_focus: string[];
-        next_steps: string[];
-        future_skills: string[];
-        estimated_months: number;
-    };
     fetched_market_skills?: MarketSkill[];
 }
 
@@ -115,14 +109,6 @@ export default function GapAnalysisPage() {
             const result = await api.analyzeUserForRole(user.id || '', selectedRole);
             setAnalysis(result);
 
-            // NEW: Automatically trigger roadmap regeneration for the personal path in background
-            // This ensures that clicking "Analyze" also keeps the personalized roadmap in sync.
-            api.generateRoadmap({
-                user_id: user.id || '',
-                target_role: selectedRole,
-                roadmap_type: 'personal',
-                language: "English"
-            }).catch(e => console.error("Roadmap auto-sync failed:", e));
         } catch (err: any) {
             setError(err.message || 'Failed to analyze gaps');
         } finally {

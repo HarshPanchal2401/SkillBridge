@@ -615,7 +615,7 @@ def analyze_user_for_role(
     Args:
         role_id: Can be a role ID (like "frontend_developer") or a role name (like "Frontend Developer")
     
-    Returns comprehensive analysis with readiness score and learning path.
+    Returns comprehensive analysis with readiness score.
     """
     services = get_services()
     roles_data = load_role_requirements()

@@ -116,7 +116,7 @@ class YoutubeService:
                 "type": "article"
             },
             {
-                "title": f"Complete {skill} Roadmap 2025",
+                "title": f"Complete {skill} Mastery 2025",
                 "url": "https://www.youtube.com/playlist?list=PL4Gr5tOafJJn9v3z-F7K0yG1-v-Vv-VvV",
                 "thumbnail": "https://images.unsplash.com/photo-1587620962725-abab7fe55159?auto=format&fit=crop&q=80&w=300",
                 "snippet": f"The ultimate guide to mastering {skill} from scratch.",

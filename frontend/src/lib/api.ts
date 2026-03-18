@@ -52,12 +52,6 @@ export interface GapAnalysis {
     strengths?: MarketSkill[];
     target_role?: { id: string, title: string };
     match_percentage?: number;
-    learning_path?: {
-        immediate_focus: string[];
-        next_steps: string[];
-        future_skills: string[];
-        estimated_months: number;
-    };
     summary?: {
         interpretation: string;
         overall_readiness_pct: number;
@@ -162,77 +156,6 @@ export const api = {
         return data;
     },
 
-    getRoadmaps: async (): Promise<any> => {
-        const data = await fetchApi('/api/roadmaps');
-        return data.data || data;
-    },
-
-    getCurrentRoadmapStatus: async (userId: number | string): Promise<any> => {
-        try {
-            const res = await fetchApi(`/api/roadmaps/users/${userId}/current`);
-            return res.data || res;
-        } catch {
-            return { has_active_roadmap: false };
-        }
-    },
-
-    generateRoadmap: async (data: { user_id: number | string; target_role: string; roadmap_type: string; language: string }): Promise<any> => {
-        const res = await fetchApi('/api/roadmaps/generate', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
-        return res.data || res;
-    },
-
-    syncRoadmapProgress: async (data: any): Promise<any> => {
-        const res = await fetchApi('/api/roadmaps/sync-progress', {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        });
-        return res.data || res;
-    },
-
-    chatWithRoadmapAI: async (data: { user_id: number | string; message: string; context_milestone_id?: string; history?: any[] }): Promise<any> => {
-        const res = await fetchApi('/api/roadmaps/chat', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
-        return res.data || res;
-    },
-
-    getUserRoadmap: async (userId: string): Promise<any> => {
-        try {
-            const data = await fetchApi(`/api/roadmaps/users/${userId}/roadmap`);
-            return data.data || data;
-        } catch (error: any) {
-            // Return empty roadmap if not found
-            if (error.message?.includes('404') || error.message?.includes('not found')) {
-                return { has_roadmap: false };
-            }
-            throw error;
-        }
-    },
-
-    selectRoadmap: async (userId: string, domain: string): Promise<void> => {
-        await fetchApi(`/api/users/${userId}/roadmap`, {
-            method: 'POST',
-            body: JSON.stringify({ domain }),
-        });
-    },
-
-    removeUserRoadmap: async (userId: string): Promise<void> => {
-        await fetchApi(`/api/users/${userId}/roadmap`, {
-            method: 'DELETE',
-        });
-    },
-
-    updateMilestoneProgress: async (userId: string, milestoneId: string, status: string): Promise<void> => {
-        await fetchApi(`/api/users/${userId}/roadmap/milestones/${milestoneId}`, {
-            method: 'PUT',
-            body: JSON.stringify({ status }),
-        });
-    },
-
     getGapBasedCourses: async (userId: string, refresh: boolean = false): Promise<any> => {
         const cacheKey = `gap_courses_${userId}`;
         if (!refresh && cache[cacheKey] && Date.now() - cache[cacheKey].timestamp < CACHE_DURATION) {
@@ -285,5 +208,40 @@ export const api = {
 
         const data = await fetchApi(`/api/jobs/search?${params.toString()}`);
         return data.data || data;
+    },
+
+    generateRoadmap: async (userId: string, language: string = 'English'): Promise<any> => {
+        return fetchApi(`/api/roadmaps/generate/${userId}?language=${language}`, {
+            method: 'POST',
+        });
+    },
+
+    getLatestRoadmap: async (userId: string): Promise<any> => {
+        return fetchApi(`/api/roadmaps/user/${userId}`);
+    },
+
+    updateRoadmapProgress: async (userId: string, skillName: string, status: string, percentage: number = 0): Promise<any> => {
+        return fetchApi(`/api/roadmaps/progress/${userId}?skill_name=${encodeURIComponent(skillName)}&status=${status}&percentage=${percentage}`, {
+            method: 'POST',
+        });
+    },
+
+    tutorChat: async (videoId: string, videoTitle: string, message: string, sessionId?: string): Promise<{ reply: string; session_id: string }> => {
+        return fetchApi('/api/tutor/chat', {
+            method: 'POST',
+            body: JSON.stringify({
+                video_id: videoId,
+                video_title: videoTitle,
+                message: message,
+                session_id: sessionId || null,
+            }),
+        });
+    },
+
+    findVideo: async (title: string, channel?: string): Promise<{ video_id: string; search_query: string }> => {
+        return fetchApi('/api/tutor/find-video', {
+            method: 'POST',
+            body: JSON.stringify({ title, channel: channel || null }),
+        });
     }
 };

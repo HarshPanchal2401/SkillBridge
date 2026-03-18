@@ -22,6 +22,8 @@ from app.services.market_skill_searcher import MarketSkillSearcher
 from app.services.groq_skill_refiner import GroqSkillRefiner
 from app.services.llm_gap_analyzer import GroqGapAnalyzer
 from app.services.groq_market_skill_provider import GroqMarketSkillProvider
+from app.services.roadmap_generator import RoadmapGenerator
+from app.services.tutor_service import TutorService
 
 # Load environment variables
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env'))
@@ -88,6 +90,8 @@ class ServiceContainer:
         self._market_skill_searcher = MarketSkillSearcher(self._tavily_api_key)
         self._llm_gap_analyzer = GroqGapAnalyzer(self._groq_api_key)
         self._market_skill_provider = GroqMarketSkillProvider(self._groq_api_key)
+        self._roadmap_generator = RoadmapGenerator(self._groq_api_key)
+        self._tutor_service = TutorService(self._groq_api_key)
         
         self._initialized = True
         logger.info("✅ Service container initialized")
@@ -151,6 +155,16 @@ class ServiceContainer:
     def llm_gap_analyzer(self) -> GroqGapAnalyzer:
         """Get the LLM-based gap analyzer service."""
         return self._llm_gap_analyzer
+
+    @property
+    def roadmap_generator(self) -> RoadmapGenerator:
+        """Get the roadmap generator service."""
+        return self._roadmap_generator
+
+    @property
+    def tutor_service(self) -> TutorService:
+        """Get the AI tutor service."""
+        return self._tutor_service
     
     @property
     def upload_dir(self) -> str:
@@ -248,6 +262,10 @@ def get_github_analyzer() -> GitHubAnalyzer:
 def get_job_analyzer() -> JobSkillAnalyzer:
     """FastAPI dependency for job skill analyzer."""
     return get_services().job_analyzer
+
+def get_roadmap_generator() -> RoadmapGenerator:
+    """FastAPI dependency for roadmap generator."""
+    return get_services().roadmap_generator
 
 
 

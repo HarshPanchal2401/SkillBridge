@@ -73,16 +73,7 @@ export default function YouTubePlayer({
 
         try {
             setIsSaving(true);
-            await api.syncRoadmapProgress({
-                user_id: userId,
-                milestone_id: milestoneId,
-                youtube_playlist_id: pId || initialPlaylistId,
-                current_video_id: targetVId,
-                current_video_time: Math.floor(time),
-                watched_duration_seconds: Math.floor(time),
-                total_duration_seconds: Math.floor(duration),
-                status: force && (time / duration > 0.9) ? 'completed' : 'in_progress'
-            });
+            // Roadmap feature removed - progress sync disabled
             if (onProgressUpdate && duration > 0) {
                 onProgressUpdate(Math.min(100, Math.round((time / duration) * 100)));
             }

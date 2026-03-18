@@ -20,7 +20,8 @@ import {
     Trophy,
     GraduationCap,
     Lightbulb,
-    Target
+    Target,
+    Map
 } from 'lucide-react';
 
 interface CourseRecommendation {
@@ -175,13 +176,22 @@ export default function RecommendationsPage() {
                             Precision-targeted modules to close your identified skill gaps.
                         </p>
                     </div>
-                    <button
-                        onClick={() => loadRecommendations(true)}
-                        className="px-5 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all flex items-center gap-2 shadow-sm"
-                    >
-                        <RefreshCw size={16} className={loading && recommendations.length > 0 ? "animate-spin" : ""} />
-                        Refresh Analysis
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => loadRecommendations(true)}
+                            className="px-5 py-2.5 border border-gray-200 text-gray-700 rounded-xl text-sm font-bold hover:bg-gray-50 transition-all flex items-center gap-2 shadow-sm"
+                        >
+                            <RefreshCw size={16} className={loading && recommendations.length > 0 ? "animate-spin" : ""} />
+                            Refresh Analysis
+                        </button>
+                        <button
+                            onClick={() => router.push('/roadmap')}
+                            className="px-5 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-800 transition-all shadow-xl flex items-center gap-2"
+                        >
+                            <Map size={16} />
+                            View Roadmap
+                        </button>
+                    </div>
                 </div>
 
                 {/* Dashboard Stats */}
@@ -266,13 +276,6 @@ export default function RecommendationsPage() {
                                 Excellent work! You currently have no identified skill gaps for your target role.
                             </p>
                         </div>
-                        <button
-                            onClick={() => router.push('/roadmap')}
-                            className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-gray-800 transition-all shadow-xl"
-                        >
-                            View Career Roadmaps
-                            <ChevronRight size={14} />
-                        </button>
                     </div>
                 )}
             </div>

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useAuth } from '../lib/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { ArrowRight, Target, BookOpen, Map, BarChart3, Sparkles } from 'lucide-react';
+import { ArrowRight, Target, BookOpen, BarChart3, Sparkles } from 'lucide-react';
 
 export default function HomePage() {
     const { user, loading } = useAuth();
@@ -34,12 +34,6 @@ export default function HomePage() {
             title: 'Skill Gap Training',
             description: 'Get recommended courses, projects, and certifications',
             color: 'text-purple-600 bg-purple-50',
-        },
-        {
-            icon: Map,
-            title: 'AI Career Roadmap',
-            description: 'Generate a step-by-step plan to achieve your career goals',
-            color: 'text-orange-600 bg-orange-50',
         },
     ];
 
@@ -96,7 +90,7 @@ export default function HomePage() {
                     </h1>
 
                     <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-12">
-                        Smart skill analysis, domain recommendations, and personalized roadmaps
+                        Smart skill analysis and domain recommendations
                         tailored for growth across <span className="font-medium text-gray-900">every technology domain</span>.
                     </p>
 

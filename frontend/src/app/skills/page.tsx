@@ -24,8 +24,8 @@ import {
     ChevronDown,
     ChevronUp,
     Briefcase,
-    Globe,
-    Wifi
+    Wifi,
+    Map
 } from 'lucide-react';
 import {
     PieChart,
@@ -253,6 +253,14 @@ export default function SkillsPage() {
                         >
                             {isAnalyzing ? <RefreshCw className="animate-spin" size={16} /> : 'Analyze'}
                         </button>
+                        <button
+                            onClick={() => router.push('/roadmap')}
+                            className="px-5 py-2.5 bg-gray-900 text-white rounded-xl text-sm font-bold hover:bg-gray-800 transition-all shadow-sm flex items-center justify-center gap-2 overflow-hidden relative group"
+                        >
+                            <div className="absolute inset-0 bg-green-500/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
+                            <Map size={16} className="relative z-10" />
+                            <span className="relative z-10">Roadmap</span>
+                        </button>
                     </div>
                 </div>
 
@@ -475,13 +483,6 @@ export default function SkillsPage() {
                                     style={{ width: `${Math.min((parseFloat(analyticsData.forecastMonths) / 12) * 100, 100)}%` }}
                                 ></div>
                             </div>
-                            <button
-                                onClick={() => router.push('/roadmap')}
-                                className="w-full py-3 bg-white border border-gray-200 text-gray-900 rounded-xl text-[11px] font-bold uppercase tracking-wider hover:bg-gray-50 transition-all flex items-center justify-center gap-2 shadow-sm"
-                            >
-                                <Globe size={14} />
-                                View Roadmap
-                            </button>
                         </div>
 
                         {/* Composition Chart */}
