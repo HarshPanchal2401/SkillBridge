@@ -21,6 +21,7 @@ import {
     Map
 } from 'lucide-react';
 import { useState } from 'react';
+
 const navItems = [
     { href: '/dashboard', label: 'Overview', icon: Home },
     { href: '/skills', label: 'Skill Gap', icon: BarChart3 },
@@ -90,9 +91,6 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: { isCollapsed: boolean;
                     </button>
                 </div>
 
-
-
-
                 {/* Primary Navigation */}
                 <nav className={`px-3 space-y-1 ${isCollapsed ? 'flex flex-col items-center' : ''}`}>
                     {navItems.map((item) => {
@@ -125,11 +123,6 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: { isCollapsed: boolean;
                                             <span className={`text-sm font-medium ${isActive ? 'text-green-700' : ''}`}>
                                                 {item.label}
                                             </span>
-                                            {item.href === '/roadmap' && (
-                                                <span className="text-[8px] font-black bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full border border-amber-100 whitespace-nowrap">
-                                                    SOON
-                                                </span>
-                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -236,4 +229,3 @@ export function Header({ isCollapsed, setIsCollapsed }: { isCollapsed: boolean; 
         </header>
     );
 }
-

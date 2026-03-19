@@ -44,3 +44,9 @@ nltk==3.8.1
 
 # YouTube Transcript (for AI Tutor)
 youtube-transcript-api>=0.6.0
+
+# YouTube Data API
+google-api-python-client>=2.0.0
+
+# Translation (Hindi/English)
+deep_translator>=1.11.0

@@ -15,6 +15,7 @@ class TutorChatRequest(BaseModel):
     video_title: str
     message: str
     session_id: Optional[str] = None
+    language: Optional[str] = "English"
 
 
 class TutorChatResponse(BaseModel):
@@ -27,9 +28,7 @@ class TutorChatResponse(BaseModel):
 async def tutor_chat(request: TutorChatRequest):
     """
     Chat with the AI tutor about a specific YouTube video.
-    
-    The tutor fetches the video transcript and uses it as context
-    to answer questions, explain concepts, and quiz the student.
+    Supports bilingual (Hindi/English) conversations.
     """
     services = get_services()
     tutor = services.tutor_service
@@ -41,7 +40,8 @@ async def tutor_chat(request: TutorChatRequest):
         video_id=request.video_id,
         video_title=request.video_title,
         user_message=request.message,
-        session_id=request.session_id
+        session_id=request.session_id,
+        language=request.language or "English",
     )
 
     return TutorChatResponse(

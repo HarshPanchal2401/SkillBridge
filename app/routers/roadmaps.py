@@ -40,8 +40,12 @@ async def generate_user_roadmap(user_id: int, language: str = "English"):
         user_skills_map = {s['skill_name']: {'proficiency': s['proficiency']} for s in user_skills}
         gap_result = services.llm_gap_analyzer.analyze_gaps(user_skills_map, market_requirements, target_role=target_role)
         
-        # 4. Generate roadmap using LLM
-        roadmap_data = await roadmap_gen.generate_roadmap(user_skills, target_role, gap_result, language)
+        # 4. Generate roadmap using LLM + YouTube
+        youtube_service = services.youtube_service
+        roadmap_data = await roadmap_gen.generate_roadmap(
+            user_skills, target_role, gap_result, language,
+            youtube_service=youtube_service
+        )
         
         if "error" in roadmap_data:
             raise HTTPException(status_code=500, detail=roadmap_data["error"])

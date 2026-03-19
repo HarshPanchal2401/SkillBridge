@@ -14,9 +14,10 @@ interface TutorChatProps {
     videoTitle: string;
     isOpen: boolean;
     onClose: () => void;
+    language?: string;
 }
 
-export default function TutorChat({ videoId, videoTitle, isOpen, onClose }: TutorChatProps) {
+export default function TutorChat({ videoId, videoTitle, isOpen, onClose, language = 'English' }: TutorChatProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -56,7 +57,7 @@ export default function TutorChat({ videoId, videoTitle, isOpen, onClose }: Tuto
         setIsLoading(true);
 
         try {
-            const response = await api.tutorChat(videoId, videoTitle, userMsg, sessionId || undefined);
+            const response = await api.tutorChat(videoId, videoTitle, userMsg, sessionId || undefined, language);
 
             setSessionId(response.session_id);
             setMessages(prev => [...prev, { role: 'assistant', content: response.reply }]);
@@ -170,7 +171,7 @@ export default function TutorChat({ videoId, videoTitle, isOpen, onClose }: Tuto
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                            placeholder="Ask anything about the video..."
+                            placeholder={language === 'Hindi' ? 'हिंदी या English में पूछें...' : 'Ask anything about the video...'}
                             className="w-full pl-4 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
                         />
                         <button

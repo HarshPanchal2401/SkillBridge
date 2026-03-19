@@ -374,6 +374,25 @@ def init_db() -> None:
         )
     ''')
     
+    # Create video_progress table for watch analytics
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS video_progress (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            video_id TEXT NOT NULL,
+            skill_name TEXT,
+            watch_time_seconds REAL DEFAULT 0,
+            total_duration_seconds REAL DEFAULT 0,
+            completion_percentage REAL DEFAULT 0,
+            last_position_seconds REAL DEFAULT 0,
+            play_count INTEGER DEFAULT 1,
+            is_completed BOOLEAN DEFAULT 0,
+            last_watched TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+        )
+    ''')
+
     # Create indexes for better performance
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_courses_user ON courses(user_id)')
@@ -383,6 +402,8 @@ def init_db() -> None:
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_roadmaps_user ON user_roadmaps(user_id)')
     cursor.execute('CREATE INDEX IF NOT EXISTS idx_progress_user ON roadmap_progress(user_id)')
     cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_progress_unique ON roadmap_progress(user_id, roadmap_id, skill_name)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_video_progress_user ON video_progress(user_id)')
+    cursor.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_video_progress_unique ON video_progress(user_id, video_id)')
     
     # Migration: add missing columns if missing (for existing databases)
     columns_to_add = [

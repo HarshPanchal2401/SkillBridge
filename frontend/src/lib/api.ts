@@ -211,7 +211,7 @@ export const api = {
     },
 
     generateRoadmap: async (userId: string, language: string = 'English'): Promise<any> => {
-        return fetchApi(`/api/roadmaps/generate/${userId}?language=${language}`, {
+        return fetchApi(`/api/roadmaps/generate/${userId}?language=${encodeURIComponent(language)}`, {
             method: 'POST',
         });
     },
@@ -226,7 +226,48 @@ export const api = {
         });
     },
 
-    tutorChat: async (videoId: string, videoTitle: string, message: string, sessionId?: string): Promise<{ reply: string; session_id: string }> => {
+    // ── Video Progress APIs ──
+
+    saveVideoProgress: async (
+        userId: string,
+        videoId: string,
+        data: {
+            skill_name?: string;
+            watch_time_seconds: number;
+            total_duration_seconds: number;
+            completion_percentage: number;
+            last_position_seconds: number;
+        }
+    ): Promise<any> => {
+        return fetchApi('/api/video-progress/save', {
+            method: 'POST',
+            body: JSON.stringify({
+                user_id: parseInt(userId),
+                video_id: videoId,
+                ...data,
+            }),
+        });
+    },
+
+    getVideoProgress: async (userId: string): Promise<any> => {
+        return fetchApi(`/api/video-progress/user/${userId}`);
+    },
+
+    getVideoAnalytics: async (userId: string): Promise<any> => {
+        return fetchApi(`/api/video-progress/user/${userId}/analytics`);
+    },
+
+    getSingleVideoProgress: async (userId: string, videoId: string): Promise<any> => {
+        return fetchApi(`/api/video-progress/user/${userId}/video/${videoId}`);
+    },
+
+    incrementPlayCount: async (userId: string, videoId: string): Promise<any> => {
+        return fetchApi(`/api/video-progress/increment-play/${userId}/${videoId}`, {
+            method: 'POST',
+        });
+    },
+
+    tutorChat: async (videoId: string, videoTitle: string, message: string, sessionId?: string, language: string = 'English'): Promise<{ reply: string; session_id: string }> => {
         return fetchApi('/api/tutor/chat', {
             method: 'POST',
             body: JSON.stringify({
@@ -234,6 +275,7 @@ export const api = {
                 video_title: videoTitle,
                 message: message,
                 session_id: sessionId || null,
+                language: language,
             }),
         });
     },

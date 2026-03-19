@@ -24,6 +24,7 @@ from app.services.llm_gap_analyzer import GroqGapAnalyzer
 from app.services.groq_market_skill_provider import GroqMarketSkillProvider
 from app.services.roadmap_generator import RoadmapGenerator
 from app.services.tutor_service import TutorService
+from app.services.youtube_service import YoutubeService
 
 # Load environment variables
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), '.env'))
@@ -67,6 +68,7 @@ class ServiceContainer:
         self._gemini_api_key = os.getenv("GEMINI_API_KEY", "")
         self._huggingface_api_key = os.getenv("HUGGINGFACE_API_KEY") or os.getenv("HF_TOKEN", "")
         self._groq_api_key = os.getenv("GROQ_API_KEY", "")
+        self._youtube_api_key = os.getenv("YOUTUBE_API_KEY", "")
         
         # Log API key status
         logger.info(f"🔑 RAPIDAPI_KEY: {'✓ Loaded' if self._rapidapi_key else '✗ Not set'}")
@@ -74,6 +76,7 @@ class ServiceContainer:
         logger.info(f"🔑 GEMINI_API_KEY: {'✓ Loaded' if self._gemini_api_key else '✗ Not set'}")
         logger.info(f"🔑 HUGGINGFACE_API_KEY: {'✓ Loaded' if self._huggingface_api_key else '✗ Not set'}")
         logger.info(f"🔑 GROQ_API_KEY: {'✓ Loaded' if self._groq_api_key else '✗ Not set'}")
+        logger.info(f"🔑 YOUTUBE_API_KEY: {'✓ Loaded' if self._youtube_api_key else '✗ Not set'}")
         
         # Initialize core services
         self._huggingface_extractor = HuggingFaceSkillExtractor(self._huggingface_api_key) if self._huggingface_api_key else None
@@ -90,6 +93,7 @@ class ServiceContainer:
         self._market_skill_searcher = MarketSkillSearcher(self._tavily_api_key)
         self._llm_gap_analyzer = GroqGapAnalyzer(self._groq_api_key)
         self._market_skill_provider = GroqMarketSkillProvider(self._groq_api_key)
+        self._youtube_service = YoutubeService(youtube_api_key=self._youtube_api_key, tavily_api_key=self._tavily_api_key)
         self._roadmap_generator = RoadmapGenerator(self._groq_api_key)
         self._tutor_service = TutorService(self._groq_api_key)
         
@@ -165,6 +169,11 @@ class ServiceContainer:
     def tutor_service(self) -> TutorService:
         """Get the AI tutor service."""
         return self._tutor_service
+
+    @property
+    def youtube_service(self) -> YoutubeService:
+        """Get the YouTube service."""
+        return self._youtube_service
     
     @property
     def upload_dir(self) -> str:

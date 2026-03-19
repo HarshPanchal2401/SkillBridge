@@ -28,7 +28,8 @@ from app.routers import (
     jobs_router,
     analysis_router,
     roadmaps_router,
-    tutor_router
+    tutor_router,
+    video_progress_router
 )
 
 
@@ -298,6 +299,7 @@ app.include_router(jobs_router)
 app.include_router(analysis_router)
 app.include_router(roadmaps_router)
 app.include_router(tutor_router)
+app.include_router(video_progress_router)
 
 
 # ===== MAIN ENTRY POINT =====

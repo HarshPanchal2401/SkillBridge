@@ -1,4 +1,4 @@
-"""AI Tutor Service - Groq-powered RAG chatbot for YouTube video learning."""
+"""AI Tutor Service — Groq-powered RAG chatbot with bilingual (Hindi/English) support."""
 import os
 import uuid
 import json
@@ -10,94 +10,172 @@ logger = get_logger("tutor_service")
 
 class TutorService:
     """
-    RAG-based AI Tutor that uses YouTube video transcripts as context
-    to answer user questions about video content via Groq LLM.
+    RAG-based AI Tutor that uses YouTube video transcripts as context.
+    Supports Hindi ↔ English bilingual conversations.
+    Hindi transcripts are translated to English before feeding to LLM.
+    User can ask in Hindi or English — tutor responds in the same language.
     """
 
     def __init__(self, groq_api_key: Optional[str] = None):
         self.api_key = groq_api_key or os.getenv("GROQ_API_KEY")
         if not self.api_key:
-            logger.warning("⚠️ TutorService: GROQ_API_KEY not found. Tutor will not work.")
+            logger.warning("⚠️ TutorService: GROQ_API_KEY not found.")
 
-        # In-memory session storage: { session_id: { messages: [...], transcript: str, video_title: str } }
         self._sessions: Dict[str, Dict[str, Any]] = {}
-        # Transcript cache: { video_id: transcript_text }
         self._transcript_cache: Dict[str, str] = {}
 
-    def _fetch_transcript(self, video_id: str) -> str:
-        """Fetch YouTube video transcript using youtube-transcript-api."""
-        if video_id in self._transcript_cache:
-            return self._transcript_cache[video_id]
+    # ───────────────────────────────────────────
+    # TRANSCRIPT FETCHING & TRANSLATION
+    # ───────────────────────────────────────────
+
+    def _fetch_transcript(self, video_id: str, language: str = "English") -> str:
+        """Fetch YouTube video transcript. For Hindi videos, translate to English."""
+        cache_key = f"{video_id}_{language}"
+        if cache_key in self._transcript_cache:
+            return self._transcript_cache[cache_key]
 
         try:
             from youtube_transcript_api import YouTubeTranscriptApi
 
             ytt_api = YouTubeTranscriptApi()
-            transcript_list = ytt_api.fetch(video_id)
 
-            # Combine all text segments
+            # Try fetching transcript in preferred language first
+            transcript_text = ""
+            original_lang = "en"
+
+            try:
+                if language.lower() == "hindi":
+                    transcript_list = ytt_api.fetch(video_id, languages=["hi"])
+                    original_lang = "hi"
+                else:
+                    transcript_list = ytt_api.fetch(video_id, languages=["en"])
+                    original_lang = "en"
+            except Exception:
+                # Fallback: try any available language
+                try:
+                    transcript_list = ytt_api.fetch(video_id)
+                    original_lang = "unknown"
+                except Exception as e2:
+                    logger.warning(f"⚠️ No transcript available for {video_id}: {e2}")
+                    return ""
+
             full_text = " ".join([entry.text for entry in transcript_list])
 
-            # Truncate to ~8000 chars to fit in context window
+            # Truncate to ~8000 chars
             if len(full_text) > 8000:
                 full_text = full_text[:8000] + "... [transcript truncated]"
 
-            self._transcript_cache[video_id] = full_text
-            logger.info(f"✅ Fetched transcript for video {video_id} ({len(full_text)} chars)")
+            # If original is Hindi, translate to English for LLM context
+            if original_lang == "hi":
+                full_text = self._translate_text(full_text, source="hi", target="en")
+
+            self._transcript_cache[cache_key] = full_text
+            logger.info(f"✅ Fetched transcript for {video_id} (lang={original_lang}, {len(full_text)} chars)")
             return full_text
 
         except Exception as e:
             logger.warning(f"⚠️ Could not fetch transcript for {video_id}: {e}")
             return ""
 
-    def _get_or_create_session(self, session_id: Optional[str], video_id: str, video_title: str) -> str:
-        """Get existing session or create a new one."""
+    def _translate_text(self, text: str, source: str = "hi", target: str = "en") -> str:
+        """Translate text using deep_translator (Google Translate wrapper)."""
+        try:
+            from deep_translator import GoogleTranslator
+
+            # deep_translator has a 5000 char limit per call, so chunk
+            chunks = [text[i:i + 4500] for i in range(0, len(text), 4500)]
+            translated_chunks = []
+
+            translator = GoogleTranslator(source=source, target=target)
+            for chunk in chunks:
+                translated_chunks.append(translator.translate(chunk))
+
+            result = " ".join(translated_chunks)
+            logger.info(f"🌐 Translated {len(text)} chars from {source} → {target}")
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ Translation failed: {e}")
+            return text  # Return original if translation fails
+
+    def _detect_language(self, text: str) -> str:
+        """Simple heuristic to detect if text is Hindi (Devanagari script)."""
+        devanagari_count = sum(1 for ch in text if '\u0900' <= ch <= '\u097F')
+        return "hi" if devanagari_count > len(text) * 0.3 else "en"
+
+    # ───────────────────────────────────────────
+    # SESSION MANAGEMENT
+    # ───────────────────────────────────────────
+
+    def _get_or_create_session(
+        self, session_id: Optional[str], video_id: str, video_title: str, language: str
+    ) -> str:
         if session_id and session_id in self._sessions:
             return session_id
 
         new_id = session_id or str(uuid.uuid4())
-
-        # Fetch transcript for context
-        transcript = self._fetch_transcript(video_id)
+        transcript = self._fetch_transcript(video_id, language)
 
         self._sessions[new_id] = {
             "video_id": video_id,
             "video_title": video_title,
             "transcript": transcript,
-            "messages": []
+            "language": language,
+            "messages": [],
         }
 
-        logger.info(f"📝 Created tutor session {new_id} for video: {video_title}")
+        logger.info(f"📝 Created tutor session {new_id} for video: {video_title} (lang={language})")
         return new_id
+
+    # ───────────────────────────────────────────
+    # CHAT
+    # ───────────────────────────────────────────
 
     async def chat(
         self,
         video_id: str,
         video_title: str,
         user_message: str,
-        session_id: Optional[str] = None
+        session_id: Optional[str] = None,
+        language: str = "English",
     ) -> Dict[str, str]:
         """
-        Send a message to the AI tutor and get a response.
-        
-        Returns: { "reply": str, "session_id": str }
+        Chat with the AI tutor. Supports bilingual input.
+        - Detects if user message is in Hindi
+        - Translates Hindi user messages for LLM context
+        - Instructs LLM to reply in the user's language
         """
         if not self.api_key:
             return {
                 "reply": "I'm sorry, the AI Tutor is not configured. Please set the GROQ_API_KEY.",
-                "session_id": session_id or "error"
+                "session_id": session_id or "error",
             }
 
-        # Get or create session
-        sid = self._get_or_create_session(session_id, video_id, video_title)
+        sid = self._get_or_create_session(session_id, video_id, video_title, language)
         session = self._sessions[sid]
 
-        # Add user message to history
-        session["messages"].append({"role": "user", "content": user_message})
+        # Detect user message language
+        user_lang = self._detect_language(user_message)
 
-        # Build system prompt with transcript context
+        # If user writes in Hindi, translate for LLM context
+        message_for_llm = user_message
+        if user_lang == "hi":
+            message_for_llm = self._translate_text(user_message, source="hi", target="en")
+
+        session["messages"].append({"role": "user", "content": message_for_llm})
+
+        # Build system prompt
         transcript = session["transcript"]
         has_transcript = bool(transcript)
+
+        lang_instruction = ""
+        if user_lang == "hi" or language.lower() == "hindi":
+            lang_instruction = """
+## Language Instruction
+The user is communicating in Hindi. You MUST reply in Hindi (Devanagari script).
+If they switch to English mid-conversation, respond in English.
+Always match the language of the user's latest message.
+"""
 
         system_prompt = f"""# Role: SkillBridge AI Tutor
 
@@ -109,6 +187,8 @@ You are an expert, friendly AI tutor helping a student learn from a YouTube vide
 
 {"## Video Transcript (Use as primary knowledge source):" if has_transcript else ""}
 {transcript if has_transcript else ""}
+
+{lang_instruction}
 
 ## Your Behavior
 1. **Answer questions** about the video content accurately using the transcript
@@ -125,12 +205,10 @@ You are an expert, friendly AI tutor helping a student learn from a YouTube vide
 
         try:
             from groq import Groq
+
             client = Groq(api_key=self.api_key)
 
-            # Build messages list for Groq
             groq_messages = [{"role": "system", "content": system_prompt}]
-
-            # Add last 10 messages from history for context
             recent_messages = session["messages"][-10:]
             groq_messages.extend(recent_messages)
 
@@ -143,23 +221,18 @@ You are an expert, friendly AI tutor helping a student learn from a YouTube vide
 
             reply = chat_completion.choices[0].message.content
 
-            # Add assistant reply to history
             session["messages"].append({"role": "assistant", "content": reply})
 
-            return {
-                "reply": reply,
-                "session_id": sid
-            }
+            return {"reply": reply, "session_id": sid}
 
         except Exception as e:
             logger.error(f"❌ Tutor chat failed: {e}")
             return {
                 "reply": "I'm sorry, I encountered an error processing your question. Please try again.",
-                "session_id": sid
+                "session_id": sid,
             }
 
     def clear_session(self, session_id: str) -> bool:
-        """Clear a tutor chat session."""
         if session_id in self._sessions:
             del self._sessions[session_id]
             return True

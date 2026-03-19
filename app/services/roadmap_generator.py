@@ -1,3 +1,4 @@
+"""Roadmap Generator — Generates skill-gap roadmap via LLM, then attaches real YouTube resources."""
 import json
 import os
 from typing import Dict, List, Any, Optional
@@ -5,90 +6,63 @@ from app.logging_config import get_logger
 
 logger = get_logger("roadmap_generator")
 
+
 class RoadmapGenerator:
     """
-    Service to generate industry-realistic learning roadmaps using LLM.
-    Implements the Master Prompt for SkillBridge.
+    Generates a learning roadmap in two stages:
+    1. LLM generates the skill-gap analysis & learning plan (no video suggestions)
+    2. YoutubeService fetches real playlist + oneshot video for each skill
     """
-    
+
     def __init__(self, groq_api_key: Optional[str] = None):
         self.api_key = groq_api_key or os.getenv("GROQ_API_KEY")
         if not self.api_key:
-            logger.warning("⚠️ RoadmapGenerator: GROQ_API_KEY not found. Generation will fail.")
-            
+            logger.warning("⚠️ RoadmapGenerator: GROQ_API_KEY not found.")
+
     async def generate_roadmap(
-        self, 
-        user_skills: List[Dict[str, Any]], 
-        target_role: str, 
+        self,
+        user_skills: List[Dict[str, Any]],
+        target_role: str,
         gap_analysis: Dict[str, Any],
-        language: str = "English"
+        language: str = "English",
+        youtube_service=None,
     ) -> Dict[str, Any]:
         """
-        Generate a dual roadmap (Fast-Track & Full) using Groq LLM.
+        Generate a dual roadmap (Fast-Track & Full) using Groq LLM,
+        then attach real YouTube resources via YoutubeService.
         """
         if not self.api_key:
             return {"error": "GROQ_API_KEY not configured"}
 
-        # Format skills for prompt
-        skills_str = ", ".join([f"{s['skill_name']} ({s.get('proficiency', 0):.1f})" for s in user_skills])
-        
-        # Format gaps for prompt
-        gaps = gap_analysis.get('skill_gaps', {})
-        critical = [g['skill'] for g in gaps.get('critical', [])]
-        important = [g['skill'] for g in gaps.get('important', [])]
-        emerging = [g['skill'] for g in gaps.get('emerging', [])]
-        
+        # ── Stage 1: LLM generates skill plan ──
+        skills_str = ", ".join(
+            [f"{s['skill_name']} ({s.get('proficiency', 0):.1f})" for s in user_skills]
+        )
+
+        gaps = gap_analysis.get("skill_gaps", {})
+        critical = [g["skill"] for g in gaps.get("critical", [])]
+        important = [g["skill"] for g in gaps.get("important", [])]
+        emerging = [g["skill"] for g in gaps.get("emerging", [])]
+
         prompt = f"""
-# Role: SkillBridge AI Career Architect & RAG Tutor Specialist
+# Role: SkillBridge AI Career Architect
 
-You are the core intelligence behind the **SkillBridge Learning Experience**. Your mission is to generate a highly structured, production-ready learning roadmap AND prepare the context for an interactive **"Ask Tutor" RAG Chatbot**.
+You are the core intelligence behind the **SkillBridge Learning Experience**. Generate a highly structured, production-ready learning roadmap.
 
----
-
-## 🛠️ CONTEXT & DATA INPUT:
-
+## CONTEXT:
 * **User's Current Skills**: {skills_str}
 * **Target Role**: {target_role}
-* **Gap Analysis Results**: 
-    - Critical Gaps: {", ".join(critical) if critical else "None"}
-    - Important Gaps: {", ".join(important) if important else "None"}
-    - Emerging Gaps: {", ".join(emerging) if emerging else "None"}
+* **Critical Gaps**: {", ".join(critical) if critical else "None"}
+* **Important Gaps**: {", ".join(important) if important else "None"}
+* **Emerging Gaps**: {", ".join(emerging) if emerging else "None"}
 * **Preferred Language**: {language}
 
----
+## INSTRUCTIONS:
+1. Generate a **fast_track_roadmap**: list of missing/critical skills the user needs to learn. Order by priority. Include metadata only — NO video suggestions.
+2. Generate a **full_roadmap**: complete career journey from beginner to mastery.
 
-## 🎯 STEP 1: SKILL GAP MAPPING & PRIORITIZATION
-1.  Analyze Parity: Match user's existing skills against target role requirements.
-2.  Quantify Gaps: Identify the delta between current proficiency and market-standard requirements.
-3.  Categorize: Known Skills, Missing Skills (Gaps), Advanced Skills.
-
----
-
-## 🧭 STEP 2: GENERATE DUAL ROADMAPS
-
-### Path A: THE QUICK-START GAP ROADMAP (Hiring Focused)
-* Goal: Fastest route to a 75%+ readiness score.
-* Inclusion: Only missing/critical gaps in logical learning order.
-* Per-Skill Requirements: Importance, Difficulty, Target Proficiency [0.0-1.0], 3 YouTube suggestions.
-
-### Path B: THE 0 → 100 FULL ROADMAP (Career Mastery)
-* Goal: Complete mastery from fundamentals to industry leadership.
-* Phases: Beginner, Intermediate, Advanced, Project Phase, Interview Prep.
-
----
-
-## 📺 STEP 3: VIDEO & RAG "ASK TUTOR" PIPELINE
-(Include metadata for tutoring and Hindi-to-English translation mapping if applicable.)
-
----
-
-## 🤖 STEP 4: CHATBOT TUTOR BEHAVIOR
-(Personality: Expert Technical Mentor, Mission: Explain seamless & right without fail.)
-
----
-
-## ⚙️ STEP 5: OUTPUT FORMAT (STRICT JSON)
-Return ONLY a valid JSON object. No other text.
+## OUTPUT FORMAT (STRICT JSON):
+Return ONLY valid JSON. No other text.
 
 {{
   "readiness_summary": {{
@@ -104,21 +78,10 @@ Return ONLY a valid JSON object. No other text.
   "fast_track_roadmap": [
     {{
       "skill": "Skill Name",
-      "importance": "Rationale",
+      "importance": "Why this is critical",
       "difficulty": "Beginner/Intermediate/Advanced",
       "estimated_time": "e.g. 20 hours",
-      "target_proficiency": 0.8,
-      "videos": [
-        {{
-          "title": "Title",
-          "channel": "Channel",
-          "duration": "Duration",
-          "level": "Level",
-          "reason": "Why recommended",
-          "tutor_ready": true,
-          "translation_engine": "Hindi-to-English Mapping Enabled"
-        }}
-      ]
+      "target_proficiency": 0.8
     }}
   ],
   "full_roadmap": {{
@@ -128,37 +91,64 @@ Return ONLY a valid JSON object. No other text.
     "portfolio_projects": [],
     "career_preparation": []
   }},
-  "ask_tutor_config": {{
-    "rag_enabled": true,
-    "pedagogical_style": "Seamless Expert",
-    "translation_support": "Enabled for non-English sources"
-  }}
+  "language": "{language}"
 }}
 """
 
         try:
             from groq import Groq
+
             client = Groq(api_key=self.api_key)
-            
+
             chat_completion = client.chat.completions.create(
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are a professional career coach and technical architect. Always return valid JSON."
+                        "content": "You are a professional career coach. Always return valid JSON. Do NOT include video or YouTube suggestions — only skill metadata.",
                     },
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    }
+                    {"role": "user", "content": prompt},
                 ],
                 model="llama-3.3-70b-versatile",
                 response_format={"type": "json_object"},
                 temperature=0.2,
             )
-            
+
             content = chat_completion.choices[0].message.content
-            return json.loads(content)
-            
+            roadmap_data = json.loads(content)
+
         except Exception as e:
-            logger.error(f"❌ Roadmap generation failed: {e}")
+            logger.error(f"❌ LLM roadmap generation failed: {e}")
             return {"error": f"LLM generation failed: {str(e)}"}
+
+        # ── Stage 2: Attach real YouTube resources ──
+        if youtube_service and roadmap_data.get("fast_track_roadmap"):
+            import asyncio
+
+            skills_to_fetch = roadmap_data["fast_track_roadmap"]
+            logger.info(f"🎬 Fetching YouTube resources for {len(skills_to_fetch)} skills...")
+
+            tasks = [
+                youtube_service.get_resources_for_skill(item["skill"], language)
+                for item in skills_to_fetch
+            ]
+
+            try:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                for item, yt_result in zip(skills_to_fetch, results):
+                    if isinstance(yt_result, Exception):
+                        logger.warning(f"⚠️ YouTube fetch failed for {item['skill']}: {yt_result}")
+                        item["playlist"] = None
+                        item["oneshot"] = None
+                    else:
+                        item["playlist"] = yt_result.get("playlist")
+                        item["oneshot"] = yt_result.get("oneshot")
+
+                logger.info("✅ YouTube resources attached to roadmap")
+            except Exception as e:
+                logger.error(f"❌ YouTube resource batch fetch failed: {e}")
+
+        # Store the language used
+        roadmap_data["language"] = language
+
+        return roadmap_data
