@@ -2,6 +2,8 @@
 import os
 import re
 import httpx
+import math
+from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any
 from app.logging_config import get_logger
 
@@ -49,6 +51,20 @@ class YoutubeService:
         self._cache[cache_key] = result
         return result
 
+    async def get_oneshot_only(
+        self, skill: str, language: str = "English"
+    ) -> Dict[str, Any]:
+        """Get only the oneshot video for a skill (no playlist search)."""
+        cache_key = f"{skill}_{language}_oneshot"
+        if cache_key in self._cache:
+            logger.info(f"📦 Cache hit for {cache_key}")
+            return self._cache[cache_key]
+
+        oneshot = await self._search_oneshot(skill, language)
+        result = {"playlist": None, "oneshot": oneshot}
+        self._cache[cache_key] = result
+        return result
+
     # ────────────────────────────────────────────────────────────────────
     # PLAYLIST SEARCH
     # ────────────────────────────────────────────────────────────────────
@@ -68,19 +84,19 @@ class YoutubeService:
         return await self._tavily_playlist_fallback(skill, language)
 
     async def _yt_api_playlist(self, skill: str, lang_kw: str, relevance_lang: str) -> Dict[str, Any]:
-        """Use YouTube Data API v3 to find a popular playlist."""
-        query = f"best {skill} complete course playlist {lang_kw} 2025 most viewed".strip()
+        """Use YouTube Data API v3 to find a popular playlist with smart ranking."""
+        query = f"{skill} complete full course tutorial playlist {lang_kw}".strip()
 
         async with httpx.AsyncClient(timeout=15) as client:
-            # Step 1: Search for playlists
+            # Step 1: Search for playlists (order by viewCount to get popular ones first)
             resp = await client.get(f"{self.YT_API_BASE}/search", params={
                 "key": self.api_key,
                 "q": query,
                 "type": "playlist",
                 "part": "snippet",
-                "maxResults": 5,
+                "maxResults": 25,
                 "relevanceLanguage": relevance_lang,
-                "order": "viewCount", # Favor highly viewed playlists
+                "order": "viewCount", 
             })
             data = resp.json()
 
@@ -92,12 +108,43 @@ class YoutubeService:
             if not items:
                 return self._empty_playlist(skill)
 
-            # Pick first playlist
-            pl = items[0]
-            playlist_id = pl["id"]["playlistId"]
-            snippet = pl["snippet"]
+            # Step 2: Pick best playlist
+            playlist_ids = [item["id"]["playlistId"] for item in items]
+            
+            pl_details_resp = await client.get(f"{self.YT_API_BASE}/playlists", params={
+                "key": self.api_key,
+                "id": ",".join(playlist_ids),
+                "part": "snippet,contentDetails",
+            })
+            pl_details = pl_details_resp.json().get("items", [])
+            
+            # Rank playlists by item count (want enough videos) and channel reputation
+            # Since we ordered by viewCount in search, pl_details[0] is often best,
+            # but we'll try to find one with > 5 videos if possible.
+            # Selection strategy:
+            # 1. Prefer playlists between 8 and 60 for core courses
+            best_pl = None
+            for pl in pl_details:
+                item_count = pl.get("contentDetails", {}).get("itemCount", 0)
+                if 8 <= item_count <= 60:
+                    best_pl = pl
+                    break
+            
+            # 2. Fallback: Any playlist with more than 3 videos
+            if not best_pl:
+                for pl in pl_details:
+                    if pl.get("contentDetails", {}).get("itemCount", 0) > 3:
+                        best_pl = pl
+                        break
+            
+            # 3. Last Resort: Most popular result (viewCount)
+            if not best_pl:
+                best_pl = pl_details[0]
 
-            # Step 2: Get playlist items (videos inside the playlist)
+            playlist_id = best_pl["id"]
+            snippet = best_pl["snippet"]
+
+            # Step 3: Get playlist items
             videos = await self._fetch_playlist_items(client, playlist_id)
 
             return {
@@ -164,20 +211,20 @@ class YoutubeService:
         return await self._tavily_oneshot_fallback(skill, language)
 
     async def _yt_api_oneshot(self, skill: str, lang_kw: str, relevance_lang: str) -> Dict[str, Any]:
-        """Use YouTube Data API to find the highest-view oneshot video."""
-        query = f"best {skill} full course one shot tutorial {lang_kw} 2025 most viewed".strip()
+        """Use YouTube Data API to find the highest-view/liked/latest oneshot video."""
+        query = f"best {skill} complete course one shot tutorial {lang_kw}".strip()
 
         async with httpx.AsyncClient(timeout=15) as client:
-            # Search for long videos sorted by view count
+            # Search for videos sorted by viewCount to get popular ones
             resp = await client.get(f"{self.YT_API_BASE}/search", params={
                 "key": self.api_key,
                 "q": query,
                 "type": "video",
                 "part": "snippet",
-                "maxResults": 10,
+                "maxResults": 25,
                 "relevanceLanguage": relevance_lang,
-                "order": "viewCount",
-                "videoDuration": "long",  # > 20 minutes
+                "order": "viewCount", 
+                "videoDuration": "long",
             })
             data = resp.json()
 
@@ -188,7 +235,6 @@ class YoutubeService:
             if not items:
                 return self._empty_oneshot(skill)
 
-            # Get video IDs to fetch view counts & durations
             video_ids = [item["id"]["videoId"] for item in items]
 
             # Fetch video statistics
@@ -199,20 +245,22 @@ class YoutubeService:
             })
             stats_data = stats_resp.json()
 
-            # Pick the video with highest view count
-            best = None
-            best_views = 0
+            # Rank the candidates
+            scored_videos = []
             for v in stats_data.get("items", []):
-                views = int(v.get("statistics", {}).get("viewCount", "0"))
-                if views > best_views:
-                    best_views = views
-                    best = v
+                score_details = self._calculate_video_score(v)
+                scored_videos.append((v, score_details["total"]))
 
-            if not best:
+            scored_videos.sort(key=lambda x: x[1], reverse=True)
+            
+            if not scored_videos:
                 return self._empty_oneshot(skill)
 
+            best, total_score = scored_videos[0]
             duration_iso = best.get("contentDetails", {}).get("duration", "PT0M")
             snip = best.get("snippet", {})
+            stats = best.get("statistics", {})
+            views = int(stats.get("viewCount", "0"))
 
             return {
                 "video_id": best["id"],
@@ -222,9 +270,65 @@ class YoutubeService:
                     snip.get("thumbnails", {}).get("medium", {}).get("url", "")),
                 "duration": duration_iso,
                 "duration_text": self._format_duration(duration_iso),
-                "view_count": best_views,
-                "view_count_text": self._format_views(best_views),
+                "view_count": views,
+                "view_count_text": self._format_views(views),
+                "like_count": int(stats.get("likeCount", "0")),
+                "published_at": snip.get("publishedAt", ""),
+                "score": total_score
             }
+
+    def _calculate_video_score(self, video_data: Dict) -> Dict[str, float]:
+        """
+        Refined scoring algorithm.
+        - Views: Large view counts get significantly higher baseline points.
+        - Likes: Raw like count added to views for total popularity.
+        - Recency: High priority for fresh content (2024-2025).
+        - Quality: Like/View ratio still used as a tie-breaker.
+        """
+        stats = video_data.get("statistics", {})
+        snip = video_data.get("snippet", {})
+        
+        views = int(stats.get("viewCount", 0))
+        likes = int(stats.get("likeCount", 0))
+        
+        # Log view score (Log10 gives us 6 points for 1M views, 7 for 10M)
+        # We multiply by 5 to give it more weight
+        view_score = math.log10(views + 1) * 5
+        
+        # Like score: 1 point for every 50,000 likes (direct popularity) capped at 10
+        like_total_score = min(10, likes / 50000)
+        
+        # Quality ratio: (likes/views) * 100
+        # For a video with 1M views and 50k likes, ratio is 5.
+        like_ratio_score = (likes / (views + 1)) * 100 
+        
+        # Recency score
+        pub_str = snip.get("publishedAt", "2000-01-01T00:00:00Z")
+        try:
+            pub_date = datetime.strptime(pub_str, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        except:
+            pub_date = datetime.now(timezone.utc)
+            
+        now = datetime.now(timezone.utc)
+        days_old = (now - pub_date).days
+        
+        # Freshness is CRITICAL
+        if days_old < 365: # Last 1 year
+            recency_score = 15
+        elif days_old < 730: # Last 2 years
+            recency_score = 10
+        elif days_old < 1095: # Last 3 years
+            recency_score = 5
+        else:
+            recency_score = 0
+            
+        return {
+            "total": view_score + like_total_score + like_ratio_score + recency_score,
+            "views": view_score,
+            "likes": like_total_score,
+            "ratio": like_ratio_score,
+            "recency": recency_score
+        }
 
     # ────────────────────────────────────────────────────────────────────
     # TAVILY FALLBACKS (when YouTube API key is not available)

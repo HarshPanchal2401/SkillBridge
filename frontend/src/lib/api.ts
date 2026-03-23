@@ -237,6 +237,7 @@ export const api = {
             total_duration_seconds: number;
             completion_percentage: number;
             last_position_seconds: number;
+            delta_seconds: number;
         }
     ): Promise<any> => {
         return fetchApi('/api/video-progress/save', {
@@ -284,6 +285,12 @@ export const api = {
         return fetchApi('/api/tutor/find-video', {
             method: 'POST',
             body: JSON.stringify({ title, channel: channel || null }),
+        });
+    },
+
+    resetAllProgress: async (userId: string): Promise<any> => {
+        return fetchApi(`/api/video-progress/user/${userId}/reset`, {
+            method: 'DELETE',
         });
     }
 };

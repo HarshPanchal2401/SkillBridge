@@ -19,6 +19,7 @@ class SaveProgressRequest(BaseModel):
     total_duration_seconds: float = 0
     completion_percentage: float = 0
     last_position_seconds: float = 0
+    delta_seconds: float = 0  # Actual time spent watching since last sync
 
 
 @router.post("/save")
@@ -38,9 +39,16 @@ async def save_video_progress(req: SaveProgressRequest):
 
         if existing:
             row = dict(existing)
-            new_play_count = row["play_count"]
-            # Accumulate watch time
-            new_watch_time = max(row["watch_time_seconds"], req.watch_time_seconds)
+            # Accumulate watch time correctly (anti-cheat)
+            # We add the delta provided by the frontend (real time * speed)
+            new_watch_time = min(req.total_duration_seconds, row["watch_time_seconds"] + req.delta_seconds)
+            
+            # Recalculate completion percentage based on accumulated watch time
+            new_percent = 0
+            if req.total_duration_seconds > 0:
+                new_percent = min(100, (new_watch_time / req.total_duration_seconds) * 100)
+            
+            is_completed = 1 if new_percent >= 90 else row.get("is_completed", 0)
 
             cursor.execute("""
                 UPDATE video_progress SET
@@ -55,7 +63,7 @@ async def save_video_progress(req: SaveProgressRequest):
             """, (
                 new_watch_time,
                 req.total_duration_seconds,
-                req.completion_percentage,
+                new_percent,
                 req.last_position_seconds,
                 is_completed,
                 req.skill_name,
@@ -63,8 +71,15 @@ async def save_video_progress(req: SaveProgressRequest):
                 req.video_id,
             ))
 
-            return {"message": "Progress updated", "is_completed": bool(is_completed)}
+            return {"message": "Progress updated", "is_completed": bool(is_completed), "accumulated_percent": new_percent}
         else:
+            # First time saving this video
+            new_percent = 0
+            if req.total_duration_seconds > 0:
+                new_percent = min(100, (req.delta_seconds / req.total_duration_seconds) * 100)
+            
+            is_completed = 1 if new_percent >= 90 else 0
+
             cursor.execute("""
                 INSERT INTO video_progress
                     (user_id, video_id, skill_name, watch_time_seconds, total_duration_seconds,
@@ -74,14 +89,14 @@ async def save_video_progress(req: SaveProgressRequest):
                 req.user_id,
                 req.video_id,
                 req.skill_name,
-                req.watch_time_seconds,
+                req.delta_seconds,
                 req.total_duration_seconds,
-                req.completion_percentage,
+                new_percent,
                 req.last_position_seconds,
                 is_completed,
             ))
 
-            return {"message": "Progress saved", "is_completed": bool(is_completed)}
+            return {"message": "Progress saved", "is_completed": bool(is_completed), "accumulated_percent": new_percent}
 
 
 @router.post("/increment-play/{user_id}/{video_id}")
@@ -194,3 +209,15 @@ async def get_user_analytics(user_id: int):
                 "per_skill": [dict(r) for r in skill_rows],
             }
         }
+
+
+@router.delete("/user/{user_id}/reset")
+async def reset_all_progress(user_id: int):
+    """Delete all video progress for a user (Global Reset)."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM video_progress WHERE user_id = ?", (user_id,))
+        cursor.execute("DELETE FROM roadmap_progress WHERE user_id = ?", (user_id,))
+    
+    logger.info(f"🧹 Progress reset for user {user_id}")
+    return {"message": "All progress has been reset"}
