@@ -89,17 +89,19 @@ class RoadmapGenerator:
         all_gap_skills = critical + important + emerging
 
         # 3. Calculate metrics based ONLY on roadmap skills + strengths
-        # We use (1 - effective_gap) as the proficiency score for gaps
         relevant_gaps = filtered_critical + filtered_important + filtered_emerging
         strengths = gap_analysis.get("strengths", [])
         
-        # Recalculate an "Overall Score" for just THESE skills
-        # This keeps the metrics focused on the roadmap's domain
+        # Calculate a simplified "Overall Score" based on unweighted count
+        # This is more intuitive for users (e.g. if they know 33/37 skills, they are 89% ready)
         total_items = len(relevant_gaps) + len(strengths)
+        
         if total_items > 0:
-            sum_prof = sum(1.0 - g.get("effective_gap", 0) for g in relevant_gaps)
-            sum_prof += sum(g.get("user_proficiency", 0.8) for g in strengths)
-            roadmap_readiness = round((sum_prof / total_items) * 100, 1)
+            # Gaps start at their attained proficiency (0.0 to demand)
+            # For a simple count, we normalize (demand - gap) / demand
+            attained_count = sum(max(0, g.get("demand", 0.5) - g.get("effective_gap", 0)) / g.get("demand", 0.5) for g in relevant_gaps)
+            attained_count += len(strengths)
+            roadmap_readiness = round((attained_count / total_items) * 100, 1)
         else:
             roadmap_readiness = gap_analysis.get("overall_readiness", 0)
 
@@ -144,7 +146,8 @@ Return ONLY valid JSON. No other text.
   "skill_gap_analysis": {{
     "known_skills": {json.dumps([s['skill_name'] for s in user_skills])},
     "missing_skills": {json.dumps(all_gap_skills)},
-    "advanced_skills": {json.dumps(emerging)}
+    "advanced_skills": {json.dumps(emerging)},
+    "strengths": {json.dumps([{"skill": s["skill"], "proficiency": s.get("user_proficiency", 0.8), "demand": s.get("demand", 0.5)} for s in strengths])}
   }},
   "fast_track_roadmap": [
     {{
@@ -203,10 +206,13 @@ Return ONLY valid JSON. No other text.
 
         # ── Post-processing: HARD FILTER — remove any skill NOT in gap analysis ──
         # Create a lookup map for effective gaps
-        gap_map = {}
+        gap_info = {}
         for category in ["critical", "important", "emerging"]:
             for g in gaps.get(category, []):
-                gap_map[g["skill"].lower()] = g.get("effective_gap", 0)
+                gap_info[g["skill"].lower()] = {
+                    "gap": g.get("effective_gap", 0),
+                    "demand": g.get("demand", 0.5)
+                }
 
         allowed_skills = {s.lower() for s in all_gap_skills}
         fast_track = roadmap_data.get("fast_track_roadmap", [])
@@ -217,8 +223,11 @@ Return ONLY valid JSON. No other text.
             skill_lower = item.get("skill", "").lower()
             if skill_lower in allowed_skills:
                 # Add current_proficiency based on gap analysis
-                gap_val = gap_map.get(skill_lower, 0)
-                item["current_proficiency"] = round(1.0 - gap_val, 2)
+                info = gap_info.get(skill_lower, {})
+                gap_val = info.get("gap", 0)
+                demand_val = info.get("demand", 0.5)
+                item["attained_proficiency"] = round(max(0, demand_val - gap_val), 2)
+                item["demand"] = demand_val
                 filtered.append(item)
             else:
                 removed.append(item.get("skill", "unknown"))
@@ -231,30 +240,37 @@ Return ONLY valid JSON. No other text.
         for gap_skill in all_gap_skills:
             if gap_skill.lower() not in existing:
                 logger.info(f"🔧 Injecting missing gap skill: {gap_skill}")
-                gap_val = gap_map.get(gap_skill.lower(), 0)
+                info = gap_info.get(gap_skill.lower(), {})
+                gap_val = info.get("gap", 0)
+                demand_val = info.get("demand", 0.5)
                 filtered.append({
                     "skill": gap_skill,
                     "importance": f"Identified as a significant gap for {target_role}",
                     "difficulty": "Intermediate",
                     "estimated_time": "15-25 hours",
                     "target_proficiency": 0.7,
-                    "current_proficiency": round(1.0 - gap_val, 2)
+                    "attained_proficiency": round(max(0, demand_val - gap_val), 2),
+                    "demand": demand_val
                 })
 
         roadmap_data["fast_track_roadmap"] = filtered
         logger.info(f"✅ Final roadmap skills ({len(filtered)}): {[f['skill'] for f in filtered]}")
 
-        # Add current_proficiency to full roadmap as well
+        # Add attained_proficiency to full roadmap as well
         full_roadmap = roadmap_data.get("full_roadmap", {})
         for phase in ["beginner_milestones", "intermediate_milestones", "advanced_milestones"]:
             for item in full_roadmap.get(phase, []):
                 s_lower = item.get("skill", "").lower()
-                gap_val = gap_map.get(s_lower, 0)
-                # If it's a gap, use (1 - gap), otherwise it's a strength (assume 0.8)
+                info = gap_info.get(s_lower, {})
+                gap_val = info.get("gap", 0)
+                demand_val = info.get("demand", 0.5)
+                # If it's a gap, use (demand - gap), otherwise it's a strength (assume demand met)
                 if s_lower in allowed_skills:
-                    item["current_proficiency"] = round(1.0 - gap_val, 2)
+                    item["attained_proficiency"] = round(max(0, demand_val - gap_val), 2)
+                    item["demand"] = demand_val
                 else:
-                    item["current_proficiency"] = 0.8 # It's a strength the user already has
+                    item["attained_proficiency"] = demand_val # It's a strength
+                    item["demand"] = demand_val
 
         # ── Stage 2: Attach real YouTube resources ──
         if youtube_service and roadmap_data.get("fast_track_roadmap"):

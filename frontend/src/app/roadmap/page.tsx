@@ -116,39 +116,49 @@ export default function RoadmapPage() {
                 map[p.video_id] = p;
             }
             setVideoProgressMap(map);
-
-            // Recalculate readiness based on fresh progress
-            if (roadmap) {
-                const newScore = calculateOverallScore(roadmap, map);
-                setRoadmap((prev: any) => prev ? {
-                    ...prev,
-                    readiness_summary: {
-                        ...prev.readiness_summary,
-                        current_score: newScore
-                    }
-                } : null);
-            }
         } catch (err) { }
+    };
+
+    const calculateRoadmapProgress = (currentRoadmap: any, progressMap: Record<string, any>) => {
+        const gaps = currentRoadmap.fast_track_roadmap || [];
+        if (gaps.length === 0) return 100;
+
+        let totalProgress = 0;
+        for (const item of gaps) {
+            const videoPercent = (progressMap[item.oneshot?.video_id]?.completion_percentage || 0);
+            totalProgress += videoPercent;
+        }
+        return totalProgress / gaps.length;
     };
 
     const calculateOverallScore = (currentRoadmap: any, progressMap: Record<string, any>) => {
         const gaps = currentRoadmap.fast_track_roadmap || [];
+        const strengths = currentRoadmap.skill_gap_analysis?.strengths || [];
 
-        // FOCUS ONLY ON ROADMAP COMPLETION TO ENSURE 0% START AFTER RESET
-        let sumProf = 0;
-        let totalItems = gaps.length;
+        let attainedCount = 0;
+        let totalCount = gaps.length + strengths.length;
 
-        if (totalItems === 0) return 100; // Ready if no gaps
+        if (totalCount === 0) return 100;
 
+        // 1. Process Strengths (each counts as 1.0)
+        attainedCount += strengths.length;
+
+        // 2. Process Roadmap Gaps
         for (const item of gaps) {
             let videoPercent = 0;
             if (item.oneshot) {
                 videoPercent = (progressMap[item.oneshot.video_id]?.completion_percentage || 0) / 100;
             }
-            sumProf += videoPercent;
+
+            // Baseline mastery for this gap (0.0 to 1.0)
+            const demand = item.demand || 0.5;
+            const baseMastery = (item.attained_proficiency || 0) / demand;
+
+            // Effective mastery is the best of starting point or video progress
+            attainedCount += Math.min(1.0, Math.max(baseMastery, videoPercent));
         }
 
-        return (sumProf / totalItems) * 100;
+        return (attainedCount / totalCount) * 100;
     };
 
     const handleResetProgress = async () => {
@@ -242,12 +252,18 @@ export default function RoadmapPage() {
         setTutorOverlayOpen(!tutorOverlayOpen);
     };
 
-    const getSkillProgress = (item: SkillItem) => {
+    const getSkillProgress = (item: any) => {
         let videoCompletion = 0;
         if (item.oneshot) {
             videoCompletion = videoProgressMap[item.oneshot.video_id]?.completion_percentage || 0;
         }
-        return Math.min(100, videoCompletion);
+
+        // Calculate mastery: best of starting point (attained vs demand) or video progress
+        const demand = item.demand || 0.5;
+        const baseMastery = ((item.attained_proficiency || 0) / demand) * 100;
+
+        // We assume 100% video completion bridges the remaining gap to 100% mastery of this requirement
+        return Math.min(100, Math.max(baseMastery, videoCompletion));
     };
 
     if (loading) return (
@@ -290,6 +306,15 @@ export default function RoadmapPage() {
                         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Skill <span className="text-green-600">Roadmap</span></h1>
                         <p className="text-gray-500 mt-1">Strategic learning path for {roadmap.readiness_summary?.top_gap_category || "Industry Success"}.</p>
                     </div>
+                    {roadmap && (
+                        <div className="flex items-center gap-3 px-4 py-2 bg-green-50 rounded-xl border border-green-100 shadow-sm">
+                            <ShieldCheck size={18} className="text-green-600" />
+                            <div>
+                                <p className="text-[10px] font-black uppercase text-green-600 tracking-widest leading-none mb-1">Market Readiness</p>
+                                <p className="text-sm font-bold text-gray-900 leading-none">{(calculateOverallScore(roadmap, videoProgressMap)).toFixed(0)}% Match</p>
+                            </div>
+                        </div>
+                    )}
                     <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner shrink-0">
                         <button onClick={() => setActiveTab('fast-track')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'fast-track' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Target Gaps</button>
                         <button onClick={() => setActiveTab('full')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'full' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Full Path</button>
@@ -371,18 +396,18 @@ export default function RoadmapPage() {
                         <div className="lg:col-span-4 space-y-6">
                             <div className="card-simple space-y-6">
                                 <div className="flex items-center gap-2 text-green-600">
-                                    <Award size={18} />
-                                    <h4 className="text-[10px] font-bold uppercase tracking-widest">Market Preparedness</h4>
+                                    <Map size={18} />
+                                    <h4 className="text-[10px] font-bold uppercase tracking-widest">Roadmap Journey</h4>
                                 </div>
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-1">
-                                        <p className="text-4xl font-bold text-gray-900">{(roadmap.readiness_summary?.current_score ?? 0).toFixed(0)}%</p>
-                                        <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Overall Score</p>
+                                        <p className="text-4xl font-bold text-gray-900">{(calculateRoadmapProgress(roadmap, videoProgressMap)).toFixed(0)}%</p>
+                                        <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Completion Progress</p>
                                     </div>
                                     <div className="relative w-20 h-20">
                                         <svg className="w-full h-full transform -rotate-90">
                                             <circle cx="50%" cy="50%" r="40%" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-100" />
-                                            <circle cx="50%" cy="50%" r="40%" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray="251" strokeDashoffset={251 - (251 * (roadmap.readiness_summary?.current_score ?? 0) / 100)} strokeLinecap="round" className="text-green-500 transition-all duration-1000" />
+                                            <circle cx="50%" cy="50%" r="40%" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray="251" strokeDashoffset={251 - (251 * (calculateRoadmapProgress(roadmap, videoProgressMap)) / 100)} strokeLinecap="round" className="text-green-500 transition-all duration-1000" />
                                         </svg>
                                     </div>
                                 </div>
@@ -450,7 +475,7 @@ export default function RoadmapPage() {
                         <div className="absolute left-8 md:left-[50%] top-48 bottom-48 w-[6px] bg-gray-100 rounded-full md:-translate-x-1/2 shadow-inner" />
                         <div
                             className="absolute left-8 md:left-[50%] top-48 w-[6px] bg-gradient-to-b from-green-400 via-blue-500 to-purple-600 rounded-full md:-translate-x-1/2 transition-all duration-1000 origin-top shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-                            style={{ height: `${roadmap.readiness_summary?.current_score ?? 0}%`, transition: 'height 2s cubic-bezier(0.4, 0, 0.2, 1)' }}
+                            style={{ height: `${calculateRoadmapProgress(roadmap, videoProgressMap)}%`, transition: 'height 2s cubic-bezier(0.4, 0, 0.2, 1)' }}
                         />
                         <div className="space-y-40">
                             {[
