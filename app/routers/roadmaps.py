@@ -9,9 +9,15 @@ router = APIRouter(prefix="/api/roadmaps", tags=["Roadmaps"])
 logger = get_logger("roadmaps_router")
 
 @router.post("/generate/{user_id}")
-async def generate_user_roadmap(user_id: int, language: str = "English"):
+async def generate_user_roadmap(
+    user_id: int, 
+    stext: Optional[str] = None,
+    language: str = "English"
+):
     """
     Generate and save a personalized roadmap for the user.
+    If stext is provided, it generates a roadmap for that specific role
+    and updates the user's target_role.
     """
     services = get_services()
     roadmap_gen = services.roadmap_generator
@@ -26,14 +32,22 @@ async def generate_user_roadmap(user_id: int, language: str = "English"):
             raise HTTPException(status_code=404, detail="User not found")
         
         user_dict = dict(user_row)
-        target_role = user_dict.get('target_role') or "Software Engineer"
+        
+        # Use stext if provided, otherwise use user's target_role or default
+        if stext:
+            target_role = stext
+            # We NO LONGER update user's profile target_role automatically here
+            # to allow them to go back to their "default" profile roadmap
+            logger.info(f"⚡ Generating custom roadmap for '{target_role}' for user {user_id} (profile preserved)")
+        else:
+            target_role = user_dict.get('target_role') or "Software Engineer"
         
         # 2. Get user skills
         cursor.execute("SELECT * FROM user_skills WHERE user_id = ?", (user_id,))
         user_skills_rows = cursor.fetchall()
         user_skills = [dict(row) for row in user_skills_rows]
         
-        # 3. Get gap analysis
+        # 3. Get gap analysis (using authoritative provider)
         market_requirements = services.market_skill_provider.get_skills(target_role)
         
         # Format user skills for analyzer
@@ -58,9 +72,12 @@ async def generate_user_roadmap(user_id: int, language: str = "English"):
         
         roadmap_id = cursor.lastrowid
         
+        # Commit changes (if using manual commit, but get_db should handle it)
+        
         return {
-            "message": "Roadmap generated successfully",
+            "message": f"Roadmap for '{target_role}' generated successfully",
             "roadmap_id": roadmap_id,
+            "target_role": target_role,
             "roadmap": roadmap_data
         }
 
@@ -118,3 +135,23 @@ async def update_roadmap_progress(user_id: int, skill_name: str, status: str, pe
         """, (user_id, roadmap_id, skill_name, status, percentage))
         
         return {"message": "Progress updated successfully"}
+
+@router.get("/video")
+async def get_skill_video(skill: str, language: str = "English"):
+    """
+    Fetch the best one-shot video for a specific skill.
+    Used for on-the-fly resource filling in the frontend.
+    """
+    services = get_services()
+    yt_service = services.youtube_service
+    
+    # Normalize skill name if possible
+    from app.services.roadmap_generator import normalize_skill_name
+    search_name = normalize_skill_name(skill)
+    
+    try:
+        result = await yt_service.get_oneshot_only(search_name, language)
+        return result
+    except Exception as e:
+        logger.error(f"❌ Failed to fetch video for {skill}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -210,8 +210,9 @@ export const api = {
         return data.data || data;
     },
 
-    generateRoadmap: async (userId: string, language: string = 'English'): Promise<any> => {
-        return fetchApi(`/api/roadmaps/generate/${userId}?language=${encodeURIComponent(language)}`, {
+    generateRoadmap: async (userId: string, language: string = 'English', stext?: string): Promise<any> => {
+        const url = `/api/roadmaps/generate/${userId}?language=${encodeURIComponent(language)}${stext ? `&stext=${encodeURIComponent(stext)}` : ''}`;
+        return fetchApi(url, {
             method: 'POST',
         });
     },
@@ -292,5 +293,9 @@ export const api = {
         return fetchApi(`/api/video-progress/user/${userId}/reset`, {
             method: 'DELETE',
         });
+    },
+
+    getSkillVideo: async (skill: string, language: string = 'English'): Promise<any> => {
+        return fetchApi(`/api/roadmaps/video?skill=${encodeURIComponent(skill)}&language=${encodeURIComponent(language)}`);
     }
 };

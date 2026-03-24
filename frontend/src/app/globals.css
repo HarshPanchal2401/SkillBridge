@@ -54,46 +54,14 @@ body {
   animation: fadeIn 0.4s ease-out;
 }
 
-/* Simple Card styles */
-.card-simple {
-  @apply bg-white border border-gray-200 rounded-xl p-6 transition-all duration-200;
+/* Custom scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
-.card-hover:hover {
-  @apply border-green-200 shadow-sm;
-}
-
-/* Domain colors - subtle indicators */
-.domain-indicator {
-  @apply w-1.5 h-full absolute left-0 top-0;
-}
-
-/* Domain colors removed - using Tailwind utility classes directly */
-
-/* Progress bar */
-.progress-container {
-  @apply w-full bg-gray-100 rounded-full h-2 overflow-hidden;
-}
-
-.progress-bar {
-  @apply h-full bg-green-500 transition-all duration-500;
-}
-
-/* Skill badge - Minimalistic */
-.skill-item {
-  @apply px-3 py-1 rounded-full text-xs font-medium border transition-colors;
-}
-
-.skill-matched {
-  @apply bg-green-50 text-green-700 border-green-100;
-}
-
-.skill-missing {
-  @apply bg-gray-50 text-gray-500 border-gray-100;
-}
-
-.skill-optional {
-  @apply bg-blue-50 text-blue-700 border-blue-100;
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -117,6 +85,7 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -128,11 +97,13 @@ body {
     transform: translateX(100%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
   }
 }
+
 .animate-slide-in-right {
   animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -143,20 +114,108 @@ body {
     transform: scale(0.92);
     opacity: 0;
   }
+
   to {
     transform: scale(1);
     opacity: 1;
   }
 }
+
 .animate-scale-in {
   animation: scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Subtle pulse for CTA button */
 @keyframes pulseSoft {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
 }
+
 .animate-pulse-subtle {
   animation: pulseSoft 2s infinite;
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl;
+}
+
+.glass-card {
+  @apply bg-white/40 backdrop-blur-lg border border-white/30 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500;
+}
+
+.glass-node {
+  @apply w-12 h-12 rounded-2xl bg-white/80 backdrop-blur-xl border-2 border-white shadow-lg flex items-center justify-center transition-all duration-500;
+}
+
+/* Premium Animations */
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+@keyframes glowPulse {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 5px rgba(34, 197, 94, 0.4));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 20px rgba(34, 197, 94, 0.8));
+  }
+}
+
+.animate-glow {
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-bg {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

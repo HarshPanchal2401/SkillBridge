@@ -18,7 +18,7 @@ interface YouTubePlayerProps {
     userId: number | string;
     milestoneId: string;
     initialTime?: number;
-    onProgressUpdate?: (percent: number) => void;
+    onProgressUpdate?: (percent: number, currentTime: number) => void;
     onVideoSwitch?: (video: PlaylistVideo) => void;
     onReady?: YouTubeProps['onReady'];
     onStateChange?: YouTubeProps['onStateChange'];
@@ -54,6 +54,7 @@ export default function YouTubePlayer({
     const playerRef = useRef<any>(null);
     const lastTickTimestampRef = useRef<number>(Date.now());
     const isPlayingRef = useRef<boolean>(false);
+    const hasSeededRef = useRef<boolean>(false);
     const [accumulatedPercent, setAccumulatedPercent] = useState<number>(0);
 
     // ── Sync activeVId when prop changes ──
@@ -69,23 +70,33 @@ export default function YouTubePlayer({
 
     // ── Fetch saved position for current video ──
     useEffect(() => {
-        if (getProgress && activeVId) {
-            getProgress(activeVId).then((data: any) => {
-                const pos = data?.progress?.last_position_seconds;
-                if (pos && pos > 5) {
-                    setResumeTime(pos);
-                    // If player is already loaded, seek to saved position
-                    if (playerRef.current) {
-                        playerRef.current.seekTo(pos, true);
+        if (activeVId) {
+            hasSeededRef.current = false; // Reset seed flag for new video
+            if (getProgress) {
+                getProgress(activeVId).then((data: any) => {
+                    const pos = data?.progress?.last_position_seconds;
+                    if (pos && pos > 5) {
+                        setResumeTime(pos);
                     }
-                }
-                // Mark as watched if completed
-                if (data?.progress?.is_completed) {
-                    setWatchedVideos(prev => new Set(prev).add(activeVId));
-                }
-            }).catch(() => { });
+                }).catch(() => { });
+            }
         }
     }, [activeVId, getProgress]);
+
+    // ── AUTO-SEEK to saved position when BOTH player and resumeTime are ready ──
+    useEffect(() => {
+        if (player && resumeTime > 5 && !hasSeededRef.current) {
+            try {
+                if (typeof player.seekTo === 'function') {
+                    player.seekTo(resumeTime, true);
+                    hasSeededRef.current = true;
+                    console.log(`[YouTubePlayer] Resumed ${activeVId} at ${resumeTime}s`);
+                }
+            } catch (err) {
+                console.warn("[YouTubePlayer] seekTo failed (IFrame API mismatch?):", err);
+            }
+        }
+    }, [player, resumeTime, activeVId]);
 
     // ── Save progress function ──
     const doSaveProgress = useCallback(async (force = false) => {
@@ -127,7 +138,7 @@ export default function YouTubePlayer({
                 setAccumulatedPercent(realPercent);
 
                 if (onProgressUpdate) {
-                    onProgressUpdate(realPercent);
+                    onProgressUpdate(realPercent, time);
                 }
 
                 if (realPercent >= 90) {
@@ -142,15 +153,33 @@ export default function YouTubePlayer({
 
     // ── Auto-save every 15 seconds ──
     useEffect(() => {
+        let liveTimer: NodeJS.Timeout | null = null;
+
         if (playerRef.current) {
             syncIntervalRef.current = setInterval(() => {
                 doSaveProgress();
             }, 15000);
+
+            // Live UI updates every 1 second
+            liveTimer = setInterval(() => {
+                const p = playerRef.current;
+                if (p && isPlayingRef.current) {
+                    const time = p.getCurrentTime?.() || 0;
+                    const dur = p.getDuration?.() || 0;
+                    if (dur > 0 && onProgressUpdate) {
+                        const percent = Math.min(100, Math.round((time / dur) * 100));
+                        onProgressUpdate(percent, time);
+                    }
+                }
+            }, 1000);
         }
         return () => {
             if (syncIntervalRef.current) clearInterval(syncIntervalRef.current);
+            if (liveTimer) clearInterval(liveTimer);
+            // SAVE ON UNMOUNT (Critical for 'X' close button resumption)
+            doSaveProgress(true);
         };
-    }, [doSaveProgress]);
+    }, [doSaveProgress, onProgressUpdate]);
 
     // ── Save on tab close / navigate away ──
     useEffect(() => {
@@ -167,11 +196,6 @@ export default function YouTubePlayer({
         playerRef.current = p;
         const dur = p.getDuration();
         setDuration(dur);
-
-        // Resume from saved position
-        if (resumeTime > 5) {
-            p.seekTo(resumeTime, true);
-        }
 
         if (parentOnReady) parentOnReady(event);
     };

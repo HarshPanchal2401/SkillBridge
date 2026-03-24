@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     Sparkles, Map, Rocket, Clock, ShieldCheck, Zap,
     ChevronRight, ChevronDown, Play, CheckCircle2, Circle,
@@ -9,7 +9,8 @@ import {
     X, MonitorPlay, Bot, Languages, ListVideo,
     Eye, Timer, TrendingUp, PlayCircle, Milestone,
     Trophy, Flag, Construction, Target, Star, RefreshCw,
-    MessageCircle, ThumbsUp, Check, Layers
+    MessageCircle, ThumbsUp, Check, Layers, User,
+    ArrowUpRight, ExternalLink, Info, Filter, Search
 } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
@@ -53,35 +54,39 @@ interface SkillItem {
     difficulty: string;
     estimated_time: string;
     target_proficiency: number;
-    current_proficiency: number;
+    attained_proficiency: number;
+    demand?: number;
     playlist?: Playlist | null;
     oneshot?: Oneshot | null;
+    verification_reason?: string;
 }
 
 export default function RoadmapPage() {
-    const { user } = useAuth();
+    const { user, refreshUser } = useAuth();
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [roadmap, setRoadmap] = useState<any>(null);
-    const [activeTab, setActiveTab] = useState<'fast-track' | 'full'>('fast-track');
+    const [activeTab, setActiveTab] = useState<'full' | 'fast-track'>('full');
     const [language, setLanguage] = useState<'English' | 'Hindi'>('English');
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Video player state
     const [playerOpen, setPlayerOpen] = useState(false);
     const [activeVideo, setActiveVideo] = useState<{ id: string; title: string; skillName?: string } | null>(null);
     const [currentPlaylist, setCurrentPlaylist] = useState<Playlist | null>(null);
-
     const [tutorOverlayOpen, setTutorOverlayOpen] = useState(false);
 
     // Analytics
-    const [analytics, setAnalytics] = useState<any>(null);
     const [videoProgressMap, setVideoProgressMap] = useState<Record<string, any>>({});
+    const [activeMilestone, setActiveMilestone] = useState<string | null>(null);
+
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (user?.id) {
             fetchRoadmap();
-            fetchAnalytics();
+            fetchProgress();
         }
     }, [user]);
 
@@ -92,9 +97,25 @@ export default function RoadmapPage() {
             if (!userId) return;
             const data = await api.getLatestRoadmap(userId);
             if (data.roadmap_data) {
-                setRoadmap(data.roadmap_data);
-                if (data.roadmap_data.language) {
-                    setLanguage(data.roadmap_data.language === 'Hindi' ? 'Hindi' : 'English');
+                const rd = data.roadmap_data;
+                // Defensive synchronization: Sync oneshot resources between fast-track and full roadmap if missing
+                const resourceSyncMap: Record<string, any> = {};
+                rd.fast_track_roadmap?.forEach((item: any) => {
+                    if (item.oneshot) resourceSyncMap[item.skill.toLowerCase()] = item.oneshot;
+                });
+
+                const phases = ['beginner_milestones', 'intermediate_milestones', 'advanced_milestones'];
+                phases.forEach(p => {
+                    rd.full_roadmap?.[p]?.forEach((item: any) => {
+                        if (!item.oneshot && resourceSyncMap[item.skill.toLowerCase()]) {
+                            item.oneshot = resourceSyncMap[item.skill.toLowerCase()];
+                        }
+                    });
+                });
+
+                setRoadmap(rd);
+                if (rd.language) {
+                    setLanguage(rd.language === 'Hindi' ? 'Hindi' : 'English');
                 }
             }
         } catch (err) {
@@ -104,12 +125,53 @@ export default function RoadmapPage() {
         }
     };
 
-    const fetchAnalytics = async () => {
+    // ── AUTO-RECOVERY: Fetch missing videos on the fly ──
+    useEffect(() => {
+        if (!roadmap || generating) return;
+
+        const fetchMissingVideos = async () => {
+            const fullRoadmap = roadmap.full_roadmap || {};
+            const phases = ['beginner_milestones', 'intermediate_milestones', 'advanced_milestones'];
+            const allMilestones = phases.flatMap(p => fullRoadmap[p] || []);
+
+            // Only fetch for milestones without oneshot and not already being fetched (pseudo-local check)
+            const missing = allMilestones.filter((m: any) => !m.oneshot && !m.isFetching);
+
+            if (missing.length === 0) return;
+
+            // Mark as fetching to avoid duplicate triggers
+            missing.forEach((m: any) => m.isFetching = true);
+
+            for (const item of missing) {
+                try {
+                    const result = await api.getSkillVideo(item.skill, language);
+                    if (result?.oneshot) {
+                        setRoadmap((prev: any) => {
+                            if (!prev) return prev;
+                            const next = { ...prev };
+                            phases.forEach(p => {
+                                next.full_roadmap[p] = next.full_roadmap[p]?.map((m: any) =>
+                                    m.skill === item.skill ? { ...m, oneshot: result.oneshot } : m
+                                );
+                            });
+                            return next;
+                        });
+                    }
+                } catch (err) {
+                    console.error(`Failed to recover video for ${item.skill}`);
+                } finally {
+                    item.isFetching = false;
+                }
+            }
+        };
+
+        fetchMissingVideos();
+    }, [roadmap, language, generating]);
+
+    const fetchProgress = async () => {
         try {
             const userId = user?.id;
             if (!userId) return;
-            const data = await api.getVideoAnalytics(String(userId));
-            setAnalytics(data.analytics);
             const progressData = await api.getVideoProgress(String(userId));
             const map: Record<string, any> = {};
             for (const p of progressData.progress || []) {
@@ -119,113 +181,76 @@ export default function RoadmapPage() {
         } catch (err) { }
     };
 
-    const calculateRoadmapProgress = (currentRoadmap: any, progressMap: Record<string, any>) => {
-        const gaps = currentRoadmap.fast_track_roadmap || [];
-        if (gaps.length === 0) return 100;
-
-        let totalProgress = 0;
-        for (const item of gaps) {
-            const videoPercent = (progressMap[item.oneshot?.video_id]?.completion_percentage || 0);
-            totalProgress += videoPercent;
-        }
-        return totalProgress / gaps.length;
-    };
-
-    const calculateOverallScore = (currentRoadmap: any, progressMap: Record<string, any>) => {
-        const gaps = currentRoadmap.fast_track_roadmap || [];
-        const strengths = currentRoadmap.skill_gap_analysis?.strengths || [];
-
-        let attainedCount = 0;
-        let totalCount = gaps.length + strengths.length;
-
-        if (totalCount === 0) return 100;
-
-        // 1. Process Strengths (each counts as 1.0)
-        attainedCount += strengths.length;
-
-        // 2. Process Roadmap Gaps
-        for (const item of gaps) {
-            let videoPercent = 0;
-            if (item.oneshot) {
-                videoPercent = (progressMap[item.oneshot.video_id]?.completion_percentage || 0) / 100;
-            }
-
-            // Baseline mastery for this gap (0.0 to 1.0)
-            const demand = item.demand || 0.5;
-            const baseMastery = (item.attained_proficiency || 0) / demand;
-
-            // Effective mastery is the best of starting point or video progress
-            attainedCount += Math.min(1.0, Math.max(baseMastery, videoPercent));
-        }
-
-        return (attainedCount / totalCount) * 100;
-    };
-
-    const handleResetProgress = async () => {
-        if (!user?.id || !window.confirm("Are you sure you want to reset ALL your progress? This will clear all video history and set your readiness score back to 0%.")) return;
-
-        try {
-            await api.resetAllProgress(String(user.id));
-            await fetchAnalytics();
-        } catch (err) {
-            console.error("Reset failed", err);
-            alert("Failed to reset progress.");
-        }
-    };
-
-    const handleGenerate = async () => {
+    const handleGenerate = async (customRole?: string) => {
         setGenerating(true);
         setError(null);
         try {
-            const data = await api.generateRoadmap(String(user?.id), language);
-            setRoadmap(data.roadmap);
-            fetchAnalytics();
+            const data = await api.generateRoadmap(String(user?.id), language, customRole || searchQuery);
+            // Refresh user profile to ensure target_role is in sync if it was changed elsewhere
+            if (refreshUser) refreshUser();
+            const rd = data.roadmap;
+
+            // Defensive synchronization: Sync oneshot resources between fast-track and full roadmap if missing
+            const resourceSyncMap: Record<string, any> = {};
+            rd.fast_track_roadmap?.forEach((item: any) => {
+                if (item.oneshot) resourceSyncMap[item.skill.toLowerCase()] = item.oneshot;
+            });
+
+            const phases = ['beginner_milestones', 'intermediate_milestones', 'advanced_milestones'];
+            phases.forEach(p => {
+                rd.full_roadmap?.[p]?.forEach((item: any) => {
+                    if (!item.oneshot && resourceSyncMap[item.skill.toLowerCase()]) {
+                        item.oneshot = resourceSyncMap[item.skill.toLowerCase()];
+                    }
+                });
+            });
+
+            setRoadmap(rd);
+            setSearchQuery('');
+            fetchProgress();
         } catch (err) {
-            setError('Generation failed.');
+            setError('Could not build roadmap. Please try again.');
         } finally {
             setGenerating(false);
         }
     };
 
-    const handlePlayPlaylist = async (playlist: Playlist, skillName: string) => {
-        if (!playlist?.videos?.length) return;
-        const firstVideo = playlist.videos[0];
-        setCurrentPlaylist(playlist);
-        setActiveVideo({ id: firstVideo.video_id, title: firstVideo.title, skillName });
-        setPlayerOpen(true);
-        setTutorOverlayOpen(false);
-        if (user?.id) api.incrementPlayCount(String(user.id), firstVideo.video_id).catch(() => { });
+    const getSkillProgress = (item: any) => {
+        // ALWAYS start at 0% until the video is watched, as requested
+        let videoCompletion = 0;
+        if (item.oneshot) {
+            videoCompletion = videoProgressMap[item.oneshot.video_id]?.completion_percentage || 0;
+        }
+        return Math.min(100, videoCompletion);
     };
+
+    const calculateOverallProgress = useCallback(() => {
+        if (!roadmap) return 0;
+        const fullRoadmap = roadmap.full_roadmap || {};
+        const allMilestones = [
+            ...(fullRoadmap.beginner_milestones || []),
+            ...(fullRoadmap.intermediate_milestones || []),
+            ...(fullRoadmap.advanced_milestones || [])
+        ];
+
+        if (allMilestones.length === 0) return 0;
+
+        const totalProgress = allMilestones.reduce((acc: number, item: any) => acc + getSkillProgress(item), 0);
+        return totalProgress / allMilestones.length;
+    }, [roadmap, videoProgressMap]);
 
     const handlePlayOneshot = async (oneshot: Oneshot, skillName: string) => {
         if (!oneshot?.video_id) return;
         setCurrentPlaylist(null);
         setActiveVideo({ id: oneshot.video_id, title: oneshot.title, skillName });
         setPlayerOpen(true);
-        setTutorOverlayOpen(false);
         if (user?.id) api.incrementPlayCount(String(user.id), oneshot.video_id).catch(() => { });
     };
 
-    const handleSwitchVideo = (video: PlaylistVideo) => {
-        setActiveVideo({ id: video.video_id, title: video.title, skillName: activeVideo?.skillName });
-        if (user?.id) api.incrementPlayCount(String(user.id), video.video_id).catch(() => { });
-    };
-
-    const handleClosePlayer = () => {
-        setPlayerOpen(false);
-        setActiveVideo(null);
-        setCurrentPlaylist(null);
-        setTutorOverlayOpen(false);
-        fetchAnalytics();
-    };
-
-    // Progress API callbacks for YouTubePlayer
     const handleSaveProgress = useCallback(async (videoId: string, data: any) => {
         if (!user?.id) return;
         try {
             const res = await api.saveVideoProgress(String(user.id), videoId, data);
-
-            // Update local map for real-time UI response (unlocking/progress)
             setVideoProgressMap(prev => ({
                 ...prev,
                 [videoId]: {
@@ -236,11 +261,8 @@ export default function RoadmapPage() {
                     last_position_seconds: data.last_position_seconds,
                 }
             }));
-
             return res;
-        } catch (err) {
-            console.error("Save progress failed", err);
-        }
+        } catch (err) { }
     }, [user]);
 
     const handleGetProgress = useCallback(async (videoId: string) => {
@@ -248,382 +270,553 @@ export default function RoadmapPage() {
         return api.getSingleVideoProgress(String(user.id), videoId);
     }, [user]);
 
-    const toggleTutor = () => {
-        setTutorOverlayOpen(!tutorOverlayOpen);
-    };
-
-    const getSkillProgress = (item: any) => {
-        let videoCompletion = 0;
-        if (item.oneshot) {
-            videoCompletion = videoProgressMap[item.oneshot.video_id]?.completion_percentage || 0;
-        }
-
-        // Calculate mastery: best of starting point (attained vs demand) or video progress
-        const demand = item.demand || 0.5;
-        const baseMastery = ((item.attained_proficiency || 0) / demand) * 100;
-
-        // We assume 100% video completion bridges the remaining gap to 100% mastery of this requirement
-        return Math.min(100, Math.max(baseMastery, videoCompletion));
+    const toggleTutor = () => setTutorOverlayOpen(!tutorOverlayOpen);
+    const handleClosePlayer = () => {
+        setPlayerOpen(false);
+        setActiveVideo(null);
+        setTutorOverlayOpen(false);
+        fetchProgress();
     };
 
     if (loading) return (
-        <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-2 border-green-500 border-t-transparent"></div>
-            <p className="text-gray-400 text-sm animate-pulse">Syncing your journey...</p>
+        <div className="flex flex-col items-center justify-center h-[70vh] space-y-6">
+            <div className="relative">
+                <div className="w-16 h-16 rounded-2xl bg-green-500/10 border border-green-500/20 animate-pulse" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <RefreshCw className="text-green-500 animate-spin" size={24} />
+                </div>
+            </div>
+            <div className="text-center">
+                <h3 className="text-gray-900 font-bold">Syncing Your Career Map</h3>
+                <p className="text-gray-400 text-xs mt-1 uppercase tracking-widest font-black">Connecting to Intelligence Engine</p>
+            </div>
         </div>
     );
 
     if (!roadmap) return (
         <div className="max-w-4xl mx-auto py-12 px-6">
-            <div className="bg-white border border-gray-100 rounded-3xl p-12 text-center shadow-sm">
-                <div className="w-16 h-16 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <Map size={32} />
+            <div className="relative overflow-hidden bg-gray-900 rounded-[3rem] p-12 md:p-20 shadow-2xl">
+                {/* Background effects */}
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-green-500/10 blur-[120px] rounded-full -mr-64 -mt-64" />
+                <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-500/10 blur-[120px] rounded-full -ml-64 -mb-64" />
+
+                <div className="relative z-10 text-center">
+                    <div className="w-20 h-20 bg-green-600 text-white rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-green-900/20 animate-float">
+                        <Map size={40} />
+                    </div>
+                    <h1 className="text-4xl md:text-5xl font-black text-white mb-6 tracking-tight">Engineer Your <span className="text-green-400">Future.</span></h1>
+                    <p className="text-gray-400 mb-12 max-w-lg mx-auto text-sm md:text-base font-medium leading-relaxed">
+                        Transform your career with an AI-architected learning journey. We analyze market demands and your unique profile to build a bulletproof path to mastery.
+                    </p>
+
+                    <div className="max-w-md mx-auto space-y-6">
+                        <div className="relative group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-green-400 transition-colors" size={20} />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Target Role (e.g. AI/ML Engineer)"
+                                className="w-full h-14 bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50 transition-all font-medium"
+                                onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                            />
+                        </div>
+
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => handleGenerate()}
+                                disabled={generating}
+                                className="flex-1 h-14 bg-green-600 hover:bg-green-500 text-white rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-green-600/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {generating ? <RefreshCw size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                                {generating ? 'Architecting...' : 'Build Roadmap'}
+                            </button>
+                        </div>
+
+                        <div className="flex items-center justify-center gap-6 pt-4">
+                            <button onClick={() => setLanguage('English')} className={`text-[10px] font-black uppercase tracking-widest transition-colors ${language === 'English' ? 'text-green-400' : 'text-gray-500 hover:text-white'}`}>English</button>
+                            <span className="w-1 h-1 bg-gray-700 rounded-full"></span>
+                            <button onClick={() => setLanguage('Hindi')} className={`text-[10px] font-black uppercase tracking-widest transition-colors ${language === 'Hindi' ? 'text-green-400' : 'text-gray-500 hover:text-white'}`}>Hindi</button>
+                        </div>
+                    </div>
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">Build Your AI Roadmap</h1>
-                <p className="text-gray-500 mb-8 max-w-sm mx-auto text-sm">We'll map out a professional learning path based on your target role and skill gaps.</p>
-                <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
-                    <button onClick={() => setLanguage('English')} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${language === 'English' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}>🇬🇧 English</button>
-                    <button onClick={() => setLanguage('Hindi')} className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${language === 'Hindi' ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}>🇮🇳 Hindi</button>
-                </div>
-                <button onClick={handleGenerate} disabled={generating} className="px-8 py-3.5 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 transition-all shadow-sm flex items-center gap-2 mx-auto disabled:opacity-50">
-                    {generating ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} className="text-green-200" />}
-                    {generating ? 'Mapping Journey...' : 'Generate Roadmap'}
-                </button>
             </div>
         </div>
     );
 
+    const overallProgress = calculateOverallProgress();
+
     return (
-        <>
-            <div className="max-w-7xl mx-auto py-6 px-6 animate-fade-in space-y-8">
-                {/* Header */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
-                    <div>
-                        <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-green-50 text-green-700 rounded-lg text-[11px] font-bold uppercase tracking-wider mb-3">
-                            <Map size={12} />
-                            Personalized Journey
+        <div className="min-h-screen bg-transparent">
+            {/* STICKY DASHBOARD HEADER - top-16 to avoid profile header overlap */}
+            <div className="sticky top-16 z-40 w-full glass-panel border-b border-gray-100 px-6 py-1.5 mb-8">
+                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex items-center gap-5">
+                        <div className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center shadow-lg transform rotate-3 shrink-0">
+                            <Map size={20} />
                         </div>
-                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Skill <span className="text-green-600">Roadmap</span></h1>
-                        <p className="text-gray-500 mt-1">Strategic learning path for {roadmap.readiness_summary?.top_gap_category || "Industry Success"}.</p>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-0">
+                                <h1 className="text-sm font-black text-gray-900 tracking-tight uppercase truncate">Career <span className="text-green-600">Bridge</span></h1>
+                                <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-md text-[9px] font-black uppercase tracking-widest">Active</span>
+                            </div>
+                            <p className="text-gray-500 text-[10px] font-bold uppercase tracking-wide truncate max-w-[120px] md:max-w-[200px]">Target: {roadmap.target_role}</p>
+                        </div>
                     </div>
-                    {roadmap && (
-                        <div className="flex items-center gap-3 px-4 py-2 bg-green-50 rounded-xl border border-green-100 shadow-sm">
-                            <ShieldCheck size={18} className="text-green-600" />
-                            <div>
-                                <p className="text-[10px] font-black uppercase text-green-600 tracking-widest leading-none mb-1">Market Readiness</p>
-                                <p className="text-sm font-bold text-gray-900 leading-none">{(calculateOverallScore(roadmap, videoProgressMap)).toFixed(0)}% Match</p>
+
+                    <div className="flex items-center gap-4 md:gap-8 overflow-x-auto no-scrollbar pb-1 md:pb-0">
+                        <div className="flex items-center gap-3 shrink-0">
+                            <div className="text-right">
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Overall Path</p>
+                                <p className="text-sm font-black text-gray-900 leading-none">{Math.round(overallProgress)}% Complete</p>
+                            </div>
+                            <div className="w-10 h-10 relative flex items-center justify-center">
+                                <svg className="w-full h-full transform -rotate-90">
+                                    <circle cx="50%" cy="50%" r="40%" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-gray-100" />
+                                    <circle cx="50%" cy="50%" r="40%" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray="100.5" strokeDashoffset={100.5 - (100.5 * overallProgress / 100)} strokeLinecap="round" className="text-green-500 transition-all duration-1000" />
+                                </svg>
+                                <Target className="absolute text-green-600" size={14} />
                             </div>
                         </div>
-                    )}
-                    <div className="flex bg-gray-100 p-1 rounded-xl shadow-inner shrink-0">
-                        <button onClick={() => setActiveTab('fast-track')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'fast-track' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Target Gaps</button>
-                        <button onClick={() => setActiveTab('full')} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === 'full' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Full Path</button>
+
+                        <div className="flex bg-gray-100 p-0.5 rounded-xl shadow-inner shrink-0">
+                            <button onClick={() => setActiveTab('full')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'full' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Full Path</button>
+                            <button onClick={() => setActiveTab('fast-track')} className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'fast-track' ? 'bg-white text-green-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>Target Gaps</button>
+                        </div>
+
+                        <button
+                            onClick={() => handleGenerate()}
+                            className="p-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-all shadow-lg shadow-gray-200 shrink-0"
+                            title="Refresh Roadmap"
+                        >
+                            <RefreshCw size={18} className={generating ? 'animate-spin' : ''} />
+                        </button>
                     </div>
                 </div>
+            </div>
 
-                {activeTab === 'fast-track' ? (
-                    <div className="grid lg:grid-cols-12 gap-8">
-                        {/* ── PATH COLUMN (Left) ── */}
-                        <div className="lg:col-span-8 relative pl-12 md:pl-20 py-4">
-                            <div className="absolute left-6 md:left-10 top-0 bottom-0 w-[2px] bg-gray-200 rounded-full" />
-                            <div className="space-y-16">
-                                {roadmap.fast_track_roadmap?.map((item: SkillItem, idx: number) => {
-                                    const skillProgress = getSkillProgress(item);
-                                    const isReady = skillProgress >= 90;
+            <div className="max-w-4xl mx-auto px-6 pb-20">
+                <div className="max-w-3xl space-y-12">
+                    {/* CUSTOM GENERATION INPUT - Moved outside tabs for consistency and perfect width alignment */}
+                    <div className="text-left">
+                        <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2 uppercase">Your <span className="text-green-600">Career</span> Roadmap</h2>
+                        <p className="text-gray-500 font-medium text-xs leading-relaxed">
+                            The absolute beginner to master journey for **{roadmap.target_role}**.
+                        </p>
 
-                                    return (
-                                        <div key={idx} className="relative group">
-                                            <div className={`absolute -left-6 md:-left-10 top-2 w-10 h-10 -ml-5 rounded-full border-2 z-10 flex items-center justify-center transition-all bg-white shadow-sm ${isReady ? 'border-green-500 text-green-600' : 'border-gray-200 text-gray-400'}`}>
-                                                {isReady ? <CheckCircle2 size={18} /> : <span className="text-xs font-bold">{idx + 1}</span>}
-                                            </div>
-                                            <div className="card-simple p-6 hover:border-green-200 transition-all group-hover:shadow-md">
-                                                <div className="flex flex-col md:flex-row gap-4 mb-5 pb-5 border-b border-gray-50">
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center gap-3 mb-1">
-                                                            <h3 className="text-lg font-bold text-gray-900 group-hover:text-green-600 transition-colors uppercase tracking-tight">{item.skill}</h3>
-                                                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${item.difficulty === 'Advanced' ? 'bg-rose-50 text-rose-600' : 'bg-green-50 text-green-600'}`}>{item.difficulty}</span>
-                                                        </div>
-                                                        <p className="text-gray-500 text-xs leading-relaxed line-clamp-2 md:line-clamp-none">{item.importance}</p>
-                                                    </div>
-                                                    <div className="flex md:flex-col gap-2 shrink-0">
-                                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 rounded-lg text-[10px] font-bold text-gray-600">
-                                                            <Clock size={12} /> {item.estimated_time || "24h"}
-                                                        </div>
-                                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-50 rounded-lg text-[10px] font-bold text-green-600">
-                                                            <TrendingUp size={12} /> {Math.round(skillProgress)}%
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="space-y-2">
-                                                    {item.oneshot && item.oneshot.video_id && (
-                                                        <button
-                                                            onClick={() => handlePlayOneshot(item.oneshot!, item.skill)}
-                                                            className="w-full flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-amber-50 hover:border-amber-100 border border-transparent transition-all group/row"
-                                                        >
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-8 h-8 bg-white rounded-lg shadow-sm flex items-center justify-center text-amber-600 group-hover/row:bg-amber-500 group-hover/row:text-white transition-all"><Zap size={16} /></div>
-                                                                <div className="text-left">
-                                                                    <p className="text-xs font-bold text-gray-900 line-clamp-1">{item.oneshot.title}</p>
-                                                                    <div className="flex items-center gap-2 mt-0.5">
-                                                                        <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest">Quick One-Shot</p>
-                                                                        <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                                        <span className="flex items-center gap-1 text-[9px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded uppercase tracking-tighter">
-                                                                            <Eye size={10} /> {item.oneshot.view_count_text || "Popular"}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <Play className="text-gray-300 group-hover/row:text-amber-500" size={14} fill="currentColor" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                                <div className="relative pt-4">
-                                    <div className="absolute -left-6 md:-left-10 top-0 w-10 h-10 -ml-5 bg-green-600 text-white rounded-full shadow-lg flex items-center justify-center animate-bounce-slow"><Trophy size={18} /></div>
-                                    <div className="pl-6">
-                                        <h4 className="text-sm font-bold text-gray-900 uppercase tracking-tight">Market Readiness Target</h4>
-                                        <p className="text-xs text-gray-400">Complete the course work to unlock the certification exam.</p>
-                                    </div>
+                        <div className="mt-8 flex flex-col md:flex-row gap-3">
+                            <div className="relative flex-1 group min-w-0">
+                                <div className="absolute inset-y-0 left-4 flex items-center text-gray-400 group-focus-within:text-green-500 transition-colors">
+                                    <Search size={18} />
                                 </div>
+                                <input
+                                    type="text"
+                                    placeholder="Generate roadmap for e.g. DevOps, Data Science..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                                    className="w-full h-12 pl-12 pr-4 bg-white border border-gray-100 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all shadow-sm"
+                                />
                             </div>
+                            <button
+                                onClick={() => handleGenerate()}
+                                disabled={generating || !searchQuery.trim()}
+                                className="h-11 px-6 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-2 shadow-xl shadow-gray-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shrink-0"
+                            >
+                                {generating ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} className="text-green-400" />}
+                                GENERATE
+                            </button>
+
+                            {user?.target_role && roadmap.target_role?.toLowerCase() !== user.target_role.toLowerCase() && (
+                                <button
+                                    onClick={() => { setSearchQuery(''); handleGenerate(user.target_role); }}
+                                    disabled={generating}
+                                    className="h-11 px-5 bg-white border-2 border-green-500/10 text-green-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-50 transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 active:scale-95 animate-fade-in group shrink-0"
+                                >
+                                    <RefreshCw size={14} className={`group-hover:rotate-180 transition-transform ${generating ? 'animate-spin' : ''}`} />
+                                    RESET TO: {user.target_role}
+                                </button>
+                            )}
                         </div>
+                    </div>
 
-                        {/* ── SIDEBAR (Right) ── */}
-                        <div className="lg:col-span-4 space-y-6">
-                            <div className="card-simple space-y-6">
-                                <div className="flex items-center gap-2 text-green-600">
-                                    <Map size={18} />
-                                    <h4 className="text-[10px] font-bold uppercase tracking-widest">Roadmap Journey</h4>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-1">
-                                        <p className="text-4xl font-bold text-gray-900">{(calculateRoadmapProgress(roadmap, videoProgressMap)).toFixed(0)}%</p>
-                                        <p className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Completion Progress</p>
-                                    </div>
-                                    <div className="relative w-20 h-20">
-                                        <svg className="w-full h-full transform -rotate-90">
-                                            <circle cx="50%" cy="50%" r="40%" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-100" />
-                                            <circle cx="50%" cy="50%" r="40%" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray="251" strokeDashoffset={251 - (251 * (calculateRoadmapProgress(roadmap, videoProgressMap)) / 100)} strokeLinecap="round" className="text-green-500 transition-all duration-1000" />
-                                        </svg>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button onClick={handleGenerate} disabled={generating} className="py-3 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all flex items-center justify-center gap-2">
-                                        {generating ? <RefreshCw size={14} className="animate-spin" /> : <RefreshCw size={14} />} Refresh
-                                    </button>
-                                    <button onClick={handleResetProgress} className="py-3 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all flex items-center justify-center gap-2">
-                                        <X size={14} /> Reset All
-                                    </button>
-                                </div>
-                            </div>
+                    {activeTab === 'full' ? (
+                        <div className="relative">
+                            {/* VERTICAL PATHWAY RAIL */}
+                            <div className="absolute left-6 top-0 bottom-0 w-1 ml-[-2px] border-l-2 border-dashed border-gray-200 z-0" />
 
-                            {analytics && (
-                                <div className="card-simple">
-                                    <div className="flex items-center gap-2 text-blue-600 mb-6 font-black uppercase tracking-widest text-[10px]"><BarChart size={16} /> Learning Metrics</div>
-                                    <div className="grid grid-cols-2 gap-3 mb-6">
-                                        <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                            <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Time</p>
-                                            <p className="text-sm font-bold text-gray-900">{analytics.total_watch_time_text || '0m'}</p>
+                            <div className="space-y-16">
+                                {[
+                                    { name: 'Beginner', milestones: roadmap.full_roadmap?.beginner_milestones || [], color: 'blue', icon: <Map size={18} /> },
+                                    { name: 'Intermediate', milestones: roadmap.full_roadmap?.intermediate_milestones || [], color: 'green', icon: <Rocket size={18} /> },
+                                    { name: 'Advanced', milestones: roadmap.full_roadmap?.advanced_milestones || [], color: 'amber', icon: <Award size={18} /> }
+                                ].filter(p => p.milestones.length > 0).map((phase, pIdx) => (
+                                    <div key={pIdx} className="relative z-10 animate-fade-in">
+                                        {/* PHASE DIVIDER */}
+                                        <div className="flex items-center gap-4 mb-8">
+                                            <div className={`w-10 h-10 rounded-xl bg-white border-2 border-${phase.color}-100 flex items-center justify-center text-${phase.color}-600 shadow-sm relative z-20`}>
+                                                {phase.icon}
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <h3 className={`text-sm font-black text-gray-900 tracking-widest uppercase`}>{phase.name} <span className={`text-${phase.color}-600`}>Phase</span></h3>
+                                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{phase.milestones.length} Strategic Milestones</p>
+                                            </div>
+                                            <div className="flex-1 h-[1px] bg-gradient-to-r from-gray-100 to-transparent" />
                                         </div>
-                                        <div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                            <p className="text-[10px] text-gray-400 font-bold uppercase mb-1">Items</p>
-                                            <p className="text-sm font-bold text-gray-900">{analytics.total_completed || 0}</p>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-4">
-                                        <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Skill Progress</p>
-                                        <div className="space-y-3">
-                                            {roadmap.fast_track_roadmap?.slice(0, 5).map((item: SkillItem, i: number) => {
+
+                                        <div className="grid gap-6 ml-1.5 border-l-2 border-transparent">
+                                            {phase.milestones.map((item: any, idx: number) => {
                                                 const progress = getSkillProgress(item);
+                                                const isGap = roadmap.fast_track_roadmap?.some((g: any) => g.skill.toLowerCase() === item.skill.toLowerCase());
+                                                const isLive = playerOpen && activeVideo?.skillName === item.skill;
+                                                const displayOneshot = item.oneshot || roadmap.fast_track_roadmap?.find((g: any) => g.skill.toLowerCase() === item.skill.toLowerCase())?.oneshot;
+
+                                                // Calculate global index for accurate numbering
+                                                const prevPhasesLength = [
+                                                    roadmap.full_roadmap?.beginner_milestones || [],
+                                                    roadmap.full_roadmap?.intermediate_milestones || [],
+                                                    roadmap.full_roadmap?.advanced_milestones || []
+                                                ].slice(0, pIdx).reduce((acc, curr) => acc + curr.length, 0);
+                                                const globalIdx = prevPhasesLength + idx + 1;
+
                                                 return (
-                                                    <div key={i} className="space-y-1.5">
-                                                        <div className="flex justify-between text-[10px] font-bold uppercase">
-                                                            <span className="text-gray-700 truncate">{item.skill}</span>
-                                                            <span className="text-green-600">{Math.round(progress)}%</span>
-                                                        </div>
-                                                        <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+                                                    <div key={idx} className={`glass-card p-6 flex flex-col md:flex-row items-start gap-6 group transition-all min-h-[160px] relative overflow-hidden ${isLive ? 'border-cyan-500/50 shadow-[0_0_40px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/30' : 'hover:border-gray-200 shadow-sm hover:shadow-md'}`}>
+                                                        {/* LIVE BACKGROUND PULSE */}
+                                                        {isLive && (
+                                                            <div className="absolute inset-0 bg-cyan-500/5 animate-pulse pointer-events-none" />
+                                                        )}
+
+                                                        <div className="relative shrink-0 flex flex-col items-center">
+                                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-xl shrink-0 shadow-xl transition-all relative z-20 ${isLive ? 'bg-cyan-600 text-white scale-110' : 'bg-gray-900 text-white group-hover:scale-110'}`}>
+                                                                {globalIdx}
+                                                            </div>
+
+                                                            {/* COMPLETION FILL RAIL - Bridges to next milestone/divider */}
                                                             <div
-                                                                className="h-full bg-green-500 transition-all duration-500"
-                                                                style={{ width: `${progress}%` }}
+                                                                className={`absolute top-12 -bottom-6 w-1 ml-[-2px] z-10 transition-all duration-1000 origin-top ${progress === 100 ? 'scale-y-100 opacity-100' : 'scale-y-0 opacity-0'}`}
+                                                                style={{
+                                                                    background: phase.color === 'blue' ? 'linear-gradient(to bottom, #2563eb, #60a5fa)' :
+                                                                        phase.color === 'green' ? 'linear-gradient(to bottom, #059669, #34d399)' :
+                                                                            'linear-gradient(to bottom, #d97706, #fbbf24)',
+                                                                    boxShadow: progress === 100 ? `0 0 15px ${phase.color === 'blue' ? 'rgba(37,99,235,0.4)' : phase.color === 'green' ? 'rgba(5,150,105,0.4)' : 'rgba(217,119,6,0.4)'}` : 'none'
+                                                                }}
                                                             />
+                                                        </div>
+
+                                                        <div className="flex-1 relative z-10 min-w-0">
+                                                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                                <h4 className="text-xl font-black text-gray-900 tracking-tight lowercase">{item.skill}</h4>
+                                                                {isLive && (
+                                                                    <span className="flex items-center gap-1.5 px-2 py-0.5 bg-cyan-50 text-cyan-600 rounded text-[9px] font-black uppercase tracking-widest border border-cyan-100 animate-fade-in shadow-sm">
+                                                                        <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-ping" />
+                                                                        Live
+                                                                    </span>
+                                                                )}
+                                                                {isGap ? (
+                                                                    <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 rounded text-[8px] font-black uppercase tracking-widest border border-rose-100">Critical Gap</span>
+                                                                ) : (
+                                                                    <span className="px-1.5 py-0.5 bg-green-50 text-green-600 rounded text-[8px] font-black uppercase tracking-widest border border-green-100 italic font-medium">Foundational</span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-gray-500 text-xs font-medium leading-relaxed max-w-xl line-clamp-2 group-hover:line-clamp-none transition-all">{item.importance}</p>
+
+                                                            {item.verification_reason && (
+                                                                <div className="mt-2 flex items-start gap-2 text-[9px] text-green-600 font-bold bg-green-50/50 px-2 py-1 rounded-md border border-green-100/50">
+                                                                    <ShieldCheck size={10} className="shrink-0 mt-0.5" />
+                                                                    <p className="leading-tight italic">AI Verified: {item.verification_reason}</p>
+                                                                </div>
+                                                            )}
+
+                                                            {displayOneshot ? (
+                                                                <div className="mt-4 p-3 bg-gray-50 rounded-xl flex items-center gap-3 border border-gray-100/50 hover:bg-gray-100/50 transition-colors">
+                                                                    <div className="w-7 h-7 bg-red-500 rounded-full flex items-center justify-center text-white shadow-sm shrink-0">
+                                                                        <Play size={10} fill="currentColor" className="ml-0.5" />
+                                                                    </div>
+                                                                    <p className="text-[10px] font-bold text-gray-700 truncate flex-1 leading-relaxed">
+                                                                        <span className="text-red-600 font-extrabold mr-2">TOP PREP:</span>
+                                                                        {displayOneshot.title}
+                                                                    </p>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="mt-4 p-3 bg-gray-50 rounded-xl flex items-center gap-3 border border-gray-100/50 opacity-50">
+                                                                    <div className="w-7 h-7 bg-gray-400 rounded-full flex items-center justify-center text-white shrink-0">
+                                                                        <Play size={10} fill="currentColor" className="ml-0.5" />
+                                                                    </div>
+                                                                    <p className="text-[10px] font-bold text-gray-400 truncate flex-1">
+                                                                        <span className="font-extrabold mr-2 uppercase">PREP:</span>
+                                                                        Fetching masterclass resources...
+                                                                    </p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="w-full md:w-56 shrink-0 space-y-4 md:mt-1.5">
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Status</span>
+                                                                <span className="text-sm font-black text-gray-900">{Math.round(progress)}%</span>
+                                                            </div>
+                                                            <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                                <div className={`h-full transition-all duration-1000 ${isLive ? 'bg-cyan-500 relative after:absolute after:inset-0 after:bg-white/30 after:animate-pulse' : 'bg-gray-900'}`} style={{ width: `${progress}%` }} />
+                                                            </div>
+
+                                                            {displayOneshot ? (
+                                                                <button
+                                                                    onClick={() => handlePlayOneshot(displayOneshot!, item.skill)}
+                                                                    className={`w-full h-11 rounded-xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest transition-all group/play shadow-xl active:scale-95 ${isLive ? 'bg-cyan-600 text-white hover:bg-cyan-500 ring-2 ring-cyan-500/20' : 'bg-gray-900 text-white hover:bg-black'}`}
+                                                                >
+                                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isLive ? 'border-white/50 animate-pulse' : 'border-green-400/50'}`}>
+                                                                        <Play size={10} fill="currentColor" className={`${isLive ? 'text-white' : 'text-green-400'} ml-0.5`} />
+                                                                    </div>
+                                                                    {isLive ? 'PLAYING LIVE' : 'START'}
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    disabled
+                                                                    className="w-full h-11 bg-gray-100 text-gray-400 rounded-xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest cursor-not-allowed border border-gray-200"
+                                                                >
+                                                                    <Clock size={14} className="opacity-40" />
+                                                                    FETCHING
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 );
                                             })}
                                         </div>
                                     </div>
+                                ))}
+                            </div>
+
+                            {/* TARGET ACHIEVEMENT */}
+                            <div className="relative pt-10">
+                                <div className="absolute -left-5 top-10 w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center text-yellow-500 shadow-xl ring-4 ring-white transform hover:scale-110 transition-all">
+                                    <Trophy size={16} />
                                 </div>
-                            )}
+                                <div className="pt-12 pb-8 px-8">
+                                    <h3 className="text-xl font-black text-gray-900 tracking-tight uppercase">Goal Reached</h3>
+                                    <p className="text-gray-400 text-[9px] font-black uppercase tracking-[0.1em] mt-1">Ready for industry benchmark roles</p>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                ) : (
-                    <div className="relative max-w-5xl mx-auto py-12 px-6">
-                        {/* ROLE HEADER */}
-                        <div className="text-center mb-20 animate-fade-in font-sans">
-                            <h2 className="text-sm font-black text-green-600 uppercase tracking-[0.4em] mb-4">Complete Career Journey</h2>
-                            <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight">The {roadmap?.target_role || 'Career'} Bridge</h1>
-                            <p className="mt-4 text-gray-500 font-medium max-w-2xl mx-auto italic">
-                                From foundational basics to industry-leading expertise. Follow the map to achieve market readiness.
-                            </p>
-                        </div>
+                    ) : (
+                        <div className="relative">
+                            {/* VERTICAL PATHWAY RAIL */}
+                            <div className="absolute left-6 top-0 bottom-0 w-1 ml-[-2px] border-l-2 border-dashed border-gray-200 z-0" />
 
-                        {/* THE PREMIUM BRIDGE LINE */}
-                        <div className="absolute left-8 md:left-[50%] top-48 bottom-48 w-[6px] bg-gray-100 rounded-full md:-translate-x-1/2 shadow-inner" />
-                        <div
-                            className="absolute left-8 md:left-[50%] top-48 w-[6px] bg-gradient-to-b from-green-400 via-blue-500 to-purple-600 rounded-full md:-translate-x-1/2 transition-all duration-1000 origin-top shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-                            style={{ height: `${calculateRoadmapProgress(roadmap, videoProgressMap)}%`, transition: 'height 2s cubic-bezier(0.4, 0, 0.2, 1)' }}
-                        />
-                        <div className="space-y-40">
-                            {[
-                                { key: 'beginner_milestones', label: 'THE FOUNDATIONAL PHASE', desc: 'Core principles and syntax essential for every professional.', color: 'green', icon: <Sparkles size={24} /> },
-                                { key: 'intermediate_milestones', label: 'THE PROFESSIONAL CORE', desc: 'Real-world application, logic systems, and architectural standards.', color: 'blue', icon: <Layers size={24} /> },
-                                { key: 'advanced_milestones', label: 'INDUSTRY EXCELLENCE', desc: 'Enterprise scaling, optimization, and advanced leadership patterns.', color: 'purple', icon: <Zap size={24} /> }
-                            ].map((phase, pIdx) => (
-                                <div key={phase.key} className="relative z-10">
-                                    {/* PHASE LANDMARK */}
-                                    <div className="flex flex-col items-center mb-20 md:mb-32">
-                                        <div className={`w-16 h-16 rounded-3xl ${phase.color === 'green' ? 'bg-green-600' : phase.color === 'blue' ? 'bg-blue-600' : 'bg-purple-600'} text-white flex items-center justify-center shadow-2xl transform rotate-12 mb-6 ring-8 ring-white`}>
-                                            <div className="transform -rotate-12">{phase.icon}</div>
-                                        </div>
-                                        <h3 className={`text-xs font-black uppercase tracking-[0.4em] ${phase.color === 'green' ? 'text-green-600' : phase.color === 'blue' ? 'text-blue-600' : 'text-purple-600'}`}>{phase.label}</h3>
-                                        <p className="text-xs text-center text-gray-400 mt-2 max-w-sm font-bold uppercase tracking-tighter">{phase.desc}</p>
-                                    </div>
-                                    <div className="space-y-16 md:space-y-24">
-                                        {roadmap.full_roadmap?.[phase.key]?.map((milestone: any, mIdx: number) => {
-                                            const progress = getSkillProgress(milestone);
-                                            const isDone = progress >= 90;
-                                            const isLeft = mIdx % 2 === 0;
+                            <div className="animate-fade-in space-y-8 relative z-10">
+                                <div className="grid gap-6">
+                                    {(() => {
+                                        const filteredGaps = roadmap.fast_track_roadmap?.filter((item: SkillItem) => {
+                                            const progress = getSkillProgress(item);
+                                            return progress < 100 && progress <= 25;
+                                        }) || [];
 
+                                        if (filteredGaps.length === 0) {
                                             return (
-                                                <div key={mIdx} className={`relative flex items-center w-full ${isLeft ? 'md:flex-row-reverse' : 'md:flex-row'}`}>
-                                                    {/* NODE MARKER */}
-                                                    <div className={`absolute left-8 md:left-[50%] top-1/2 -translate-y-1/2 w-8 h-8 rounded-2xl border-4 md:-translate-x-1/2 z-30 transition-all duration-700 transform ${isLeft ? 'rotate-45' : '-rotate-12'} ${isDone ? 'bg-white border-green-500 shadow-[0_0_25px_rgba(34,197,94,0.4)]' : 'bg-white border-gray-100 shadow-sm'}`}>
-                                                        <div className="w-full h-full flex items-center justify-center">
-                                                            {isDone ? <Check size={14} className="text-green-600" /> : <ChevronRight size={14} className="text-gray-300" />}
-                                                        </div>
+                                                <div className="glass-card p-12 flex flex-col items-center text-center gap-6 animate-fade-in border-green-100 bg-green-50/20">
+                                                    <div className="w-20 h-20 bg-green-500 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-green-200">
+                                                        <Trophy size={32} />
                                                     </div>
-
-                                                    {/* CONTENT CARD */}
-                                                    <div className={`flex-1 ${isLeft ? 'pl-20 md:pl-0 md:pr-24' : 'pl-20 md:pl-24'}`}>
-                                                        <div className={`group relative p-8 rounded-[2.5rem] border transition-all duration-500 overflow-hidden font-sans ${isDone ? 'bg-green-50/10 border-green-100' : 'bg-white/70 backdrop-blur-xl border-gray-50 hover:border-gray-200 hover:shadow-2xl hover:-translate-y-2'}`}>
-                                                            {/* Background Glow */}
-                                                            <div className={`absolute top-0 right-0 w-48 h-48 blur-[80px] opacity-20 -mr-24 -mt-24 transition-all group-hover:opacity-40 ${phase.color === 'green' ? 'bg-green-400' : phase.color === 'blue' ? 'bg-blue-400' : 'bg-purple-400'}`} />
-
-                                                            <div className="relative z-10">
-                                                                <div className="flex items-center gap-4 mb-4">
-                                                                    <div className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg ${isDone ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>0{pIdx + 1}.0{mIdx + 1}</div>
-                                                                    <h4 className={`text-xl font-black tracking-tight transition-colors ${isDone ? 'text-green-800' : 'text-gray-900 group-hover:text-blue-600'}`}>{milestone.skill}</h4>
-                                                                </div>
-
-                                                                <p className="text-[13px] text-gray-500 leading-relaxed font-medium mb-8 pr-6">
-                                                                    {milestone.importance || milestone.outcome || "Critical competency required for high-level industry performance."}
-                                                                </p>
-
-                                                                {/* PREMIUM PROGRESS BAR */}
-                                                                <div className="flex flex-col gap-3">
-                                                                    <div className="flex justify-between items-end">
-                                                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Mastery Level</span>
-                                                                        <span className={`text-sm font-black tracking-tighter ${isDone ? 'text-green-600' : 'text-gray-900'}`}>{Math.round(progress)}%</span>
-                                                                    </div>
-                                                                    <div className="h-2.5 w-full bg-gray-100/50 rounded-full overflow-hidden p-0.5 border border-gray-50">
-                                                                        <div
-                                                                            className={`h-full rounded-full transition-all duration-1000 ${isDone ? 'bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'bg-gray-900'}`}
-                                                                            style={{ width: `${progress}%` }}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                                    <div className="max-w-md">
+                                                        <h3 className="text-2xl font-black text-gray-900 tracking-tight uppercase leading-none mb-3">All Gaps <span className="text-green-600">Addressed</span></h3>
+                                                        <p className="text-gray-500 text-sm font-medium leading-relaxed">
+                                                            You've successfully moved all critical gaps into your active career journey. Keep building your momentum!
+                                                        </p>
                                                     </div>
-
-                                                    {/* SPACER FOR MD LAYOUT */}
-                                                    <div className="hidden md:block flex-1" />
+                                                    <button
+                                                        onClick={() => setActiveTab('full')}
+                                                        className="h-12 px-8 bg-gray-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-gray-200 active:scale-95"
+                                                    >
+                                                        View Full Career Path
+                                                        <ArrowRight size={14} />
+                                                    </button>
                                                 </div>
                                             );
-                                        })}
+                                        }
+
+                                        return filteredGaps.map((item: SkillItem, idx: number) => {
+                                            const progress = getSkillProgress(item);
+                                            const isLive = playerOpen && activeVideo?.skillName === item.skill;
+                                            return (
+                                                <div key={idx} className={`glass-card p-6 flex flex-col md:flex-row items-start gap-6 group transition-all min-h-[160px] relative overflow-hidden ${isLive ? 'border-cyan-500/50 shadow-[0_0_40px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/30' : 'hover:border-gray-200 shadow-sm hover:shadow-md'}`}>
+                                                    {/* LIVE BACKGROUND PULSE */}
+                                                    {isLive && (
+                                                        <div className="absolute inset-0 bg-cyan-500/5 animate-pulse pointer-events-none" />
+                                                    )}
+
+                                                    <div className="relative shrink-0 flex flex-col items-center">
+                                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center font-black text-xl shrink-0 shadow-xl transition-all relative z-20 ${isLive ? 'bg-cyan-600 text-white scale-110' : 'bg-gray-900 text-white group-hover:scale-110'}`}>
+                                                            {idx + 1}
+                                                        </div>
+
+                                                        {/* COMPLETION FILL RAIL */}
+                                                        <div
+                                                            className={`absolute top-12 -bottom-6 w-1 ml-[-2px] z-10 transition-all duration-1000 origin-top ${progress === 100 ? 'scale-y-100 opacity-100' : 'scale-y-0 opacity-0'}`}
+                                                            style={{
+                                                                background: 'linear-gradient(to bottom, #2563eb, #60a5fa)',
+                                                                boxShadow: progress === 100 ? '0 0 15px rgba(37,99,235,0.4)' : 'none'
+                                                            }}
+                                                        />
+                                                    </div>
+
+                                                    <div className="flex-1 relative z-10 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                            <h4 className="text-xl font-black text-gray-900 tracking-tight lowercase">{item.skill}</h4>
+                                                            {isLive && (
+                                                                <span className="flex items-center gap-1.5 px-2 py-0.5 bg-cyan-50 text-cyan-600 rounded text-[9px] font-black uppercase tracking-widest border border-cyan-100 animate-fade-in shadow-sm">
+                                                                    <span className="w-1.5 h-1.5 bg-cyan-500 rounded-full animate-ping" />
+                                                                    Live
+                                                                </span>
+                                                            )}
+                                                            <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 rounded text-[8px] font-black uppercase tracking-widest border border-rose-100">Critical Gap</span>
+                                                        </div>
+                                                        <p className="text-gray-500 text-xs font-medium leading-relaxed max-w-xl line-clamp-2 group-hover:line-clamp-none transition-all">{item.importance}</p>
+
+                                                        {item.verification_reason && (
+                                                            <div className="mt-2 flex items-start gap-2 text-[9px] text-green-600 font-bold bg-green-50/50 px-2 py-1 rounded-md border border-green-100/50">
+                                                                <ShieldCheck size={10} className="shrink-0 mt-0.5" />
+                                                                <p className="leading-tight italic">AI Verified: {item.verification_reason}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {item.oneshot && (
+                                                            <div className="mt-4 p-3 bg-gray-50 rounded-xl flex items-center gap-3 border border-gray-100/50 hover:bg-gray-100/50 transition-colors">
+                                                                <div className="w-7 h-7 bg-red-500 rounded-full flex items-center justify-center text-white shadow-sm shrink-0">
+                                                                    <Play size={10} fill="currentColor" className="ml-0.5" />
+                                                                </div>
+                                                                <p className="text-[10px] font-bold text-gray-700 truncate flex-1">
+                                                                    <span className="text-red-600 font-extrabold mr-2">TOP PREP:</span>
+                                                                    {item.oneshot.title}
+                                                                </p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="w-full md:w-56 shrink-0 space-y-4 md:mt-1.5">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">Status</span>
+                                                            <span className="text-sm font-black text-gray-900">{Math.round(progress)}%</span>
+                                                        </div>
+                                                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                            <div className={`h-full transition-all duration-1000 ${isLive ? 'bg-cyan-500 relative after:absolute after:inset-0 after:bg-white/30 after:animate-pulse' : 'bg-gray-900'}`} style={{ width: `${progress}%` }} />
+                                                        </div>
+
+                                                        {item.oneshot && (
+                                                            <button
+                                                                onClick={() => handlePlayOneshot(item.oneshot!, item.skill)}
+                                                                className={`w-full h-11 rounded-xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest transition-all group/play shadow-xl active:scale-95 ${isLive ? 'bg-cyan-600 text-white hover:bg-cyan-500 ring-2 ring-cyan-500/20' : 'bg-gray-900 text-white hover:bg-black'}`}
+                                                            >
+                                                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isLive ? 'border-white/50 animate-pulse' : 'border-green-400/50'}`}>
+                                                                    <Play size={10} fill="currentColor" className={`${isLive ? 'text-white' : 'text-green-400'} ml-0.5`} />
+                                                                </div>
+                                                                {isLive ? 'PLAYING LIVE' : 'START'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        });
+                                    })()}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ====== FLOATING PIP PLAYER ====== */}
+                    {/* ====== FULL-SCREEN THEATER OVERLAY ====== */}
+                    {playerOpen && activeVideo && (
+                        <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-3xl animate-fade-in flex flex-col font-sans overflow-hidden">
+                            {/* Theater Header */}
+                            <div className="h-24 bg-black/60 border-b border-white/10 flex items-center justify-between px-10 backdrop-blur-xl shrink-0 gap-12">
+                                <div className="flex-1 min-w-0 max-w-[30%]">
+                                    <div className="flex items-center gap-3 mb-1.5">
+                                        <div className="px-2 py-0.5 bg-green-500 text-white text-[8px] font-black uppercase tracking-widest rounded shadow-[0_0_15px_rgba(34,197,94,0.3)]">Masterclass</div>
+                                        <h3 className="text-white font-black text-sm tracking-tight truncate lowercase">{activeVideo.skillName}</h3>
+                                    </div>
+                                    <p className="text-white/40 text-[10px] font-bold tracking-wide truncate">{activeVideo.title}</p>
+                                </div>
+
+                                {/* Central Progress Bar */}
+                                <div className="flex-1 flex flex-col items-center max-w-[40%]">
+                                    <div className="flex items-center justify-between w-full mb-2 px-1">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Lesson Progress</span>
+                                        <span className="text-[10px] font-black text-green-400 tabular-nums">
+                                            {videoProgressMap[activeVideo.id]?.completion_percentage || 0}%
+                                        </span>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden relative border border-white/5">
+                                        <div
+                                            className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-600 to-green-400 transition-all duration-1000 ease-out rounded-full shadow-[0_0_10px_rgba(34,197,94,0.4)]"
+                                            style={{ width: `${videoProgressMap[activeVideo.id]?.completion_percentage || 0}%` }}
+                                        />
                                     </div>
                                 </div>
-                            ))}
-                            {/* GOAL: THE TROPHY */}
-                            <div className="relative z-10 flex flex-col items-center pt-20">
-                                <div className="absolute top-0 w-[4px] h-20 bg-gradient-to-b from-purple-200 to-transparent" />
-                                <div className="group relative mt-20">
-                                    <div className="absolute inset-0 bg-yellow-400 blur-3xl opacity-20 group-hover:opacity-40 transition-opacity animate-pulse" />
-                                    <div className="relative w-32 h-32 rounded-[3rem] bg-gray-900 border-4 border-white shadow-2xl flex items-center justify-center text-yellow-500 transform transition-transform group-hover:scale-110 duration-700 cursor-default">
-                                        <Trophy size={64} />
+
+                                <div className="flex items-center gap-4 shrink-0">
+                                    <button
+                                        onClick={toggleTutor}
+                                        className={`h-12 px-5 flex items-center gap-3 rounded-2xl transition-all border group active:scale-95 ${tutorOverlayOpen ? 'bg-green-600 border-green-500 text-white shadow-lg shadow-green-600/20' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'}`}
+                                    >
+                                        <div className={`w-7 h-7 rounded-xl flex items-center justify-center ${tutorOverlayOpen ? 'bg-white/20' : 'bg-green-600 text-white shadow-lg shadow-green-600/20'}`}>
+                                            <Bot size={16} />
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Ask AI Tutor</span>
+                                    </button>
+
+                                    <button
+                                        onClick={handleClosePlayer}
+                                        className="h-12 px-5 flex items-center gap-3 bg-red-600/10 hover:bg-red-600/20 rounded-2xl text-red-500 transition-all border border-red-500/20 group active:scale-95"
+                                    >
+                                        <div className="w-7 h-7 rounded-xl bg-red-500 text-white flex items-center justify-center">
+                                            <X size={16} />
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Close Theater</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 flex overflow-hidden relative">
+                                {/* Cinema Area (Video Takes 100%) */}
+                                <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
+                                    <div className="w-full h-full">
+                                        <YouTubePlayer
+                                            videoId={activeVideo.id}
+                                            userId={user?.id || ''}
+                                            milestoneId={activeVideo.skillName || ''}
+                                            saveProgress={handleSaveProgress}
+                                            getProgress={handleGetProgress}
+                                            onProgressUpdate={(percent, currentTime) => {
+                                                setVideoProgressMap(prev => ({
+                                                    ...prev,
+                                                    [activeVideo.id]: {
+                                                        ...prev[activeVideo.id],
+                                                        video_id: activeVideo.id,
+                                                        completion_percentage: percent,
+                                                        last_position_seconds: currentTime
+                                                    }
+                                                }));
+                                            }}
+                                        />
                                     </div>
                                 </div>
-                                <div className="mt-12 text-center animate-bounce-slow font-sans">
-                                    <h3 className="text-4xl font-black text-gray-900 uppercase tracking-[0.25em]">{roadmap?.target_role || 'Job'} READY</h3>
-                                    <p className="mt-4 text-[10px] text-gray-400 font-bold uppercase tracking-[0.3em]">Industry Preparedness Reached</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
 
-            </div>
-
-            {/* ====== IMMERSIVE PLAYER MODAL (Outside animated div to ensure true fixed positioning) ====== */}
-            {playerOpen && activeVideo && (
-                <div className="fixed inset-0 z-[100] bg-black flex flex-col overflow-hidden animate-fade-in font-sans">
-
-                    {/* Dedicated Top Header (Solid background to prevent overlap) */}
-                    <div className="flex-none h-16 bg-gray-900 border-b border-white/10 z-50 flex items-center justify-between px-6">
-                        <div className="flex items-center gap-4">
-                            <button onClick={handleClosePlayer} className="p-2 bg-white/5 hover:bg-white/10 rounded-xl text-white transition-all border border-white/5"><X size={20} /></button>
-                            <div className="hidden md:block">
-                                <h3 className="text-white font-bold text-sm tracking-tight">{activeVideo.skillName}</h3>
-                                <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest truncate max-w-md">{activeVideo.title}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={toggleTutor}
-                                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 ${tutorOverlayOpen ? 'bg-green-600 text-white shadow-[0_0_20px_rgba(22,163,74,0.4)]' : 'bg-green-600/10 text-green-400 border border-green-500/30 hover:bg-green-600 hover:text-white'}`}
-                            >
-                                <Bot size={18} /> {tutorOverlayOpen ? 'Dismiss Tutor' : 'Ask AI Tutor'}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* MAIN CONTENT AREA */}
-                    <div className="flex-1 flex flex-row overflow-hidden relative">
-                        {/* MAIN STAGE (Blurred when Tutor is open) */}
-                        <div className={`flex-1 relative bg-black transition-all duration-700`}>
-                            <div className={`absolute inset-0 z-10 transition-all duration-500 pointer-events-none ${tutorOverlayOpen ? 'backdrop-blur-[12px] bg-black/40' : 'backdrop-blur-none bg-black/0'}`} />
-                            <div className={`w-full h-full transition-all duration-500 ${tutorOverlayOpen ? 'scale-95 opacity-80' : 'scale-100 opacity-100'}`}>
-                                <YouTubePlayer
-                                    videoId={activeVideo.id}
-                                    userId={user?.id || ''}
-                                    milestoneId={activeVideo.skillName || ''}
-                                    saveProgress={handleSaveProgress}
-                                    getProgress={handleGetProgress}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Unified Player already handles the sidebar if videos are provided */}
-
-                        {/* TUTOR MODAL OVERLAY */}
-                        {tutorOverlayOpen && (
-                            <div className="absolute inset-0 z-50 flex items-center justify-center p-4 md:p-8 animate-scale-in">
-                                <div className="w-full max-w-4xl h-[90%] bg-white rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-gray-100 ring-4 ring-black/5">
-                                    <div className="p-6 border-b border-gray-50 flex items-center justify-between bg-green-50/30">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 bg-green-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-green-200"><Bot size={24} /></div>
+                                {/* Slide-out AI Tutor Panel (Overlaps slightly, absolute) */}
+                                <div className={`absolute top-0 right-0 bottom-0 w-[450px] bg-white shadow-[-20px_0_50px_rgba(0,0,0,0.5)] flex flex-col transition-transform duration-500 ease-in-out z-[210] ${tutorOverlayOpen ? 'translate-x-0' : 'translate-x-[110%]'}`}>
+                                    <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-green-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-green-200">
+                                                <Bot size={20} />
+                                            </div>
                                             <div>
-                                                <h4 className="text-lg font-bold text-gray-900 tracking-tight">AI Skills Tutor</h4>
-                                                <p className="text-xs text-green-600 font-bold uppercase tracking-widest">{activeVideo.skillName} • Analysis Mode</p>
+                                                <h4 className="text-sm font-black text-gray-900 leading-none lowercase">milestone tutor</h4>
+                                                <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">Solving your gaps in real-time</p>
                                             </div>
                                         </div>
-                                        <button onClick={toggleTutor} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors shadow-sm"><X size={20} /></button>
+                                        <button onClick={toggleTutor} className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-black transition-colors">
+                                            <X size={16} />
+                                        </button>
                                     </div>
-                                    <div className="flex-1 overflow-hidden relative">
+                                    <div className="flex-1 overflow-hidden">
                                         <TutorChat
                                             isOpen={true}
                                             onClose={toggleTutor}
@@ -632,16 +825,12 @@ export default function RoadmapPage() {
                                             language={language}
                                         />
                                     </div>
-                                    <div className="px-6 py-3 bg-gray-50 flex items-center justify-between">
-                                        <div className="flex items-center gap-2"><Sparkles className="text-amber-500" size={14} /><span className="text-[10px] text-gray-400 font-bold uppercase">Enhanced by Groq LLM & RAG</span></div>
-                                        <p className="text-[10px] text-gray-400 font-bold">Ask about any timestamp or concept in the video.</p>
-                                    </div>
                                 </div>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
-            )}
-        </>
+            </div>
+        </div>
     );
 }
