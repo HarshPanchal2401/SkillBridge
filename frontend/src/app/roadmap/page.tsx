@@ -723,62 +723,66 @@ export default function RoadmapPage() {
                     )}
 
                     {/* ====== FLOATING PIP PLAYER ====== */}
-                    {/* ====== FULL-SCREEN THEATER OVERLAY ====== */}
+                    {/* ====== FULL-SCREEN PRO THEATER OVERLAY ====== */}
                     {playerOpen && activeVideo && (
-                        <div className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-3xl animate-fade-in flex flex-col font-sans overflow-hidden">
-                            {/* Theater Header */}
-                            <div className="h-24 bg-black/60 border-b border-white/10 flex items-center justify-between px-10 backdrop-blur-xl shrink-0 gap-12">
-                                <div className="flex-1 min-w-0 max-w-[30%]">
-                                    <div className="flex items-center gap-3 mb-1.5">
-                                        <div className="px-2 py-0.5 bg-green-500 text-white text-[8px] font-black uppercase tracking-widest rounded shadow-[0_0_15px_rgba(34,197,94,0.3)]">Masterclass</div>
-                                        <h3 className="text-white font-black text-sm tracking-tight truncate lowercase">{activeVideo.skillName}</h3>
+                        <div className="fixed inset-0 z-[200] bg-black/98 backdrop-blur-3xl animate-fade-in flex flex-col font-sans overflow-hidden">
+                            {/* Pro Theater Header */}
+                            <div className="h-20 bg-black/40 border-b border-white/5 flex items-center justify-between px-8 backdrop-blur-2xl shrink-0 gap-8">
+                                <div className="flex items-center gap-6 flex-1 min-w-0">
+                                    <div className="flex-none hidden md:flex items-center gap-3">
+                                        <div className="px-3 py-1 bg-green-500 text-white text-[9px] font-black uppercase tracking-[0.2em] rounded-md shadow-lg shadow-green-500/20">Masterclass</div>
+                                        <div className="w-[1px] h-8 bg-white/10" />
                                     </div>
-                                    <p className="text-white/40 text-[10px] font-bold tracking-wide truncate">{activeVideo.title}</p>
+                                    <div className="min-w-0">
+                                        <h3 className="text-white font-black text-base tracking-tight truncate lowercase flex items-center gap-2">
+                                            <span className="text-green-500 opacity-50 shrink-0">#</span>
+                                            {activeVideo.skillName}
+                                        </h3>
+                                        <p className="text-white/40 text-[10px] font-bold tracking-widest truncate uppercase mt-0.5">{activeVideo.title}</p>
+                                    </div>
                                 </div>
 
-                                {/* Central Progress Bar */}
-                                <div className="flex-1 flex flex-col items-center max-w-[40%]">
-                                    <div className="flex items-center justify-between w-full mb-2 px-1">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-white/30">Lesson Progress</span>
-                                        <span className="text-[10px] font-black text-green-400 tabular-nums">
-                                            {videoProgressMap[activeVideo.id]?.completion_percentage || 0}%
-                                        </span>
-                                    </div>
-                                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden relative border border-white/5">
-                                        <div
-                                            className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-600 to-green-400 transition-all duration-1000 ease-out rounded-full shadow-[0_0_10px_rgba(34,197,94,0.4)]"
-                                            style={{ width: `${videoProgressMap[activeVideo.id]?.completion_percentage || 0}%` }}
-                                        />
+                                {/* Central Status Indicators */}
+                                <div className="hidden lg:flex items-center gap-8 flex-1 justify-center max-w-xl">
+                                    <div className="flex-1">
+                                        <div className="flex justify-between items-end mb-1.5 px-1">
+                                            <span className="text-[9px] font-black uppercase tracking-[0.15em] text-white/30">Milestone Mastery</span>
+                                            <span className="text-[11px] font-black text-green-400 tabular-nums">
+                                                {videoProgressMap[activeVideo.id]?.completion_percentage || 0}%
+                                            </span>
+                                        </div>
+                                        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden relative">
+                                            <div
+                                                className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-600 to-emerald-400 transition-all duration-1000 ease-out rounded-full shadow-[0_0_10px_rgba(34,197,94,0.3)]"
+                                                style={{ width: `${videoProgressMap[activeVideo.id]?.completion_percentage || 0}%` }}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
                                 <div className="flex items-center gap-4 shrink-0">
                                     <button
                                         onClick={toggleTutor}
-                                        className={`h-12 px-5 flex items-center gap-3 rounded-2xl transition-all border group active:scale-95 ${tutorOverlayOpen ? 'bg-green-600 border-green-500 text-white shadow-lg shadow-green-600/20' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'}`}
+                                        className={`h-11 px-5 flex items-center gap-3 rounded-xl transition-all border group active:scale-95 ${tutorOverlayOpen ? 'bg-green-600 border-green-500 text-white shadow-xl shadow-green-600/20' : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'}`}
                                     >
-                                        <div className={`w-7 h-7 rounded-xl flex items-center justify-center ${tutorOverlayOpen ? 'bg-white/20' : 'bg-green-600 text-white shadow-lg shadow-green-600/20'}`}>
-                                            <Bot size={16} />
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest">Ask AI Tutor</span>
+                                        <Bot size={16} className={tutorOverlayOpen ? 'animate-bounce' : ''} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest leading-none">AI Tutor</span>
                                     </button>
 
                                     <button
                                         onClick={handleClosePlayer}
-                                        className="h-12 px-5 flex items-center gap-3 bg-red-600/10 hover:bg-red-600/20 rounded-2xl text-red-500 transition-all border border-red-500/20 group active:scale-95"
+                                        className="h-11 px-5 flex items-center gap-3 bg-red-600/10 hover:bg-red-600/20 rounded-xl text-red-400 transition-all border border-red-500/20 group active:scale-95"
                                     >
-                                        <div className="w-7 h-7 rounded-xl bg-red-500 text-white flex items-center justify-center">
-                                            <X size={16} />
-                                        </div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest">Close Theater</span>
+                                        <X size={16} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest leading-none">Exit</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="flex-1 flex overflow-hidden relative">
-                                {/* Cinema Area (Video Takes 100%) */}
-                                <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
-                                    <div className="w-full h-full">
+                            <div className="flex-1 flex overflow-hidden lg:flex-row flex-col">
+                                {/* Cinema Area - Aspect Ratio Box */}
+                                <div className={`flex-1 relative bg-black flex items-center justify-center p-4 lg:p-8 transition-all duration-700 ease-in-out ${tutorOverlayOpen ? 'lg:pr-4' : ''}`}>
+                                    <div className="w-full h-full max-w-[1400px] max-h-[800px] aspect-video bg-zinc-900 rounded-3xl overflow-hidden shadow-[0_48px_100px_rgba(0,0,0,0.8)] border border-white/10 relative group/player">
                                         <YouTubePlayer
                                             videoId={activeVideo.id}
                                             userId={user?.id || ''}
@@ -797,23 +801,26 @@ export default function RoadmapPage() {
                                                 }));
                                             }}
                                         />
+                                        
+                                        {/* Cinematic Vignette */}
+                                        <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_100px_rgba(0,0,0,0.6)] group-hover/player:shadow-[inset_0_0_60px_rgba(0,0,0,0.3)] transition-shadow duration-700" />
                                     </div>
                                 </div>
 
-                                {/* Slide-out AI Tutor Panel (Overlaps slightly, absolute) */}
-                                <div className={`absolute top-0 right-0 bottom-0 w-[450px] bg-white shadow-[-20px_0_50px_rgba(0,0,0,0.5)] flex flex-col transition-transform duration-500 ease-in-out z-[210] ${tutorOverlayOpen ? 'translate-x-0' : 'translate-x-[110%]'}`}>
-                                    <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white shrink-0">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-green-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-green-200">
-                                                <Bot size={20} />
+                                {/* Sidebar System - Side-by-side flex item */}
+                                <div className={`bg-zinc-900/40 backdrop-blur-2xl border-l border-white/5 flex flex-col transition-all duration-700 ease-in-out relative z-[210] shrink-0 h-full ${tutorOverlayOpen ? 'w-full lg:w-[480px] translate-x-0' : 'w-0 translate-x-full overflow-hidden pointer-events-none'}`}>
+                                    <div className="p-6 border-b border-white/5 flex items-center justify-between bg-zinc-900/50 shrink-0">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 bg-gradient-to-br from-green-600 to-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-2xl shadow-green-500/10">
+                                                <Bot size={24} className="animate-pulse" />
                                             </div>
                                             <div>
-                                                <h4 className="text-sm font-black text-gray-900 leading-none lowercase">milestone tutor</h4>
-                                                <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">Solving your gaps in real-time</p>
+                                                <h4 className="text-sm font-black text-white leading-none lowercase tracking-tight">AI PROCTOR</h4>
+                                                <p className="text-[10px] font-bold text-white/30 mt-1.5 uppercase tracking-widest">Interactive Video Analysis</p>
                                             </div>
                                         </div>
-                                        <button onClick={toggleTutor} className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-black transition-colors">
-                                            <X size={16} />
+                                        <button onClick={toggleTutor} className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-all active:scale-90 border border-white/5">
+                                            <X size={18} />
                                         </button>
                                     </div>
                                     <div className="flex-1 overflow-hidden">

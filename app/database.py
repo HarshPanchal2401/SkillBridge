@@ -229,6 +229,18 @@ def init_db() -> None:
     conn = sqlite3.connect(_config.database_path)
     cursor = conn.cursor()
     
+    # Check for outdated roadmap tables and drop if they exist (migration to new schema)
+    # The old user_roadmaps table had a 'domain' column which is no longer used
+    try:
+        cursor.execute("PRAGMA table_info(user_roadmaps)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if columns and "domain" in columns:
+            logger.warning("⚠️ Outdated roadmap schema detected. Dropping roadmap tables for recreation.")
+            cursor.execute("DROP TABLE IF EXISTS roadmap_progress")
+            cursor.execute("DROP TABLE IF EXISTS user_roadmaps")
+    except sqlite3.OperationalError:
+        pass
+        
     # Create users table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (

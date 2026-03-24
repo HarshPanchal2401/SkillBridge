@@ -263,39 +263,52 @@ export default function YouTubePlayer({
     }
 
     return (
-        <div className="flex flex-col lg:flex-row bg-black overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.5)] border border-white/5 relative group w-full h-full">
+        <div className="flex flex-col lg:flex-row bg-[#080808] overflow-hidden shadow-[0_32px_128px_-12px_rgba(0,0,0,0.8)] border border-white/5 relative group w-full h-full rounded-2xl">
 
             {/* Main Player Area */}
-            <div className="flex-1 relative bg-black flex items-center justify-center">
-                <YouTube
-                    videoId={activeVId}
-                    opts={opts}
-                    onReady={onReady}
-                    onStateChange={onStateChange}
-                    className="w-full h-full flex items-center justify-center p-0 m-0"
-                    iframeClassName="w-full h-full border-none"
-                />
+            <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
+                <div className="w-full h-full relative">
+                    <YouTube
+                        videoId={activeVId}
+                        opts={opts}
+                        onReady={onReady}
+                        onStateChange={onStateChange}
+                        className="w-full h-full flex items-center justify-center p-0 m-0"
+                        iframeClassName="w-full h-full border-none shadow-2xl"
+                    />
+                    
+                    {/* Inner Cinematic Glow */}
+                    <div className="absolute inset-0 pointer-events-none ring-1 ring-inset ring-white/10 rounded-none z-10" />
+                </div>
 
                 {isSaving && (
-                    <div className="absolute bottom-6 right-6 flex items-center gap-2 px-4 py-2 bg-black/60 backdrop-blur-xl rounded-xl text-[10px] font-black uppercase tracking-widest text-white border border-white/10 animate-fade-in z-20">
-                        <Loader2 size={12} className="animate-spin text-green-400" />
-                        Saving...
+                    <div className="absolute top-6 right-6 flex items-center gap-2.5 px-4 py-2.5 bg-black/40 backdrop-blur-2xl rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] text-white/70 border border-white/5 animate-fade-in z-20 shadow-2xl">
+                        <div className="relative w-2 h-2">
+                            <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-75" />
+                            <div className="relative bg-green-500 w-2 h-2 rounded-full" />
+                        </div>
+                        Syncing...
                     </div>
                 )}
             </div>
 
-            {/* Playlist Sidebar */}
+            {/* Pro Playlist Sidebar */}
             {videos.length > 0 && (
-                <div className={`flex-none lg:w-[320px] bg-zinc-900 border-l border-white/5 flex flex-col h-auto lg:h-auto max-h-[500px] lg:max-h-none overflow-hidden transition-all duration-500 ${showPlaylist ? 'opacity-100' : 'opacity-0 lg:w-0 pointer-events-none'}`}>
-                    <div className="p-4 border-b border-white/5 flex items-center justify-between bg-zinc-900/50 backdrop-blur-sm">
-                        <div className="flex items-center gap-2">
-                            <ListVideo size={16} className="text-green-500" />
-                            <h4 className="text-[11px] font-black text-white/50 uppercase tracking-widest">Learning Path</h4>
+                <div className={`flex-none lg:w-[360px] bg-[#0a0a0a] border-l border-white/[0.03] flex flex-col h-auto lg:h-auto max-h-[500px] lg:max-h-none overflow-hidden transition-all duration-700 ease-in-out ${showPlaylist ? 'opacity-100 translate-x-0' : 'opacity-0 lg:w-0 translate-x-full pointer-events-none'}`}>
+                    <div className="p-6 border-b border-white/[0.03] flex items-center justify-between bg-black/20 backdrop-blur-xl">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center">
+                                <ListVideo size={16} className="text-green-500" />
+                            </div>
+                            <div>
+                                <h4 className="text-[10px] font-black text-white/30 uppercase tracking-[0.2em] leading-none">Curated Path</h4>
+                                <p className="text-[13px] font-black text-white mt-1.5 uppercase tracking-tight">{videos.length} Strategic steps</p>
+                            </div>
                         </div>
-                        <span className="text-[10px] font-bold text-white/30 px-2 py-0.5 bg-white/5 rounded-md">{videos.length} Videos</span>
+                        <div className="px-2.5 py-1 bg-white/5 rounded-lg border border-white/5 text-[9px] font-black text-white/20 uppercase tracking-widest">{Math.floor((watchedVideos.size / videos.length) * 100)}%</div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar bg-black/10">
                         {videos.map((video, idx) => {
                             const isActive = activeVId === video.video_id;
                             const isWatched = watchedVideos.has(video.video_id);
@@ -303,33 +316,43 @@ export default function YouTubePlayer({
                                 <button
                                     key={video.video_id || idx}
                                     onClick={() => handleVideoSelect(video)}
-                                    className={`w-full flex items-start gap-3 p-2.5 rounded-xl transition-all group/item text-left ${isActive ? 'bg-green-600/10 border border-green-500/20 shadow-lg' : 'hover:bg-white/5 border border-transparent'}`}
+                                    className={`w-full flex items-center gap-4 p-3 rounded-2xl transition-all duration-300 group/item text-left relative overflow-hidden ${isActive ? 'bg-white/[0.03] border border-white/10 shadow-2xl' : 'hover:bg-white/5 border border-transparent'}`}
                                 >
-                                    <div className="relative w-20 aspect-video rounded-lg overflow-hidden shrink-0 bg-black/40 border border-white/5">
-                                        <img src={video.thumbnail || `https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`} className={`w-full h-full object-cover transition-transform duration-700 group-hover/item:scale-110 ${isActive ? 'opacity-100' : isWatched ? 'opacity-60' : 'opacity-40'}`} alt="" />
+                                    {isActive && (
+                                        <div className="absolute inset-y-0 left-0 w-1 bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.5)]" />
+                                    )}
+                                    
+                                    <div className="relative w-24 aspect-video rounded-xl overflow-hidden shrink-0 bg-zinc-900 border border-white/5 shadow-lg">
+                                        <img 
+                                            src={video.thumbnail || `https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`} 
+                                            className={`w-full h-full object-cover transition-all duration-700 group-hover/item:scale-110 ${isActive ? 'scale-105 opacity-100' : isWatched ? 'opacity-40 grayscale-[50%]' : 'opacity-60 grayscale-[20%] group-hover/item:grayscale-0'}`} 
+                                            alt="" 
+                                        />
                                         {isActive ? (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-green-600/20">
-                                                <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg"><Play size={10} fill="currentColor" className="text-green-600 ml-0.5" /></div>
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
+                                                <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shadow-2xl scale-110 animate-pulse">
+                                                    <Play size={12} fill="currentColor" className="text-white ml-0.5" />
+                                                </div>
                                             </div>
                                         ) : isWatched ? (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-green-900/30">
-                                                <CheckCircle2 size={16} className="text-green-400" />
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                                                <CheckCircle2 size={24} className="text-green-500/80" />
                                             </div>
                                         ) : (
-                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity">
-                                                <div className="w-6 h-6 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20"><Play size={10} fill="currentColor" className="text-white ml-0.5" /></div>
+                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-all duration-300 bg-black/20">
+                                                <div className="w-8 h-8 bg-white/10 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/20">
+                                                    <Play size={12} fill="currentColor" className="text-white ml-0.5" />
+                                                </div>
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex-1 min-w-0 py-0.5">
-                                        <p className={`text-[11px] font-bold leading-tight line-clamp-2 transition-colors ${isActive ? 'text-green-400' : isWatched ? 'text-green-600/60' : 'text-zinc-400 group-hover/item:text-white'}`}>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                             <span className={`text-[9px] font-black uppercase tracking-widest ${isActive ? 'text-green-500' : 'text-white/20'}`}>Step {idx + 1}</span>
+                                        </div>
+                                        <p className={`text-xs font-bold leading-tight line-clamp-2 transition-colors duration-300 ${isActive ? 'text-white' : isWatched ? 'text-white/30' : 'text-white/60 group-hover/item:text-white'}`}>
                                             {video.title}
                                         </p>
-                                        <div className="flex items-center gap-1.5 mt-1.5">
-                                            <span className="text-[9px] font-black text-white/20 uppercase tracking-widest">
-                                                {isWatched ? '✓ Done' : `Step ${idx + 1}`}
-                                            </span>
-                                        </div>
                                     </div>
                                 </button>
                             );
@@ -338,14 +361,17 @@ export default function YouTubePlayer({
                 </div>
             )}
 
-            {/* Playlist Toggle Button */}
+            {/* Interactive Sidebar Toggle */}
             {videos.length > 0 && (
                 <button
                     onClick={() => setShowPlaylist(!showPlaylist)}
-                    className="absolute top-4 right-4 z-40 p-2.5 bg-black/60 backdrop-blur-xl border border-white/10 rounded-xl text-white shadow-2xl hover:bg-black/80 hover:scale-105 transition-all active:scale-95"
-                    title={showPlaylist ? "Hide Playlist" : "Show Playlist"}
+                    className="absolute top-6 right-6 lg:right-auto lg:left-6 z-40 w-12 h-12 flex items-center justify-center bg-black/40 backdrop-blur-2xl border border-white/10 rounded-2xl text-white shadow-2xl hover:bg-black/60 hover:scale-105 transition-all active:scale-95 group/toggle"
+                    title={showPlaylist ? "Hide Learning Path" : "Show Learning Path"}
                 >
-                    <ListVideo size={18} className={showPlaylist ? "text-green-500" : "text-white"} />
+                    <ListVideo size={20} className={`transition-all duration-500 ${showPlaylist ? 'text-green-500 rotate-180' : 'text-white'}`} />
+                    <div className="absolute left-full ml-4 px-3 py-1.5 bg-black border border-white/10 rounded-lg text-[9px] font-black uppercase tracking-widest opacity-0 group-hover/toggle:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                        {showPlaylist ? "Collapse" : "Expand Path"}
+                    </div>
                 </button>
             )}
         </div>
