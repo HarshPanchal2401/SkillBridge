@@ -104,7 +104,38 @@ async def get_latest_roadmap(user_id: int):
         # Also fetch progress
         cursor.execute("SELECT * FROM roadmap_progress WHERE roadmap_id = ?", (roadmap_dict['id'],))
         progress_rows = cursor.fetchall()
-        roadmap_dict['progress'] = [dict(r) for r in progress_rows]
+        progress = [dict(r) for r in progress_rows]
+        roadmap_dict['progress'] = progress
+        
+        # Calculate completion accurately
+        # Count target skills from roadmap_data (assuming structured format)
+        total_skills = 0
+        r_data = roadmap_dict['roadmap_data']
+        if isinstance(r_data, dict):
+            # Check for fast_track first as it's the primary target for quick completion
+            if "fast_track_roadmap" in r_data and r_data["fast_track_roadmap"]:
+                total_skills = len(r_data["fast_track_roadmap"])
+            # Fallback to full_roadmap milestones if fast_track is missing
+            elif "full_roadmap" in r_data:
+                fr = r_data["full_roadmap"]
+                milestones = (fr.get("beginner_milestones", []) + 
+                             fr.get("intermediate_milestones", []) + 
+                             fr.get("advanced_milestones", []))
+                total_skills = len(milestones)
+            # Legacy support
+            elif "roadmap" in r_data:
+                total_skills = len(r_data["roadmap"])
+            elif "full_career_path" in r_data:
+                total_skills = len(r_data["full_career_path"])
+        
+        completed_skills = sum(1 for p in progress if p['completion_percentage'] >= 100)
+        
+        roadmap_dict['is_complete'] = (total_skills > 0 and completed_skills >= total_skills)
+        roadmap_dict['completion_stats'] = {
+            "total": total_skills,
+            "completed": completed_skills,
+            "percentage": round((completed_skills / total_skills * 100) if total_skills > 0 else 0)
+        }
         
         return roadmap_dict
 
@@ -135,6 +166,97 @@ async def update_roadmap_progress(user_id: int, skill_name: str, status: str, pe
         """, (user_id, roadmap_id, skill_name, status, percentage))
         
         return {"message": "Progress updated successfully"}
+
+@router.get("/certificate/{user_id}")
+async def get_certificate_data(user_id: int):
+    """
+    Fetch certificate data for a completed roadmap.
+    """
+    with get_db() as conn:
+        cursor = conn.cursor()
+        
+        # Sync video progress to roadmap progress on-the-fly to ensure consistency
+        try:
+            cursor.execute("""
+                SELECT vp.skill_name, vp.completion_percentage 
+                FROM video_progress vp
+                WHERE vp.user_id = ? AND vp.is_completed = 1 AND vp.skill_name IS NOT NULL
+            """, (user_id,))
+            completed_videos = cursor.fetchall()
+            
+            if completed_videos:
+                # Get latest roadmap ID
+                cursor.execute("SELECT id FROM user_roadmaps WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", (user_id,))
+                roadmap_row = cursor.fetchone()
+                if roadmap_row:
+                    roadmap_id = roadmap_row['id']
+                    for v in completed_videos:
+                        cursor.execute("""
+                            INSERT INTO roadmap_progress (user_id, roadmap_id, skill_name, status, completion_percentage)
+                            VALUES (?, ?, ?, 'completed', ?)
+                            ON CONFLICT(user_id, roadmap_id, skill_name) DO UPDATE SET
+                            status = 'completed',
+                            completion_percentage = CASE WHEN ? > completion_percentage THEN ? ELSE completion_percentage END,
+                            last_updated = CURRENT_TIMESTAMP
+                        """, (user_id, roadmap_id, v['skill_name'], int(v['completion_percentage']), int(v['completion_percentage']), int(v['completion_percentage'])))
+        except Exception as e:
+            logger.error(f"⚠️ Failed to sync progress during certificate check: {e}")
+
+        # 1. Get user info
+        cursor.execute("SELECT name, email, target_role FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # 2. Get latest roadmap and verify completion
+        cursor.execute("""
+            SELECT id, target_role, created_at, roadmap_data FROM user_roadmaps 
+            WHERE user_id = ? 
+            ORDER BY created_at DESC LIMIT 1
+        """, (user_id,))
+        roadmap = cursor.fetchone()
+        
+        if not roadmap:
+            raise HTTPException(status_code=404, detail="No roadmap found")
+        
+        # Verify 100% completion
+        cursor.execute("SELECT COUNT(*) as count FROM roadmap_progress WHERE roadmap_id = ? AND completion_percentage >= 100", (roadmap['id'],))
+        completed_count = cursor.fetchone()['count']
+        
+        # Get total skills count from roadmap data
+        roadmap_data = json.loads(roadmap['roadmap_data'])
+        total_skills = 0
+        if "fast_track_roadmap" in roadmap_data and roadmap_data["fast_track_roadmap"]:
+            total_skills = len(roadmap_data["fast_track_roadmap"])
+        elif "full_roadmap" in roadmap_data:
+            fr = roadmap_data["full_roadmap"]
+            milestones = (fr.get("beginner_milestones", []) + 
+                         fr.get("intermediate_milestones", []) + 
+                         fr.get("advanced_milestones", []))
+            total_skills = len(milestones)
+        elif "roadmap" in roadmap_data:
+            total_skills = len(roadmap_data["roadmap"])
+        
+        if total_skills == 0 or completed_count < total_skills:
+            return {
+                "eligible": False,
+                "reason": "Roadmap is not 100% complete",
+                "stats": {"completed": completed_count, "total": total_skills}
+            }
+        
+        # 3. Generate unique certificate ID
+        import hashlib
+        cert_id = f"SB-{roadmap['id']}-{user_id}-" + hashlib.md5(f"{user_id}-{roadmap['id']}".encode()).hexdigest()[:8].upper()
+        
+        return {
+            "eligible": True,
+            "certificate_id": cert_id,
+            "user_name": user['name'],
+            "target_role": roadmap['target_role'],
+            "completion_date": roadmap['created_at'], # Use roadmap creation or last update as completion date
+            "issuer": "SkillBridge Career Intelligence",
+            "verification_url": f"https://skillbridge.ai/verify/{cert_id}"
+        }
 
 @router.get("/video")
 async def get_skill_video(skill: str, language: str = "English"):

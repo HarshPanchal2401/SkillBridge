@@ -219,3 +219,10 @@ body {
 .animate-slide-up {
   animation: slideInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Theater Mode Overrides */
+body.theater-active header,
+body.theater-active aside {
+  z-index: 0 !important;
+  pointer-events: none !important;
+}

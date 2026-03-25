@@ -24,7 +24,7 @@ import { useState } from 'react';
 
 const navItems = [
     { href: '/dashboard', label: 'Overview', icon: Home },
-    { href: '/skills', label: 'Skill Gap', icon: BarChart3 },
+    { href: '/skills', label: 'Skills IQ', icon: BarChart3 },
     { href: '/recommendations', label: 'Learning', icon: BookOpen },
     { href: '/jobs', label: 'Careers', icon: Briefcase },
     { href: '/roadmap', label: 'Roadmap', icon: Map },

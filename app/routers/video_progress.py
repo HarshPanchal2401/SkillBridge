@@ -9,6 +9,40 @@ from app.logging_config import get_logger
 router = APIRouter(prefix="/api/video-progress", tags=["Video Progress"])
 logger = get_logger("video_progress_router")
 
+def sync_roadmap_progress(cursor, user_id, skill_name, completion_percentage):
+    """Internal helper to sync video completion to roadmap progress."""
+    if not skill_name:
+        return
+        
+    try:
+        # 1. Get current roadmap ID
+        cursor.execute("SELECT id FROM user_roadmaps WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", (user_id,))
+        roadmap_row = cursor.fetchone()
+        if not roadmap_row:
+            return
+            
+        roadmap_id = roadmap_row['id']
+        status = 'completed' if completion_percentage >= 100 else 'in_progress'
+        
+        # 2. Update roadmap_progress
+        cursor.execute("""
+            INSERT INTO roadmap_progress (user_id, roadmap_id, skill_name, status, completion_percentage)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, roadmap_id, skill_name) DO UPDATE SET
+            status = excluded.status,
+            completion_percentage = CASE 
+                WHEN excluded.completion_percentage > roadmap_progress.completion_percentage 
+                THEN excluded.completion_percentage 
+                ELSE roadmap_progress.completion_percentage 
+            END,
+            last_updated = CURRENT_TIMESTAMP
+        """, (user_id, roadmap_id, skill_name, status, int(completion_percentage)))
+        
+        logger.info(f"🔄 Synced roadmap progress for {skill_name} ({completion_percentage}% complete)")
+    except Exception as e:
+        logger.error(f"❌ Failed to sync roadmap progress: {e}")
+
+
 
 class SaveProgressRequest(BaseModel):
     """Request body to save/update video watch progress."""
@@ -71,6 +105,9 @@ async def save_video_progress(req: SaveProgressRequest):
                 req.video_id,
             ))
 
+            if is_completed:
+                sync_roadmap_progress(cursor, req.user_id, req.skill_name, new_percent)
+
             return {"message": "Progress updated", "is_completed": bool(is_completed), "accumulated_percent": new_percent}
         else:
             # First time saving this video
@@ -95,6 +132,9 @@ async def save_video_progress(req: SaveProgressRequest):
                 req.last_position_seconds,
                 is_completed,
             ))
+
+            if is_completed:
+                sync_roadmap_progress(cursor, req.user_id, req.skill_name, new_percent)
 
             return {"message": "Progress saved", "is_completed": bool(is_completed), "accumulated_percent": new_percent}
 

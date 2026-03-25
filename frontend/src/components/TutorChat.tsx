@@ -103,7 +103,7 @@ export default function TutorChat({ videoId, videoTitle, isOpen, onClose, langua
                         key={i}
                         onClick={() => handleQuickAction(qa.action)}
                         disabled={isLoading}
-                        className="px-4 py-2 bg-white/5 hover:bg-green-600/20 text-white/70 hover:text-green-400 text-[10px] font-black uppercase tracking-widest rounded-xl border border-white/5 hover:border-green-500/30 whitespace-nowrap transition-all duration-300 disabled:opacity-40 flex items-center gap-2"
+                        className="px-3 py-1.5 bg-white/5 hover:bg-green-600/20 text-white/70 hover:text-green-400 text-[9px] font-black uppercase tracking-widest rounded-xl border border-white/5 hover:border-green-500/30 whitespace-nowrap transition-all duration-300 disabled:opacity-40 flex items-center gap-2"
                     >
                         <span>{qa.icon}</span>
                         {qa.label}
@@ -126,11 +126,11 @@ export default function TutorChat({ videoId, videoTitle, isOpen, onClose, langua
                             }`}
                             style={{ whiteSpace: 'pre-wrap' }}
                         >
-                            {msg.content}
+                            {msg.content.replace(/\*\*/g, '')}
                         </div>
                     </div>
                 ))}
-                
+
                 {isLoading && (
                     <div className="flex justify-start animate-fade-in">
                         <div className="w-9 h-9 bg-gradient-to-br from-green-600 to-emerald-500 rounded-xl flex items-center justify-center text-white shrink-0 mr-3 shadow-2xl shadow-green-500/10 border border-white/10">

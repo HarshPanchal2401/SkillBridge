@@ -22,7 +22,6 @@ from app.cache import get_cache
 from app.routers import (
     users_router,
     courses_router,
-    projects_router,
     skills_router,
     resume_router,
     jobs_router,
@@ -100,12 +99,10 @@ app = FastAPI(
     - **User Management**: Register and manage user profiles
     - **Resume Processing**: Upload and parse resumes to extract skills
     - **Course Management**: Track completed courses
-    - **Project Management**: Document projects and tech stack
     - **Skill Extraction**: NLP-based skill extraction from all sources
     - **Job Search**: Search for relevant jobs
     - **Gap Analysis**: Compare skills against market requirements
     - **Course Recommendations**: AI-powered course suggestions
-    - **GitHub Analysis**: Extract skills from repositories
     
     ## API Response Format
     All endpoints return responses in a standardized format:
@@ -292,7 +289,6 @@ def get_metrics():
 # All routers are prefixed with /api
 app.include_router(users_router)
 app.include_router(courses_router)
-app.include_router(projects_router)
 app.include_router(skills_router)
 app.include_router(resume_router)
 app.include_router(jobs_router)

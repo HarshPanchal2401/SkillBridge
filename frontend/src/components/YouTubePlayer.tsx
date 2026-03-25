@@ -263,7 +263,7 @@ export default function YouTubePlayer({
     }
 
     return (
-        <div className="flex flex-col lg:flex-row bg-[#080808] overflow-hidden shadow-[0_32px_128px_-12px_rgba(0,0,0,0.8)] border border-white/5 relative group w-full h-full rounded-2xl">
+        <div className="flex flex-col lg:flex-row bg-[#080808] overflow-hidden shadow-[0_32px_128px_-12px_rgba(0,0,0,0.8)] border border-white/5 relative group w-full h-full rounded-none">
 
             {/* Main Player Area */}
             <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
@@ -276,7 +276,7 @@ export default function YouTubePlayer({
                         className="w-full h-full flex items-center justify-center p-0 m-0"
                         iframeClassName="w-full h-full border-none shadow-2xl"
                     />
-                    
+
                     {/* Inner Cinematic Glow */}
                     <div className="absolute inset-0 pointer-events-none ring-1 ring-inset ring-white/10 rounded-none z-10" />
                 </div>
@@ -321,12 +321,12 @@ export default function YouTubePlayer({
                                     {isActive && (
                                         <div className="absolute inset-y-0 left-0 w-1 bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.5)]" />
                                     )}
-                                    
+
                                     <div className="relative w-24 aspect-video rounded-xl overflow-hidden shrink-0 bg-zinc-900 border border-white/5 shadow-lg">
-                                        <img 
-                                            src={video.thumbnail || `https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`} 
-                                            className={`w-full h-full object-cover transition-all duration-700 group-hover/item:scale-110 ${isActive ? 'scale-105 opacity-100' : isWatched ? 'opacity-40 grayscale-[50%]' : 'opacity-60 grayscale-[20%] group-hover/item:grayscale-0'}`} 
-                                            alt="" 
+                                        <img
+                                            src={video.thumbnail || `https://img.youtube.com/vi/${video.video_id}/mqdefault.jpg`}
+                                            className={`w-full h-full object-cover transition-all duration-700 group-hover/item:scale-110 ${isActive ? 'scale-105 opacity-100' : isWatched ? 'opacity-40 grayscale-[50%]' : 'opacity-60 grayscale-[20%] group-hover/item:grayscale-0'}`}
+                                            alt=""
                                         />
                                         {isActive ? (
                                             <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[1px]">
@@ -348,7 +348,7 @@ export default function YouTubePlayer({
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
-                                             <span className={`text-[9px] font-black uppercase tracking-widest ${isActive ? 'text-green-500' : 'text-white/20'}`}>Step {idx + 1}</span>
+                                            <span className={`text-[9px] font-black uppercase tracking-widest ${isActive ? 'text-green-500' : 'text-white/20'}`}>Step {idx + 1}</span>
                                         </div>
                                         <p className={`text-xs font-bold leading-tight line-clamp-2 transition-colors duration-300 ${isActive ? 'text-white' : isWatched ? 'text-white/30' : 'text-white/60 group-hover/item:text-white'}`}>
                                             {video.title}

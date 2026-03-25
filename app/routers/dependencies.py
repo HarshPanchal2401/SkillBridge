@@ -11,13 +11,10 @@ from app.logging_config import get_logger
 from app.cache import get_cache, SimpleCache
 from app.services.skill_extractor import SkillExtractor
 from app.services.resume_parser import ResumeParser
-from app.services.resume_parser import ResumeParser
 from app.services.job_fetcher import JobFetcher
 from app.services.job_skill_analyzer import JobSkillAnalyzer
 from app.services.gap_analyzer import GapAnalyzer
 from app.services.course_recommender import CourseRecommender
-from app.services.github_analyzer import GitHubAnalyzer
-from app.services.huggingface_skill_extractor import HuggingFaceSkillExtractor
 from app.services.market_skill_searcher import MarketSkillSearcher
 from app.services.groq_skill_refiner import GroqSkillRefiner
 from app.services.llm_gap_analyzer import GroqGapAnalyzer
@@ -66,7 +63,6 @@ class ServiceContainer:
         self._rapidapi_key = os.getenv("RAPIDAPI_KEY", "")
         self._tavily_api_key = os.getenv("TAVILY_API_KEY", "")
         self._gemini_api_key = os.getenv("GEMINI_API_KEY", "")
-        self._huggingface_api_key = os.getenv("HUGGINGFACE_API_KEY") or os.getenv("HF_TOKEN", "")
         self._groq_api_key = os.getenv("GROQ_API_KEY", "")
         self._youtube_api_key = os.getenv("YOUTUBE_API_KEY", "")
         
@@ -74,14 +70,12 @@ class ServiceContainer:
         logger.info(f"🔑 RAPIDAPI_KEY: {'✓ Loaded' if self._rapidapi_key else '✗ Not set'}")
         logger.info(f"🔑 TAVILY_API_KEY: {'✓ Loaded' if self._tavily_api_key else '✗ Not set'}")
         logger.info(f"🔑 GEMINI_API_KEY: {'✓ Loaded' if self._gemini_api_key else '✗ Not set'}")
-        logger.info(f"🔑 HUGGINGFACE_API_KEY: {'✓ Loaded' if self._huggingface_api_key else '✗ Not set'}")
         logger.info(f"🔑 GROQ_API_KEY: {'✓ Loaded' if self._groq_api_key else '✗ Not set'}")
         logger.info(f"🔑 YOUTUBE_API_KEY: {'✓ Loaded' if self._youtube_api_key else '✗ Not set'}")
         
         # Initialize core services
-        self._huggingface_extractor = HuggingFaceSkillExtractor(self._huggingface_api_key) if self._huggingface_api_key else None
         self._groq_refiner = GroqSkillRefiner(self._groq_api_key)
-        self._skill_extractor = SkillExtractor(SKILLS_FILE, hf_extractor=self._huggingface_extractor, groq_refiner=self._groq_refiner)
+        self._skill_extractor = SkillExtractor(SKILLS_FILE, groq_refiner=self._groq_refiner)
         self._resume_parser = ResumeParser()
         
         # Initialize dependent services
@@ -89,7 +83,6 @@ class ServiceContainer:
         self._job_analyzer = JobSkillAnalyzer(self._skill_extractor)
         self._gap_analyzer = GapAnalyzer()
         self._course_recommender = CourseRecommender(self._tavily_api_key)
-        self._github_analyzer = GitHubAnalyzer(self._skill_extractor)
         self._market_skill_searcher = MarketSkillSearcher(self._tavily_api_key)
         self._llm_gap_analyzer = GroqGapAnalyzer(self._groq_api_key)
         self._market_skill_provider = GroqMarketSkillProvider(self._groq_api_key)
@@ -129,16 +122,6 @@ class ServiceContainer:
     def course_recommender(self) -> CourseRecommender:
         """Get the course recommender service."""
         return self._course_recommender
-    
-    @property
-    def github_analyzer(self) -> GitHubAnalyzer:
-        """Get the GitHub analyzer service."""
-        return self._github_analyzer
-    
-    @property
-    def huggingface_extractor(self) -> Optional[HuggingFaceSkillExtractor]:
-        """Get the HuggingFace skill extractor service (may be None if not configured)."""
-        return self._huggingface_extractor
     
     @property
     def market_skill_searcher(self) -> MarketSkillSearcher:
@@ -185,8 +168,8 @@ class ServiceContainer:
         return self._linkedin_fetcher is not None
     
     def has_llm_api(self) -> bool:
-        """Check if HuggingFace API is configured and available."""
-        return self._huggingface_extractor is not None and self._huggingface_extractor.is_available()
+        """Check if LLM API is available."""
+        return self._groq_refiner.is_available()
     
     def has_groq_api(self) -> bool:
         """Check if Groq API is configured and available."""
@@ -208,7 +191,6 @@ class ServiceContainer:
             "gap_analyzer": "healthy",
             "llm_gap_analyzer": "available" if self._llm_gap_analyzer.available else "not_configured",
             "course_recommender": "healthy",
-            "github_analyzer": "healthy",
             "market_skill_searcher": "healthy"
         }
 
@@ -261,12 +243,6 @@ def get_gap_analyzer() -> GapAnalyzer:
 def get_course_recommender() -> CourseRecommender:
     """FastAPI dependency for course recommender."""
     return get_services().course_recommender
-
-
-def get_github_analyzer() -> GitHubAnalyzer:
-    """FastAPI dependency for GitHub analyzer."""
-    return get_services().github_analyzer
-
 
 def get_job_analyzer() -> JobSkillAnalyzer:
     """FastAPI dependency for job skill analyzer."""

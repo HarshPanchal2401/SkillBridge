@@ -6,9 +6,6 @@ from typing import List, Dict, Set, Tuple, Optional
 from difflib import SequenceMatcher
 from collections import defaultdict
 from .resume_parser import ResumeParser
-from .ats_skill_extractor import ATSSkillExtractor
-from .huggingface_skill_extractor import HuggingFaceSkillExtractor
-from .priority_skill_extractor import PrioritySkillExtractor
 
 try:
     from .groq_skill_refiner import GroqSkillRefiner
@@ -31,7 +28,7 @@ except ImportError:
 class SkillExtractor:
     """Extract skills from text using NLP techniques."""
     
-    def __init__(self, skills_file_path: str, hf_extractor: Optional[HuggingFaceSkillExtractor] = None, groq_refiner=None):
+    def __init__(self, skills_file_path: str, groq_refiner=None):
         """Initialize with skills taxonomy."""
         with open(skills_file_path, 'r', encoding='utf-8') as f:
             skills_data = json.load(f)
@@ -55,20 +52,11 @@ class SkillExtractor:
         self.weights = skills_data.get('weights', {})
         self.resume_parser = ResumeParser()
         
-        # Initialize ATS extractor for advanced extraction
+        # Initialize ATS and Priority logic (simplified/integrated)
         self._skills_file_path = skills_file_path
-        self.ats_extractor = ATSSkillExtractor(skills_file_path)
-        self.hf_extractor = hf_extractor
         
         # Groq LLM refiner (optional — falls back gracefully if not available)
         self.groq_refiner = groq_refiner
-        
-        # Initialize Priority Extractor
-        try:
-            self.priority_extractor = PrioritySkillExtractor(skills_file_path)
-        except Exception as e:
-            print(f"⚠️ Failed to initialize PrioritySkillExtractor: {e}")
-            self.priority_extractor = None
         
         # Build synonym map: canonical -> [variants]
         self.synonym_map = defaultdict(set)
@@ -234,24 +222,10 @@ class SkillExtractor:
 
     def extract_skills_with_proficiency(self, resume_text: str) -> Dict[str, Dict]:
         """
-        Extract skills with proficiency scores using ATS-style extraction.
-        
-        Uses context analysis, experience detection, and expert indicators
-        to estimate proficiency and confidence levels.
-        
-        Args:
-            resume_text: The resume text to analyze
-            
-        Returns:
-            Dict of {skill_name: {proficiency, confidence, sources, ...}}
+        Extract skills with proficiency scores (simplified core logic).
         """
-        if not resume_text or len(resume_text.strip()) < 50:
-            return {}
-        
-        print("🔍 Running ATS-style skill extraction with proficiency...")
-        result = self.ats_extractor.extract_skills(resume_text)
-        print(f"✅ Extracted {len(result.skills)} skills with proficiency data")
-        return result.skills
+        skills = self.extract_skills_from_resume(resume_text)
+        return {s['skill']: s for s in skills}
 
     def _get_canonical_skill(self, skill_name: str) -> str:
         """Helper to get canonical skill name."""

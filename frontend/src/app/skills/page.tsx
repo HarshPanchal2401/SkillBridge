@@ -264,23 +264,73 @@ export default function SkillsPage() {
                     </div>
                 </div>
 
+                {/* Dynamic Readiness Gauge (Merged from Gap Analysis) */}
+                {gapAnalysis && (
+                    <div className="card-simple overflow-hidden relative border-green-100 bg-gradient-to-br from-white to-green-50/30">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-green-200/20 rounded-full mix-blend-multiply filter blur-3xl opacity-30 -mr-20 -mt-20 animate-pulse"></div>
+                        <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-10">
+                            <div className="space-y-4 text-center lg:text-left flex-1">
+                                <div className="space-y-1">
+                                    <h2 className="text-2xl font-black text-gray-900 tracking-tight">
+                                        {gapAnalysis.target_role?.title || 'System Analysis'}
+                                    </h2>
+                                    <p className="text-[10px] font-black text-green-600 uppercase tracking-[0.2em]">Market Compatibility Profile</p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 justify-center lg:justify-start">
+                                    <div className="px-3 py-1 bg-green-600 text-white rounded-lg font-bold text-[10px] uppercase tracking-wider shadow-lg shadow-green-500/20">
+                                        {gapAnalysis.readiness?.level || 'Developing'}
+                                    </div>
+                                    <div className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg font-bold text-[10px] uppercase tracking-wider border border-blue-100 flex items-center gap-1.5">
+                                        <Wifi size={12} /> Live Analytics
+                                    </div>
+                                </div>
+                                <p className="text-sm font-medium text-gray-500 max-w-lg leading-relaxed">
+                                    {gapAnalysis.readiness?.interpretation || "We've analyzed your skill set against real-time market signals to determine your career readiness."}
+                                </p>
+                            </div>
+
+                            <div className="flex flex-col items-center">
+                                <div className="relative w-40 h-40 flex items-center justify-center">
+                                    <svg className="w-full h-full transform -rotate-90">
+                                        <circle cx="80" cy="80" r="70" stroke="#f3f4f6" strokeWidth="12" fill="none" />
+                                        <circle
+                                            cx="80" cy="80" r="70"
+                                            stroke="#22c55e"
+                                            strokeWidth="12"
+                                            fill="none"
+                                            strokeDasharray={`${(gapAnalysis.readiness?.score || gapAnalysis.overall_readiness || 0) * 4.4} 440`}
+                                            strokeLinecap="round"
+                                            className="transition-all duration-1000"
+                                        />
+                                    </svg>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                        <span className="text-4xl font-black text-gray-900">
+                                            {Math.round(gapAnalysis.readiness?.score || gapAnalysis.overall_readiness || 0)}%
+                                        </span>
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">IQ Score</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Key Metrics Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
                         { label: 'Profile Skills', value: skills.length, icon: Award, color: 'text-green-600', bg: 'bg-green-50' },
                         { label: 'Market Skills', value: gapAnalysis?.fetched_market_skills?.length || 0, icon: Target, color: 'text-blue-600', bg: 'bg-blue-50' },
-                        { label: 'Growth Tracking', value: 'Active', icon: TrendingUp, color: 'text-amber-600', bg: 'bg-amber-50' },
-                        { label: 'Market Readiness', value: `${Math.round(gapAnalysis?.overall_readiness || 0)}%`, icon: Star, color: 'text-purple-600', bg: 'bg-purple-50' },
+                        { label: 'Total Gaps', value: (gapAnalysis?.missing_skills?.length || 0), icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' },
+                        { label: 'Forecast', value: `${analyticsData.forecastMonths}m`, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
                     ].map((stat, i) => (
-                        <div key={i} className="card-simple">
-                            <div className="flex items-center justify-between mb-4">
+                        <div key={i} className="card-simple p-5">
+                            <div className="flex items-center justify-between mb-3">
                                 <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}>
-                                    <stat.icon size={20} />
+                                    <stat.icon size={18} />
                                 </div>
-                                <ArrowUpRight className="text-gray-300" size={16} />
                             </div>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{stat.label}</p>
-                            <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{stat.label}</p>
+                            <p className="text-xl font-black text-gray-900">{stat.value}</p>
                         </div>
                     ))}
                 </div>

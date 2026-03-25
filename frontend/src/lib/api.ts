@@ -227,6 +227,10 @@ export const api = {
         });
     },
 
+    getCertificateData: async (userId: string): Promise<any> => {
+        return fetchApi(`/api/roadmaps/certificate/${userId}`);
+    },
+
     // ── Video Progress APIs ──
 
     saveVideoProgress: async (
