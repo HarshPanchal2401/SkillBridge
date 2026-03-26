@@ -84,6 +84,7 @@ class GroqGapAnalyzer:
         user_skills: Dict[str, Dict],
         market_requirements: Dict[str, Dict],
         target_role: str = "Target Position",
+        synonym_map: Optional[Dict] = None,   # kept for backward-compat and to avoid TypeError
     ) -> Dict:
         """
         Run SmartGapAnalyzer then optionally enrich gaps with Groq reasoning.

@@ -72,6 +72,7 @@ class RoadmapGenerator:
         gap_analysis: Dict[str, Any],
         language: str = "English",
         youtube_service=None,
+        course_recommender=None,
     ) -> Dict[str, Any]:
         """
         Generate a dual roadmap (Fast-Track & Full) using Groq LLM,
@@ -314,6 +315,30 @@ You are the core intelligence behind the **SkillBridge Learning Experience**. Ge
                 logger.info(f"✅ Successfully attached YouTube resources to {len(all_items_to_process)} milestones across both roadmaps")
             except Exception as e:
                 logger.error(f"❌ YouTube resource batch fetch failed: {e}")
+
+        # ── Stage 3: Attach Expert Course Recommendations ──
+        if course_recommender:
+            logger.info("🎓 Fetching expert course recommendations for gap milestones...")
+            # We only recommend courses for skills that are gaps (in all_gap_skills)
+            gap_set = {s.lower() for s in all_gap_skills}
+            
+            # Fast Track (Mostly gaps)
+            for item in roadmap_data.get("fast_track_roadmap", []):
+                s_name = item["skill"].strip().lower()
+                if s_name in gap_set:
+                    # Get top 2 courses
+                    courses = course_recommender.search_courses_for_skill(item["skill"], max_results=2)
+                    item["recommended_courses"] = courses
+            
+            # Full Roadmap (Only for gap milestones)
+            for phase in ["beginner_milestones", "intermediate_milestones", "advanced_milestones"]:
+                for item in full_roadmap.get(phase, []):
+                    s_name = item["skill"].strip().lower()
+                    if s_name in gap_set:
+                        courses = course_recommender.search_courses_for_skill(item["skill"], max_results=2)
+                        item["recommended_courses"] = courses
+
+            logger.info("✅ Successfully merged course recommendations into roadmap")
 
         # Store the language used
         roadmap_data["language"] = language

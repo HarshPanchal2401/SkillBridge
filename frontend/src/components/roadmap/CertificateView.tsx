@@ -137,13 +137,28 @@ export default function CertificateView({ data, onClose }: CertificateViewProps)
 
                                 {/* Signatures & Seal Row */}
                                 <div className="relative z-20 w-full grid grid-cols-3 items-end px-20 pb-12">
-                                    <div className="flex flex-col items-center">
+                                    <div className="flex flex-col items-center relative">
+                                        {/* Stylized Signature of Harsh */}
+                                        <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-32 h-16 pointer-events-none z-30 flex items-center justify-center select-none no-print">
+                                            <p className="text-4xl font-normal text-blue-900/60 font-['Great_Vibes',cursive] -rotate-12 translate-y-2">Harsh</p>
+                                        </div>
                                         <div className="w-full border-b border-gray-400 mb-2 px-6 h-8"></div>
                                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Lead Architect</p>
                                     </div>
-
+                                    
                                     <div className="flex justify-center mb-[-10px]">
-                                        <div className="w-24 h-24 relative flex items-center justify-center">
+                                        <div className="w-32 h-32 relative flex items-center justify-center">
+                                            {/* DARK REALISTIC STAMP */}
+                                            <div className="absolute inset-0 flex items-center justify-center rotate-[-12deg] opacity-[0.85] pointer-events-none no-print">
+                                                <div className="w-28 h-28 rounded-full border-[5px] border-red-900 flex flex-col items-center justify-center p-2 relative shadow-[0_0_8px_rgba(127,29,29,0.3)]">
+                                                    <div className="absolute inset-[3px] rounded-full border-[1.5px] border-red-900/50" />
+                                                    <p className="text-[10px] font-black text-red-950 uppercase tracking-tighter leading-tight text-center mb-0.5">CERTIFIED BY<br/>SKILLBRIDGE</p>
+                                                    <div className="w-14 h-[2px] bg-red-900/40 my-1" />
+                                                    <p className="text-[9px] font-black text-red-950 uppercase tracking-[0.2em]">OFFICIAL</p>
+                                                    <p className="text-[6px] font-bold text-red-800 uppercase mt-0.5 tracking-widest">AI MASTERY</p>
+                                                </div>
+                                            </div>
+
                                             {/* Dedicated Inline SVG Seal Backgrounds */}
                                             <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
                                                 <circle cx="50" cy="50" r="48" fill="#d4af37" opacity="0.2" fillOpacity="0.2" style={{ fill: '#d4af37 !important', opacity: '0.2 !important' }} />
@@ -154,9 +169,19 @@ export default function CertificateView({ data, onClose }: CertificateViewProps)
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-col items-center">
+                                    <div className="flex flex-col items-center relative">
                                         <div className="w-full border-b border-gray-400 mb-2 px-6 h-8"></div>
                                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">SkillBridge Engine</p>
+                                        
+                                        {/* Stylized Verified Stamp for the Engine side */}
+                                        <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-24 h-24 pointer-events-none z-30 flex items-center justify-center select-none no-print rotate-[-10deg] opacity-40">
+                                            <div className="w-16 h-16 rounded-full border-2 border-blue-600/50 flex flex-col items-center justify-center p-0.5 relative">
+                                                <div className="absolute inset-0.5 rounded-full border border-blue-600/30" />
+                                                <p className="text-[5px] font-black text-blue-600/60 uppercase tracking-tighter leading-none text-center">OFFICIAL<br/>VERIFIED</p>
+                                                <div className="w-8 h-[0.5px] bg-blue-600/30 my-0.2" />
+                                                <p className="text-[4px] font-bold text-blue-600/50 uppercase">DATA AI</p>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 

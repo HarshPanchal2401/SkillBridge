@@ -27,7 +27,7 @@ class DatabaseConfig:
     def __init__(
         self,
         database_path: str = DATABASE_PATH,
-        timeout: float = 30.0,
+        timeout: float = 60.0,
         check_same_thread: bool = False,
         isolation_level: Optional[str] = None
     ):

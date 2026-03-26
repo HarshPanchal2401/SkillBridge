@@ -61,22 +61,29 @@ export interface GapAnalysis {
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { setGlobalLoading } from './LoadingContext';
 
-async function fetchApi(endpoint: string, options?: RequestInit) {
-    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers,
-        },
-    });
+async function fetchApi(endpoint: string, options?: RequestInit & { silent?: boolean }) {
+    const isSilent = options?.silent ?? false;
+    if (!isSilent) setGlobalLoading(true);
+    try {
+        const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options?.headers,
+            },
+        });
 
-    if (!res.ok) {
-        const error = await res.json().catch(() => ({ message: 'Request failed' }));
-        throw new Error(error.message || error.detail || `HTTP ${res.status}`);
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({ message: 'Request failed' }));
+            throw new Error(error.message || error.detail || `HTTP ${res.status}`);
+        }
+
+        return res.json();
+    } finally {
+        if (!isSilent) setGlobalLoading(false);
     }
-
-    return res.json();
 }
 
 // Simple in-memory cache
@@ -252,7 +259,8 @@ export const api = {
                 video_id: videoId,
                 ...data,
             }),
-        });
+            silent: true,
+        } as any);
     },
 
     getVideoProgress: async (userId: string): Promise<any> => {
@@ -270,7 +278,8 @@ export const api = {
     incrementPlayCount: async (userId: string, videoId: string): Promise<any> => {
         return fetchApi(`/api/video-progress/increment-play/${userId}/${videoId}`, {
             method: 'POST',
-        });
+            silent: true,
+        } as any);
     },
 
     tutorChat: async (videoId: string, videoTitle: string, message: string, sessionId?: string, language: string = 'English'): Promise<{ reply: string; session_id: string }> => {

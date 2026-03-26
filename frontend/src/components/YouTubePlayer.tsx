@@ -122,7 +122,7 @@ export default function YouTubePlayer({
             setCurrentTime(time);
 
             if (saveProgress) {
-                setIsSaving(true);
+                // Determine if this is a significant progress update to avoid redundant re-renders in parent
                 const res = await saveProgress(activeVId, {
                     skill_name: milestoneId,
                     watch_time_seconds: time,
@@ -131,7 +131,6 @@ export default function YouTubePlayer({
                     last_position_seconds: time,
                     delta_seconds: contentDelta
                 });
-                setIsSaving(false);
 
                 // Use the accumulated percent from backend for real progress
                 const realPercent = res?.accumulated_percent || displayPercent;
@@ -156,19 +155,24 @@ export default function YouTubePlayer({
         let liveTimer: NodeJS.Timeout | null = null;
 
         if (playerRef.current) {
+            // Save progress every 60 seconds (reduced from 15s to save API bandwidth)
             syncIntervalRef.current = setInterval(() => {
                 doSaveProgress();
-            }, 15000);
+            }, 60000);
 
-            // Live UI updates every 1 second
+            // Live UI updates every 1 second, but only if percentage actually moves
+            let lastPercent = -1;
             liveTimer = setInterval(() => {
                 const p = playerRef.current;
                 if (p && isPlayingRef.current) {
                     const time = p.getCurrentTime?.() || 0;
                     const dur = p.getDuration?.() || 0;
                     if (dur > 0 && onProgressUpdate) {
-                        const percent = Math.min(100, Math.round((time / dur) * 100));
-                        onProgressUpdate(percent, time);
+                        const percent = Math.min(100, Math.floor((time / dur) * 100));
+                        if (percent !== lastPercent) {
+                            onProgressUpdate(percent, time);
+                            lastPercent = percent;
+                        }
                     }
                 }
             }, 1000);
@@ -281,16 +285,7 @@ export default function YouTubePlayer({
                     <div className="absolute inset-0 pointer-events-none ring-1 ring-inset ring-white/10 rounded-none z-10" />
                 </div>
 
-                {isSaving && (
-                    <div className="absolute top-6 right-6 flex items-center gap-2.5 px-4 py-2.5 bg-black/40 backdrop-blur-2xl rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] text-white/70 border border-white/5 animate-fade-in z-20 shadow-2xl">
-                        <div className="relative w-2 h-2">
-                            <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-75" />
-                            <div className="relative bg-green-500 w-2 h-2 rounded-full" />
-                        </div>
-                        Syncing...
-                    </div>
-                )}
-            </div>
+                </div>
 
             {/* Pro Playlist Sidebar */}
             {videos.length > 0 && (

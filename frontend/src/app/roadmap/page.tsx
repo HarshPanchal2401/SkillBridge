@@ -51,6 +51,16 @@ interface Oneshot {
     score?: number;
 }
 
+interface Course {
+    course_name: string;
+    platform: string;
+    url: string;
+    description: string;
+    rating?: number;
+    duration?: string;
+    cost?: string;
+}
+
 interface SkillItem {
     skill: string;
     importance: string;
@@ -62,6 +72,7 @@ interface SkillItem {
     playlist?: Playlist | null;
     oneshot?: Oneshot | null;
     verification_reason?: string;
+    recommended_courses?: Course[];
 }
 
 export default function RoadmapPage() {
@@ -76,9 +87,10 @@ export default function RoadmapPage() {
 
     // Video player state
     const [playerOpen, setPlayerOpen] = useState(false);
-    const [activeVideo, setActiveVideo] = useState<{ id: string; title: string; skillName?: string } | null>(null);
+    const [activeVideo, setActiveVideo] = useState<{ id: string; title: string; skillName?: string; language?: string; initialTime?: number } | null>(null);
     const [currentPlaylist, setCurrentPlaylist] = useState<Playlist | null>(null);
     const [tutorOverlayOpen, setTutorOverlayOpen] = useState(false);
+    const [isSwitchingLanguage, setIsSwitchingLanguage] = useState(false);
 
     // Analytics
     const [videoProgressMap, setVideoProgressMap] = useState<Record<string, any>>({});
@@ -141,34 +153,25 @@ export default function RoadmapPage() {
     };
 
     const triggerCelebration = () => {
-        const duration = 7 * 1000;
-        const animationEnd = Date.now() + duration;
-        const defaults = { startVelocity: 45, spread: 360, ticks: 100, zIndex: 1000000 };
-
-        const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
-
-        const interval: any = setInterval(function () {
-            const timeLeft = animationEnd - Date.now();
-
-            if (timeLeft <= 0) {
-                return clearInterval(interval);
-            }
-
-            const particleCount = 150 * (timeLeft / duration);
-            confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
-            confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
-
-            // Random center bursts for extra celebration
-            if (Math.random() > 0.7) {
-                confetti({ ...defaults, particleCount: 40, origin: { x: 0.5, y: 0.5 } });
-            }
-        }, 200);
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1000000, particleCount: 150 };
+        
+        // Just two elegant bursts from the sides instead of a continuous loop
+        confetti({
+            ...defaults,
+            origin: { x: 0.2, y: 0.5 }
+        });
+        confetti({
+            ...defaults,
+            origin: { x: 0.8, y: 0.5 }
+        });
     };
 
     const handleDownloadCertificate = async () => {
         if (!user?.id) return;
         setCertLoading(true);
         try {
+            // Artificial delay for better UX feedback
+            await new Promise(resolve => setTimeout(resolve, 500));
             const data = await api.getCertificateData(user.id);
             if (data.eligible) {
                 setCertData(data);
@@ -176,7 +179,7 @@ export default function RoadmapPage() {
                 // Trigger an extra burst of sprinkles when certificate is claimed
                 triggerCelebration();
             } else {
-                alert(data.reason || "You haven't completed all roadmap milestones yet.");
+                alert(data.reason || "You must complete 100% of your roadmap to claim the certificate.");
             }
         } catch (err) {
             console.error("Certificate error:", err);
@@ -300,12 +303,75 @@ export default function RoadmapPage() {
         return totalProgress / allMilestones.length;
     }, [roadmap, videoProgressMap]);
 
-    const handlePlayOneshot = async (oneshot: Oneshot, skillName: string) => {
-        if (!oneshot?.video_id) return;
+    const handlePlayOneshot = async (oneshot: Oneshot, skillName: string, selectedLanguage?: 'English' | 'Hindi') => {
+        const targetLang = selectedLanguage || language;
+        
+        let videoToPlay = oneshot;
+        
+        // If user explicitly chose a different language, fetch that version first
+        if (selectedLanguage) {
+            setIsSwitchingLanguage(true);
+            try {
+                const res = await api.getSkillVideo(skillName, selectedLanguage);
+                if (res?.oneshot) {
+                    videoToPlay = res.oneshot;
+                }
+            } catch (err) {
+                console.error("Failed to fetch language-specific video", err);
+            } finally {
+                setIsSwitchingLanguage(false);
+            }
+        }
+
+        if (!videoToPlay?.video_id) return;
+        
+        // Make the choice sticky for this session
+        setLanguage(targetLang);
+        
         setCurrentPlaylist(null);
-        setActiveVideo({ id: oneshot.video_id, title: oneshot.title, skillName });
+        setActiveVideo({ 
+            id: videoToPlay.video_id, 
+            title: videoToPlay.title, 
+            skillName,
+            language: targetLang
+        });
         setPlayerOpen(true);
-        if (user?.id) api.incrementPlayCount(String(user.id), oneshot.video_id).catch(() => { });
+        if (user?.id) api.incrementPlayCount(String(user.id), videoToPlay.video_id).catch(() => { });
+    };
+
+    const handleSwitchLanguage = async (newLang: 'English' | 'Hindi') => {
+        if (!activeVideo || isSwitchingLanguage) return;
+        
+        const currentPos = videoProgressMap[activeVideo.id]?.last_position_seconds || 0;
+        
+        setIsSwitchingLanguage(true);
+        try {
+            const res = await api.getSkillVideo(activeVideo.skillName || '', newLang);
+            if (res?.oneshot) {
+                // Save current progress before switching to ensure backend is in sync
+                await handleSaveProgress(activeVideo.id, {
+                    skill_name: activeVideo.skillName,
+                    last_position_seconds: currentPos,
+                    watch_time_seconds: currentPos,
+                    delta_seconds: 0 // We'll just force a position sync
+                });
+
+                setActiveVideo({
+                    id: res.oneshot.video_id,
+                    title: res.oneshot.title,
+                    skillName: activeVideo.skillName,
+                    language: newLang,
+                    initialTime: currentPos // Transfer time across languages
+                });
+
+                // Make the choice sticky
+                setLanguage(newLang);
+            }
+        } catch (err) {
+            console.error("Failed to switch language", err);
+        } finally {
+            setIsSwitchingLanguage(false);
+        }
     };
 
     const handleSaveProgress = useCallback(async (videoId: string, data: any) => {
@@ -436,7 +502,9 @@ export default function RoadmapPage() {
                                     <h1 className="text-sm font-black text-gray-900 tracking-tight uppercase truncate">Career <span className="text-green-600">Bridge</span></h1>
                                     <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-md text-[9px] font-black uppercase tracking-widest">Active</span>
                                 </div>
-                                <p className="text-gray-500 text-[10px] font-bold uppercase tracking-wide truncate max-w-[120px] md:max-w-[200px]">Target: {roadmap.target_role}</p>
+                                <p className="text-gray-500 text-[10px] font-bold uppercase tracking-wide truncate max-w-[120px] md:max-w-[200px]">
+                                    Target: {roadmap.target_role?.replace(/\*/g, '') || user?.target_role || 'Career Goal'}
+                                </p>
                             </div>
                         </div>
 
@@ -474,47 +542,49 @@ export default function RoadmapPage() {
                 <div className="max-w-4xl mx-auto px-6 pb-20">
                     <div className="max-w-3xl space-y-12">
                         {/* CUSTOM GENERATION INPUT - Moved outside tabs for consistency and perfect width alignment */}
-                        <div className="text-left">
-                            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2 uppercase">Your <span className="text-green-600">Career</span> Roadmap</h2>
-                            <p className="text-gray-500 font-medium text-xs leading-relaxed">
-                                The absolute beginner to master journey for **{roadmap.target_role}**.
-                            </p>
+                        {activeTab === 'full' && (
+                            <div className="text-left animate-fade-in">
+                                <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2 uppercase">Your <span className="text-green-600">Career</span> Roadmap</h2>
+                                <p className="text-gray-500 font-medium text-xs leading-relaxed">
+                                    The absolute beginner to master journey for {roadmap.target_role?.replace(/\*/g, '') || user?.target_role || 'your future career'}.
+                                </p>
 
-                            <div className="mt-8 flex flex-col md:flex-row gap-3">
-                                <div className="relative flex-1 group min-w-0">
-                                    <div className="absolute inset-y-0 left-4 flex items-center text-gray-400 group-focus-within:text-green-500 transition-colors">
-                                        <Search size={18} />
+                                <div className="mt-8 flex flex-col md:flex-row gap-3">
+                                    <div className="relative flex-1 group min-w-0">
+                                        <div className="absolute inset-y-0 left-4 flex items-center text-gray-400 group-focus-within:text-green-500 transition-colors">
+                                            <Search size={18} />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Generate roadmap for e.g. DevOps, Data Science..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                                            className="w-full h-12 pl-12 pr-4 bg-white border border-gray-100 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all shadow-sm"
+                                        />
                                     </div>
-                                    <input
-                                        type="text"
-                                        placeholder="Generate roadmap for e.g. DevOps, Data Science..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-                                        className="w-full h-12 pl-12 pr-4 bg-white border border-gray-100 rounded-2xl text-sm font-medium focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none transition-all shadow-sm"
-                                    />
-                                </div>
-                                <button
-                                    onClick={() => handleGenerate()}
-                                    disabled={generating || !searchQuery.trim()}
-                                    className="h-11 px-6 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-2 shadow-xl shadow-gray-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shrink-0"
-                                >
-                                    {generating ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} className="text-green-400" />}
-                                    GENERATE
-                                </button>
-
-                                {user?.target_role && roadmap.target_role?.toLowerCase() !== user.target_role.toLowerCase() && (
                                     <button
-                                        onClick={() => { setSearchQuery(''); handleGenerate(user.target_role); }}
-                                        disabled={generating}
-                                        className="h-11 px-5 bg-white border-2 border-green-500/10 text-green-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-50 transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 active:scale-95 animate-fade-in group shrink-0"
+                                        onClick={() => handleGenerate()}
+                                        disabled={generating || !searchQuery.trim()}
+                                        className="h-11 px-6 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-2 shadow-xl shadow-gray-200 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 shrink-0"
                                     >
-                                        <RefreshCw size={14} className={`group-hover:rotate-180 transition-transform ${generating ? 'animate-spin' : ''}`} />
-                                        RESET TO: {user.target_role}
+                                        {generating ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} className="text-green-400" />}
+                                        GENERATE
                                     </button>
-                                )}
+
+                                    {user?.target_role && roadmap.target_role?.toLowerCase() !== user.target_role.toLowerCase() && (
+                                        <button
+                                            onClick={() => { setSearchQuery(''); handleGenerate(user.target_role); }}
+                                            disabled={generating}
+                                            className="h-11 px-5 bg-white border-2 border-green-500/10 text-green-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-green-50 transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 active:scale-95 animate-fade-in group shrink-0"
+                                        >
+                                            <RefreshCw size={14} className={`group-hover:rotate-180 transition-transform ${generating ? 'animate-spin' : ''}`} />
+                                            RESET TO: {user.target_role}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {activeTab === 'full' ? (
                             <div className="relative">
@@ -603,7 +673,7 @@ export default function RoadmapPage() {
                                                                     </div>
                                                                 )}
 
-                                                                {displayOneshot ? (
+                                                                {displayOneshot && (
                                                                     <div className="mt-4 p-3 bg-gray-50 rounded-xl flex items-center gap-3 border border-gray-100/50 hover:bg-gray-100/50 transition-colors">
                                                                         <div className="w-7 h-7 bg-red-500 rounded-full flex items-center justify-center text-white shadow-sm shrink-0">
                                                                             <Play size={10} fill="currentColor" className="ml-0.5" />
@@ -613,15 +683,35 @@ export default function RoadmapPage() {
                                                                             {displayOneshot.title}
                                                                         </p>
                                                                     </div>
-                                                                ) : (
-                                                                    <div className="mt-4 p-3 bg-gray-50 rounded-xl flex items-center gap-3 border border-gray-100/50 opacity-50">
-                                                                        <div className="w-7 h-7 bg-gray-400 rounded-full flex items-center justify-center text-white shrink-0">
-                                                                            <Play size={10} fill="currentColor" className="ml-0.5" />
+                                                                )}
+
+                                                                {/* EXPERT COURSE RECOMMENDATIONS */}
+                                                                {item.recommended_courses && item.recommended_courses.length > 0 && (
+                                                                    <div className="mt-4 space-y-2">
+                                                                        <div className="flex items-center gap-2 mb-1">
+                                                                            <Sparkles size={12} className="text-green-600" />
+                                                                            <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Expert Recommendations</span>
                                                                         </div>
-                                                                        <p className="text-[10px] font-bold text-gray-400 truncate flex-1">
-                                                                            <span className="font-extrabold mr-2 uppercase">PREP:</span>
-                                                                            Fetching masterclass resources...
-                                                                        </p>
+                                                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                            {item.recommended_courses.map((course: Course, cIdx: number) => (
+                                                                                <a
+                                                                                    key={cIdx}
+                                                                                    href={course.url}
+                                                                                    target="_blank"
+                                                                                    rel="noopener noreferrer"
+                                                                                    className="flex items-center gap-3 p-2.5 bg-green-50/30 border border-green-100/50 rounded-xl hover:bg-green-100/50 transition-all group/course"
+                                                                                >
+                                                                                    <div className="w-8 h-8 bg-white border border-green-100 rounded-lg flex items-center justify-center shrink-0 shadow-sm group-hover/course:scale-110 transition-transform">
+                                                                                        <BookOpen size={14} className="text-green-600" />
+                                                                                    </div>
+                                                                                    <div className="min-w-0 flex-1">
+                                                                                        <p className="text-[9px] font-black text-gray-900 truncate uppercase tracking-tight">{course.course_name}</p>
+                                                                                        <p className="text-[8px] font-bold text-green-600 uppercase tracking-widest">{course.platform}</p>
+                                                                                    </div>
+                                                                                    <ArrowUpRight size={12} className="text-gray-300 group-hover/course:text-green-600 transition-colors" />
+                                                                                </a>
+                                                                            ))}
+                                                                        </div>
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -638,12 +728,12 @@ export default function RoadmapPage() {
                                                                 {displayOneshot ? (
                                                                     <button
                                                                         onClick={() => handlePlayOneshot(displayOneshot!, item.skill)}
-                                                                        className={`w-full h-11 rounded-xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest transition-all group/play shadow-xl active:scale-95 ${isLive ? 'bg-cyan-600 text-white hover:bg-cyan-500 ring-2 ring-cyan-500/20' : 'bg-gray-900 text-white hover:bg-black'}`}
+                                                                        className={`w-full h-11 rounded-xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest transition-all group/play shadow-xl active:scale-95 ${activeVideo?.skillName === item.skill ? 'bg-cyan-600 text-white hover:bg-cyan-500 ring-2 ring-cyan-500/20' : 'bg-gray-900 text-white hover:bg-black'}`}
                                                                     >
-                                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isLive ? 'border-white/50 animate-pulse' : 'border-green-400/50'}`}>
-                                                                            <Play size={10} fill="currentColor" className={`${isLive ? 'text-white' : 'text-green-400'} ml-0.5`} />
+                                                                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${activeVideo?.skillName === item.skill ? 'border-white/50 animate-pulse' : 'border-green-400/50'}`}>
+                                                                            <Play size={10} fill="currentColor" className={`${activeVideo?.skillName === item.skill ? 'text-white' : 'text-green-400'} ml-0.5`} />
                                                                         </div>
-                                                                        {isLive ? 'PLAYING LIVE' : 'START'}
+                                                                        {activeVideo?.skillName === item.skill ? 'PLAYING LIVE' : 'START'}
                                                                     </button>
                                                                 ) : (
                                                                     <button
@@ -663,43 +753,60 @@ export default function RoadmapPage() {
                                     ))}
                                 </div>
 
-                                {/* TARGET ACHIEVEMENT */}
-                                <div className="relative mt-8 animate-fade-in">
-                                    <div className="absolute left-6 top-0 h-12 w-1 ml-[-2px] border-l-2 border-dashed border-gray-200" />
-
-                                    <div className="ml-12 glass-card p-6 border-green-100 bg-gradient-to-br from-green-50/10 to-transparent flex items-center gap-6 group overflow-hidden relative">
-                                        <div className="absolute top-0 right-0 w-32 h-32 bg-green-200/20 rounded-full blur-3xl -mr-16 -mt-16 animate-pulse"></div>
-
-                                        <div className="w-14 h-14 rounded-2xl bg-gray-900 flex items-center justify-center text-yellow-500 shadow-2xl shadow-gray-200 ring-4 ring-white relative z-10 group-hover:scale-110 transition-transform duration-500">
-                                            <Trophy size={28} />
+                                {/* MINIMALISTIC GOAL REACHED CARD */}
+                                <div className="relative mt-20 mb-8 animate-fade-in group">
+                                    <div className="absolute left-6 -top-12 h-12 w-1 ml-[-2px] border-l-2 border-dashed border-gray-200" />
+                                    <div className="ml-12 glass-card p-10 flex flex-col md:flex-row items-center gap-10 border-green-100 bg-green-50/5 hover:bg-green-50/10 transition-colors">
+                                        <div className="w-20 h-20 bg-green-600 text-white rounded-[2rem] flex items-center justify-center shadow-xl shadow-green-900/20 group-hover:scale-110 transition-transform duration-500 shrink-0">
+                                            <Trophy size={40} />
                                         </div>
-
-                                        <div className="relative z-10 flex-1">
-                                            <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-green-100 text-green-700 rounded text-[8px] font-black uppercase tracking-widest mb-2 border border-green-200">
-                                                <Sparkles size={10} /> Milestone Achieved
+                                        <div className="flex-1 text-center md:text-left">
+                                            <div className="inline-flex items-center gap-2 px-2 py-0.5 bg-green-100 text-green-700 rounded text-[9px] font-black uppercase tracking-widest mb-3 border border-green-200">
+                                                <Sparkles size={10} /> Goal Achieved
                                             </div>
-                                            <h3 className="text-xl font-black text-gray-900 tracking-tight uppercase leading-none">Goal Reached</h3>
-                                            <p className="text-gray-400 text-[10px] font-black uppercase tracking-[0.1em] mt-2 max-w-[200px] leading-relaxed">Ready for high-fidelity industry benchmark roles</p>
+                                            <h3 className="text-3xl font-black text-gray-900 tracking-tight uppercase leading-none mb-4">You've Reached Your <span className="text-green-600">Goal!</span></h3>
+                                            <p className="text-gray-500 text-xs font-medium leading-relaxed max-w-md">Congrats! You've mastered all milestones for {roadmap.target_role?.replace(/\*/g, '') || user?.target_role || 'your goal'}. You're now ready for the next level in your career.</p>
                                         </div>
-
-                                        <div className="flex flex-col gap-2 relative z-10">
+                                        <div className="shrink-0">
                                             <button
                                                 onClick={handleDownloadCertificate}
-                                                disabled={certLoading}
-                                                className="h-10 px-6 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-2 shadow-xl shadow-gray-200 active:scale-95 disabled:opacity-50"
+                                                disabled={certLoading || Math.round(overallProgress) < 100}
+                                                className={`group relative h-14 min-w-[260px] px-10 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 overflow-hidden active:scale-95 disabled:cursor-not-allowed ${Math.round(overallProgress) < 100 ? 'bg-gray-50 text-gray-400 border border-gray-100 shadow-none' : 'bg-black text-white hover:bg-zinc-900 shadow-2xl shadow-zinc-200'}`}
                                             >
-                                                {certLoading ? (
-                                                    <RefreshCw size={14} className="animate-spin" />
-                                                ) : (
-                                                    <Award size={14} />
+                                                {/* Progress Fill Layer */}
+                                                {Math.round(overallProgress) < 100 && (
+                                                    <div 
+                                                        className="absolute inset-y-0 left-0 bg-green-500/10 border-r border-green-500/20 transition-all duration-700 ease-in-out"
+                                                        style={{ width: `${overallProgress}%` }}
+                                                    />
                                                 )}
-                                                Claim Certificate
-                                            </button>
-                                            <p className="text-[8px] text-center font-bold text-gray-400 uppercase tracking-widest">Verify expertise</p>
-                                        </div>
+                                                
+                                                {/* Button Content */}
+                                                <div className="relative z-10 flex items-center gap-3">
+                                                    {certLoading ? (
+                                                        <RefreshCw size={18} className="animate-spin" />
+                                                    ) : Math.round(overallProgress) < 100 ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                                            <Clock size={16} className="text-gray-300" />
+                                                        </div>
+                                                    ) : (
+                                                        <Award size={18} className="text-green-500" />
+                                                    )}
+                                                    
+                                                    <span>
+                                                        {certLoading ? 'GENERATING...' : Math.round(overallProgress) < 100 ? `${Math.round(overallProgress)}% COMPLETE - LOCKED` : 'DOWNLOAD CERTIFICATE'}
+                                                    </span>
+                                                </div>
 
-                                        <div className="ml-8 hidden lg:block opacity-10 group-hover:opacity-20 transition-opacity">
-                                            <Trophy size={64} className="rotate-12" />
+                                                {/* Bottom Progress Accent */}
+                                                {Math.round(overallProgress) < 100 && (
+                                                    <div 
+                                                        className="absolute bottom-0 left-0 h-1 bg-green-500/30 transition-all duration-700" 
+                                                        style={{ width: `${overallProgress}%` }}
+                                                    />
+                                                )}
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -719,24 +826,27 @@ export default function RoadmapPage() {
 
                                             if (filteredGaps.length === 0) {
                                                 return (
-                                                    <div className="glass-card p-12 flex flex-col items-center text-center gap-6 animate-fade-in border-green-100 bg-green-50/20">
-                                                        <div className="w-20 h-20 bg-green-500 text-white rounded-3xl flex items-center justify-center shadow-2xl shadow-green-200">
-                                                            <Trophy size={32} />
-                                                        </div>
-                                                        <div className="max-w-md">
-                                                            <h3 className="text-2xl font-black text-gray-900 tracking-tight uppercase leading-none mb-3">All Gaps <span className="text-green-600">Addressed</span></h3>
-                                                            <p className="text-gray-500 text-sm font-medium leading-relaxed">
-                                                                You've successfully moved all critical gaps into your active career journey. Keep building your momentum!
-                                                            </p>
-                                                        </div>
-                                                        <button
-                                                            onClick={() => setActiveTab('full')}
-                                                            className="h-12 px-8 bg-gray-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-gray-200 active:scale-95"
-                                                        >
-                                                            View Full Career Path
-                                                            <ArrowRight size={14} />
-                                                        </button>
+                                            <div className="glass-card p-12 md:p-20 flex flex-col items-center text-center gap-8 animate-fade-in border-green-100 bg-green-50/20">
+                                                <div className="w-20 h-20 bg-green-600 text-white rounded-[2rem] flex items-center justify-center shadow-xl shadow-green-900/20">
+                                                    <Trophy size={40} />
+                                                </div>
+                                                <div className="max-w-md">
+                                                    <div className="inline-flex items-center gap-2 px-2 py-0.5 bg-green-100 text-green-700 rounded text-[9px] font-black uppercase tracking-widest mb-3 border border-green-200">
+                                                        <Sparkles size={10} /> Bridge Complete
                                                     </div>
+                                                    <h3 className="text-3xl font-black text-gray-900 tracking-tight uppercase mb-4">All Gaps <span className="text-green-600">Addressed!</span></h3>
+                                                    <p className="text-gray-500 text-sm font-medium leading-relaxed">
+                                                        You've successfully addressed all critical skill gaps. Your market readiness is now optimized for industry benchmarks.
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={() => setActiveTab('full')}
+                                                    className="h-14 px-10 bg-gray-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-gray-200 active:scale-95"
+                                                >
+                                                    VIEW FULL PATHWAY
+                                                    <ArrowRight size={18} />
+                                                </button>
+                                            </div>
                                                 );
                                             }
 
@@ -796,6 +906,36 @@ export default function RoadmapPage() {
                                                                     </p>
                                                                 </div>
                                                             )}
+
+                                                            {/* EXPERT COURSE RECOMMENDATIONS */}
+                                                            {item.recommended_courses && item.recommended_courses.length > 0 && (
+                                                                <div className="mt-4 space-y-2">
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <Sparkles size={12} className="text-green-600" />
+                                                                        <span className="text-[10px] font-black text-gray-900 uppercase tracking-widest">Expert Recommendations</span>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                        {item.recommended_courses.map((course: Course, cIdx: number) => (
+                                                                            <a
+                                                                                key={cIdx}
+                                                                                href={course.url}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                className="flex items-center gap-3 p-2.5 bg-green-50/30 border border-green-100/50 rounded-xl hover:bg-green-100/50 transition-all group/course"
+                                                                            >
+                                                                                <div className="w-8 h-8 bg-white border border-green-100 rounded-lg flex items-center justify-center shrink-0 shadow-sm group-hover/course:scale-110 transition-transform">
+                                                                                    <BookOpen size={14} className="text-green-600" />
+                                                                                </div>
+                                                                                <div className="min-w-0 flex-1">
+                                                                                    <p className="text-[9px] font-black text-gray-900 truncate uppercase tracking-tight">{course.course_name}</p>
+                                                                                    <p className="text-[8px] font-bold text-green-600 uppercase tracking-widest">{course.platform}</p>
+                                                                                </div>
+                                                                                <ArrowUpRight size={12} className="text-gray-300 group-hover/course:text-green-600 transition-colors" />
+                                                                            </a>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
 
                                                         <div className="w-full md:w-56 shrink-0 space-y-4 md:mt-1.5">
@@ -810,12 +950,12 @@ export default function RoadmapPage() {
                                                             {item.oneshot && (
                                                                 <button
                                                                     onClick={() => handlePlayOneshot(item.oneshot!, item.skill)}
-                                                                    className={`w-full h-11 rounded-xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest transition-all group/play shadow-xl active:scale-95 ${isLive ? 'bg-cyan-600 text-white hover:bg-cyan-500 ring-2 ring-cyan-500/20' : 'bg-gray-900 text-white hover:bg-black'}`}
+                                                                    className={`w-full h-11 rounded-xl flex items-center justify-center gap-3 text-[10px] font-black uppercase tracking-widest transition-all group/play shadow-xl active:scale-95 ${activeVideo?.skillName === item.skill ? 'bg-cyan-600 text-white hover:bg-cyan-500 ring-2 ring-cyan-500/20' : 'bg-gray-900 text-white hover:bg-black'}`}
                                                                 >
-                                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${isLive ? 'border-white/50 animate-pulse' : 'border-green-400/50'}`}>
-                                                                        <Play size={10} fill="currentColor" className={`${isLive ? 'text-white' : 'text-green-400'} ml-0.5`} />
+                                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${activeVideo?.skillName === item.skill ? 'border-white/50 animate-pulse' : 'border-green-400/50'}`}>
+                                                                        <Play size={10} fill="currentColor" className={`${activeVideo?.skillName === item.skill ? 'text-white' : 'text-green-400'} ml-0.5`} />
                                                                     </div>
-                                                                    {isLive ? 'PLAYING LIVE' : 'START'}
+                                                                    {activeVideo?.skillName === item.skill ? 'PLAYING LIVE' : 'START'}
                                                                 </button>
                                                             )}
                                                         </div>
@@ -868,6 +1008,26 @@ export default function RoadmapPage() {
                                         </div>
 
                                         <div className="flex items-center gap-4 shrink-0">
+                                            {/* In-Player Language Switcher */}
+                                            <div className="flex h-9 bg-white/5 p-0.5 rounded-xl border border-white/10 shadow-2xl">
+                                                <button
+                                                    onClick={() => handleSwitchLanguage('English')}
+                                                    disabled={isSwitchingLanguage}
+                                                    className={`h-full px-4 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] transition-all flex items-center gap-2 ${activeVideo.language === 'English' ? 'bg-white text-black shadow-xl shadow-white/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                                                >
+                                                    {isSwitchingLanguage && activeVideo.language === 'English' && <RefreshCw size={10} className="animate-spin" />}
+                                                    ENGLISH
+                                                </button>
+                                                <button
+                                                    onClick={() => handleSwitchLanguage('Hindi')}
+                                                    disabled={isSwitchingLanguage}
+                                                    className={`h-full px-4 rounded-lg text-[9px] font-black uppercase tracking-[0.15em] transition-all flex items-center gap-2 ${activeVideo.language === 'Hindi' ? 'bg-white text-black shadow-xl shadow-white/20' : 'text-white/40 hover:text-white hover:bg-white/5'}`}
+                                                >
+                                                    {isSwitchingLanguage && activeVideo.language === 'Hindi' && <RefreshCw size={10} className="animate-spin" />}
+                                                    HINDI
+                                                </button>
+                                            </div>
+
                                             <button
                                                 onClick={toggleTutor}
                                                 className={`h-9 px-4 flex items-center gap-3 rounded-xl transition-all border group active:scale-95 ${tutorOverlayOpen ? 'bg-green-600 border-green-500 text-white shadow-xl shadow-green-600/20' : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'}`}
@@ -892,6 +1052,7 @@ export default function RoadmapPage() {
                                             <div className="w-full h-full bg-zinc-900 overflow-hidden shadow-[0_48px_100px_rgba(0,0,0,0.8)] border-x border-white/5 relative group/player">
                                                 <YouTubePlayer
                                                     videoId={activeVideo.id}
+                                                    initialTime={activeVideo.initialTime || 0}
                                                     userId={user?.id || ''}
                                                     milestoneId={activeVideo.skillName || ''}
                                                     saveProgress={handleSaveProgress}
@@ -911,6 +1072,22 @@ export default function RoadmapPage() {
 
                                                 {/* Cinematic Vignette */}
                                                 <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_100px_rgba(0,0,0,0.6)] group-hover/player:shadow-[inset_0_0_60px_rgba(0,0,0,0.3)] transition-shadow duration-700" />
+                                                
+                                                {/* Language Switching Overlay */}
+                                                {isSwitchingLanguage && (
+                                                    <div className="absolute inset-0 z-[220] bg-black/60 backdrop-blur-md flex flex-col items-center justify-center gap-4 animate-fade-in">
+                                                        <div className="relative">
+                                                            <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 animate-pulse" />
+                                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                                <RefreshCw className="text-green-500 animate-spin" size={24} />
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-center">
+                                                            <p className="text-white font-black text-[10px] uppercase tracking-[0.2em]">Switching Language</p>
+                                                            <p className="text-white/40 text-[8px] uppercase tracking-widest mt-1">Syncing timestamp...</p>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 

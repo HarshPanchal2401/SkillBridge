@@ -216,7 +216,7 @@ export default function SkillsPage() {
 
     return (
         <>
-            <div className="space-y-8 animate-fade-in">
+            <div className="space-y-4 animate-fade-in">
                 {/* Minimal Header */}
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
                     <div>
@@ -268,8 +268,8 @@ export default function SkillsPage() {
                 {gapAnalysis && (
                     <div className="card-simple overflow-hidden relative border-green-100 bg-gradient-to-br from-white to-green-50/30">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-green-200/20 rounded-full mix-blend-multiply filter blur-3xl opacity-30 -mr-20 -mt-20 animate-pulse"></div>
-                        <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-10">
-                            <div className="space-y-4 text-center lg:text-left flex-1">
+                        <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-6">
+                            <div className="space-y-2 text-center lg:text-left flex-1">
                                 <div className="space-y-1">
                                     <h2 className="text-2xl font-black text-gray-900 tracking-tight">
                                         {gapAnalysis.target_role?.title || 'System Analysis'}
@@ -323,23 +323,23 @@ export default function SkillsPage() {
                         { label: 'Total Gaps', value: (gapAnalysis?.missing_skills?.length || 0), icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-50' },
                         { label: 'Forecast', value: `${analyticsData.forecastMonths}m`, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
                     ].map((stat, i) => (
-                        <div key={i} className="card-simple p-5">
-                            <div className="flex items-center justify-between mb-3">
-                                <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}>
-                                    <stat.icon size={18} />
-                                </div>
+                        <div key={i} className="flex flex-col items-center justify-center p-4 bg-white border border-gray-100 rounded-2xl hover:border-green-500/30 transition-all hover:shadow-xl hover:shadow-green-500/5 group">
+                            <div className={`w-9 h-9 rounded-xl ${stat.bg} ${stat.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform shadow-sm`}>
+                                <stat.icon size={16} />
                             </div>
-                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">{stat.label}</p>
-                            <p className="text-xl font-black text-gray-900">{stat.value}</p>
+                            <div className="text-center">
+                                <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1">{stat.label}</p>
+                                <p className="text-xl font-black text-gray-900 tracking-tight">{stat.value}</p>
+                            </div>
                         </div>
                     ))}
                 </div>
 
                 {/* Main Content Grid */}
-                <div className="grid lg:grid-cols-12 gap-8">
+                <div className="grid lg:grid-cols-12 gap-4">
 
                     {/* Left: Skill Explorer */}
-                    <div className="lg:col-span-8 space-y-6">
+                    <div className="lg:col-span-8 space-y-4">
                         <div className="flex items-center justify-between">
                             <h3 className="font-bold text-gray-900">Skill Inventory</h3>
                             <div className="flex p-1 bg-gray-50 rounded-lg border border-gray-100">
@@ -362,48 +362,39 @@ export default function SkillsPage() {
                                     <>
                                         {gapAnalysis?.missing_skills && gapAnalysis.missing_skills.length > 0 ? (
                                             gapAnalysis.missing_skills.map((ms: any, i: number) => (
-                                                <div key={`gap-${i}`} className="card-simple border-l-4 border-l-red-400 group p-5 flex flex-col h-full transition-all">
-                                                    <div className="flex items-center gap-4 mb-4">
-                                                        <div className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center font-bold text-sm">
-                                                            {ms.skill.charAt(0)}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight truncate">{ms.skill}</h4>
-                                                                {ms.llm_validated && (
-                                                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[8px] font-black uppercase tracking-widest flex-shrink-0">
-                                                                        AI ✦
-                                                                    </span>
-                                                                )}
+                                                <div key={`gap-${i}`} className="group relative overflow-hidden bg-white border border-red-50/50 rounded-2xl p-4 hover:shadow-2xl hover:shadow-red-500/5 transition-all animate-fade-in min-h-[160px] flex flex-col justify-between">
+                                                    {/* Accent Glow */}
+                                                    <div className="absolute -right-4 -top-4 w-32 h-32 bg-red-500/[0.03] blur-3xl rounded-full group-hover:bg-red-500/[0.05] transition-colors" />
+                                                    
+                                                    <div className="relative z-10">
+                                                        <div className="flex items-center gap-4 mb-5">
+                                                            <div className="w-12 h-12 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center font-black text-xl shadow-sm border border-red-100 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500">
+                                                                {i + 1}
                                                             </div>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <AlertCircle size={10} className="text-red-500" />
-                                                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Priority Gap</span>
-                                                                    {ms.transferability !== undefined && ms.transferability > 0.4 && (
-                                                                        <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[7px] font-black uppercase tracking-widest border border-blue-100 flex items-center gap-0.5">
-                                                                            <Wifi size={8} /> Transferable
-                                                                        </span>
-                                                                    )}
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    <h4 className="font-black text-gray-900 uppercase text-xs tracking-tight truncate">{ms.skill}</h4>
+                                                                    <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded-full text-[7px] font-black uppercase tracking-widest border border-red-100 animate-pulse shadow-sm shadow-red-100">Critical</span>
                                                                 </div>
+                                                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-1">Priority Gap</p>
                                                             </div>
                                                         </div>
+                                                        
+                                                        {ms.reasoning && (
+                                                            <p className="text-[11px] text-gray-500 leading-relaxed italic line-clamp-2 group-hover:line-clamp-none transition-all duration-500 bg-gray-50/50 p-3 rounded-xl border border-gray-50/50">
+                                                                "{ms.reasoning}"
+                                                            </p>
+                                                        )}
                                                     </div>
 
-                                                    {ms.reasoning && (
-                                                        <p className="text-[10px] text-gray-500 leading-relaxed mb-4 italic line-clamp-2 hover:line-clamp-none transition-all">
-                                                            "{ms.reasoning}"
-                                                        </p>
-                                                    )}
-
-                                                    <div className="space-y-1.5">
-                                                        <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
-                                                            <span className="text-gray-400">Industry Frequency</span>
-                                                            <span className="text-red-600 font-black">{ms.demand_percentage}</span>
+                                                    <div className="relative z-10 mt-6">
+                                                        <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest mb-2.5 px-1">
+                                                            <span className="text-gray-400">Market Demand</span>
+                                                            <span className="text-red-600 font-extrabold">{ms.demand_percentage}</span>
                                                         </div>
-                                                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                        <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden p-[1px] border border-gray-100">
                                                             <div
-                                                                className="h-full bg-red-500 rounded-full transition-all duration-1000"
+                                                                className="h-full bg-gradient-to-r from-red-500 to-rose-400 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(239,68,68,0.2)]"
                                                                 style={{ width: ms.demand_percentage }}
                                                             ></div>
                                                         </div>
@@ -420,89 +411,85 @@ export default function SkillsPage() {
                                 )}
 
                                 {/* Market Skill Filter (Full Market Requirements) */}
-                                {filter === 'Market Skill' && gapAnalysis?.fetched_market_skills?.map((ms: any, i: number) => (
-                                    <div key={`market-${i}`} className="card-simple border-l-4 border-l-blue-400 group p-5 flex flex-col h-full transition-all">
-                                        <div className="flex items-center gap-4 mb-4">
-                                            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-bold text-sm">
-                                                {ms.skill.charAt(0)}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight truncate">{ms.skill}</h4>
-                                                    {ms.llm_validated && (
-                                                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded text-[8px] font-black uppercase tracking-widest flex-shrink-0">
-                                                            AI ✦
-                                                        </span>
-                                                    )}
+                                 {filter === 'Market Skill' && gapAnalysis?.fetched_market_skills?.map((ms: any, i: number) => (
+                                    <div key={`market-${i}`} className="group relative overflow-hidden bg-white border border-blue-50/50 rounded-2xl p-4 hover:shadow-2xl hover:shadow-blue-500/5 transition-all animate-fade-in min-h-[160px] flex flex-col justify-between">
+                                        {/* Accent Glow */}
+                                        <div className="absolute -right-4 -top-4 w-32 h-32 bg-blue-500/[0.03] blur-3xl rounded-full transition-colors" />
+                                        
+                                        <div className="relative z-10">
+                                            <div className="flex items-center gap-4 mb-4">
+                                                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-lg shadow-sm border border-blue-100 group-hover:scale-110 transition-all duration-500">
+                                                    {ms.skill.charAt(0)}
                                                 </div>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <div className="flex items-center gap-1">
-                                                        <TrendingUp size={10} className="text-blue-500" />
-                                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Market Demand</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <h4 className="font-black text-gray-900 uppercase text-xs tracking-tight truncate">{ms.skill}</h4>
+                                                        <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[7px] font-black uppercase tracking-widest border border-blue-100">Market</span>
                                                     </div>
+                                                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Industry Standard</p>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="space-y-1.5">
-                                            <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
-                                                <span className="text-gray-400">Industry Frequency</span>
-                                                <span className="text-blue-600 font-black">{ms.demand_percentage}</span>
+                                        <div className="relative z-10">
+                                            <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest mb-2 px-1">
+                                                <span className="text-gray-400">Demand Level</span>
+                                                <span className="text-blue-600 font-extrabold">{ms.demand_percentage}</span>
                                             </div>
-                                            <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                                            <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden p-[1px] border border-gray-100">
                                                 <div
-                                                    className="h-full bg-blue-500 rounded-full transition-all duration-1000"
+                                                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-400 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(59,130,246,0.1)]"
                                                     style={{ width: ms.demand_percentage }}
-                                                />
+                                                ></div>
                                             </div>
                                         </div>
                                     </div>
                                 ))}
 
-                                {/* User Skill Filter (Only Raw Skills) */}
-                                {filter === 'User Skill' && skills.sort((a, b) => b.proficiency - a.proficiency).map((skill, i) => {
-                                    const aiRefined = isLlmRefined(skill);
+                                 {/* User Skill Filter (Only Raw Skills) - Filtering out 0% skills */}
+                                {filter === 'User Skill' && skills
+                                    .filter(s => (s.proficiency || 0) > 0)
+                                    .sort((a, b) => b.proficiency - a.proficiency)
+                                    .map((skill, i) => {
                                     const prof = (skill.proficiency || 0) * (skill.proficiency <= 1 ? 100 : 1);
-                                    return (
-                                        <div key={skill.id || i} className={`card-simple group p-5 flex flex-col h-full transition-all ${aiRefined ? 'hover:border-purple-100' : ''}`}>
-                                            <div className="flex items-center gap-4 mb-4">
-                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${aiRefined ? 'bg-purple-50 text-purple-600' : 'bg-green-50 text-green-600'}`}>
-                                                    {skill.skill_name.charAt(0).toUpperCase()}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <h4 className="font-bold text-gray-900 uppercase text-xs tracking-tight truncate">{skill.skill_name}</h4>
-                                                        {aiRefined && (
-                                                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-purple-50 text-purple-600 border border-purple-100 rounded text-[8px] font-black uppercase tracking-widest flex-shrink-0">
-                                                                AI ✦
-                                                            </span>
-                                                        )}
+                                    const isMastery = prof >= 80;
+                                    const aiRefined = isLlmRefined(skill);
+
+                                     return (
+                                        <div key={skill.id || i} className={`group relative overflow-hidden bg-white border ${isMastery ? 'border-green-100' : 'border-indigo-100'} rounded-2xl p-4 hover:shadow-2xl ${isMastery ? 'hover:shadow-green-500/5' : 'hover:shadow-indigo-500/5'} transition-all animate-fade-in min-h-[160px] flex flex-col justify-between`}>
+                                            {/* Accent Glow */}
+                                            <div className={`absolute -right-4 -top-4 w-32 h-32 ${isMastery ? 'bg-green-500/[0.03]' : 'bg-indigo-500/[0.03]'} blur-3xl rounded-full transition-colors`} />
+                                            
+                                            <div className="relative z-10">
+                                                <div className="flex items-center gap-4 mb-4">
+                                                    <div className={`w-10 h-10 rounded-xl ${isMastery ? 'bg-green-50 text-green-600 border-green-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'} flex items-center justify-center font-black text-xl shadow-sm border group-hover:scale-110 group-hover:-rotate-3 transition-all duration-500`}>
+                                                        {isMastery ? <Award size={20} /> : <TrendingUp size={20} />}
                                                     </div>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <div className="flex items-center gap-1">
-                                                            {aiRefined ? (
-                                                                <Sparkles size={10} className="text-purple-400" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <h4 className="font-black text-gray-900 uppercase text-xs tracking-tight truncate">{skill.skill_name}</h4>
+                                                            {isMastery ? (
+                                                                <span className="px-2 py-0.5 bg-green-50 text-green-600 rounded-full text-[7px] font-black uppercase tracking-widest border border-green-100 shadow-sm shadow-green-100">Mastery</span>
                                                             ) : (
-                                                                <Star size={10} className="text-amber-400 fill-amber-400" />
+                                                                <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[7px] font-black uppercase tracking-widest border border-indigo-100 shadow-sm shadow-indigo-100">Growth</span>
                                                             )}
-                                                            <span className={`text-[9px] font-bold uppercase tracking-widest ${aiRefined ? 'text-purple-400' : 'text-gray-400'}`}>
-                                                                {aiRefined ? 'LLM Verified' : 'Resume Detected'}
-                                                            </span>
+                                                            {aiRefined && <Sparkles size={10} className="text-amber-400 animate-pulse" />}
                                                         </div>
+                                                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">{isMastery ? 'Expert Level' : 'Strategic Growth'}</p>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-1.5">
-                                                <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-widest px-0.5">
-                                                    <span className="text-gray-400">Expertise Level</span>
-                                                    <span className={`font-black ${aiRefined ? 'text-purple-600' : 'text-green-600'}`}>{Math.round(prof)}%</span>
+                                            <div className="relative z-10 mt-6">
+                                                <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest mb-2.5 px-1">
+                                                    <span className="text-gray-400">Expertise Profile</span>
+                                                    <span className={`${isMastery ? 'text-green-600' : 'text-indigo-600'} font-extrabold`}>{Math.round(prof)}%</span>
                                                 </div>
-                                                <div className="w-full h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                                                <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden p-[1px] border border-gray-100">
                                                     <div
-                                                        className={`h-full rounded-full transition-all duration-1000 ${aiRefined ? 'bg-purple-500' : 'bg-green-500'}`}
+                                                        className={`h-full bg-gradient-to-r ${isMastery ? 'from-green-500 to-emerald-400' : 'from-indigo-600 to-blue-500'} rounded-full transition-all duration-1000 ease-out`}
                                                         style={{ width: `${prof}%` }}
-                                                    />
+                                                    ></div>
                                                 </div>
                                             </div>
                                         </div>

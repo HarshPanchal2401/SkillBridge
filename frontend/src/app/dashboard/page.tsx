@@ -257,7 +257,7 @@ export default function DashboardPage() {
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="font-bold text-gray-900">Priority Skill Gaps</h3>
                                     <button
-                                        onClick={() => router.push('/recommendations')}
+                                        onClick={() => router.push('/roadmap')}
                                         className="text-xs font-bold text-green-600 hover:text-green-700 flex items-center gap-1 transition-colors"
                                     >
                                         View Recommendations
@@ -284,7 +284,7 @@ export default function DashboardPage() {
                             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-1">Quick Actions</h3>
 
                             <button
-                                onClick={() => router.push('/recommendations')}
+                                onClick={() => router.push('/roadmap')}
                                 className="w-full flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl hover:border-green-100 hover:bg-green-50/30 transition-all group shadow-sm"
                             >
                                 <div className="flex items-center gap-3">
@@ -320,7 +320,7 @@ export default function DashboardPage() {
                         <div className="card-simple bg-blue-50/30 border-blue-100 shadow-sm">
                             <h3 className="text-lg font-bold text-gray-900 mb-4">Your Skill Summary</h3>
                             <div className="space-y-4 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
-                                {data?.skills?.slice().sort((a, b) => b.proficiency - a.proficiency).map((skill, index) => (
+                                {data?.skills?.filter(s => s.proficiency > 0).sort((a, b) => b.proficiency - a.proficiency).map((skill, index) => (
                                     <div key={index} className="flex flex-col gap-1.5">
                                         <div className="flex justify-between items-center px-1">
                                             <span className="text-xs font-bold text-gray-700 uppercase">{skill.skill_name}</span>
@@ -334,7 +334,7 @@ export default function DashboardPage() {
                                         </div>
                                     </div>
                                 ))}
-                                {!data?.skills?.length && (
+                                {(!data?.skills || data.skills.filter(s => s.proficiency > 0).length === 0) && (
                                     <p className="text-sm text-gray-500 italic text-center py-4">No skills detected yet. Upload your resume or add projects.</p>
                                 )}
                             </div>

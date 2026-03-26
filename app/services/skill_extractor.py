@@ -174,7 +174,7 @@ class SkillExtractor:
     
     def extract_skills_from_resume(self, resume_text: str, use_ats: bool = True, file_path: Optional[str] = None) -> List:
         """
-        Extract skills from resume using ONLY PrioritySkillExtractor.
+        Extract skills from resume using internal taxonomy and heuristics.
         
         Args:
             resume_text: The resume text to extract skills from
@@ -187,25 +187,38 @@ class SkillExtractor:
         if not resume_text and not file_path:
             return []
         
-        # If file_path is a PDF, use pdfplumber for better text extraction
+        # 1. Text extraction refinement (PDF specific)
         current_text = resume_text
-        if file_path and file_path.lower().endswith('.pdf') and self.priority_extractor:
+        if file_path and file_path.lower().endswith('.pdf'):
             try:
-                print(f"📄 Extracting text from PDF file using pdfplumber: {file_path}")
-                pdf_text = self.priority_extractor.extract_resume_text(file_path)
-                if pdf_text and len(pdf_text) > (len(resume_text) if resume_text else 0):
-                    current_text = pdf_text
+                # Use internal extract_text_from_pdf if not already provided
+                if not current_text:
+                    print(f"📄 Extracting text from PDF file: {file_path}")
+                    current_text = self.extract_text_from_pdf(file_path)
             except Exception as e:
-                print(f"⚠️ PDF extraction with pdfplumber failed: {e}")
+                print(f"⚠️ PDF extraction failed: {e}")
 
-        # Use ONLY PrioritySkillExtractor
-        if not self.priority_extractor:
-            print("❌ PrioritySkillExtractor not initialized!")
-            return []
+        # 2. Extract skill names using internal taxonomy
+        print("🔍 Running skill name extraction...")
+        found_skill_names = self.extract_skills_from_text(current_text)
+        print(f"✅ Found {len(found_skill_names)} skill candidates")
 
-        print("🔍 Running Priority skill extraction...")
-        priority_skills = self.priority_extractor.extract_skills(current_text)
-        print(f"✅ Priority Extractor found {len(priority_skills)} skills")
+        # 3. Calculate proficiency and confidence for each found skill
+        priority_skills = []
+        for skill_name in found_skill_names:
+            proficiency, confidence = self.calculate_proficiency_from_text(skill_name, current_text)
+            
+            # Identify which sections the skill was found in (simplified)
+            found_in = ["resume"]
+            
+            priority_skills.append({
+                "skill": skill_name,
+                "proficiency": proficiency,
+                "confidence": confidence,
+                "found_in": found_in,
+                "context_boost": 0.0,
+                "evidence": f"Found in primary text with {round(proficiency * 100)}% proficiency"
+            })
 
         # --- Groq LLM Refinement ---
         if self.groq_refiner and self.groq_refiner.is_available() and priority_skills:
@@ -218,7 +231,15 @@ class SkillExtractor:
                 for s in priority_skills
             ]
 
-        return priority_skills
+        # FINAL SAFETY: Filter out 0% proficiency skills
+        # We only want to track skills the user actually has
+        filtered_results = [s for s in priority_skills if s.get("proficiency", 0) > 0.0]
+        
+        if len(filtered_results) < len(priority_skills):
+            removed_count = len(priority_skills) - len(filtered_results)
+            print(f"   🧹 Removed {removed_count} skills with 0% proficiency from final results")
+
+        return filtered_results
 
     def extract_skills_with_proficiency(self, resume_text: str) -> Dict[str, Dict]:
         """

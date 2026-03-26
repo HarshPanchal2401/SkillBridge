@@ -25,7 +25,6 @@ import { useState } from 'react';
 const navItems = [
     { href: '/dashboard', label: 'Overview', icon: Home },
     { href: '/skills', label: 'Skills IQ', icon: BarChart3 },
-    { href: '/recommendations', label: 'Learning', icon: BookOpen },
     { href: '/jobs', label: 'Careers', icon: Briefcase },
     { href: '/roadmap', label: 'Roadmap', icon: Map },
 ];
@@ -70,21 +69,21 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: { isCollapsed: boolean;
                         onClick={() => setIsCollapsed(!isCollapsed)}
                         className={`flex items-center gap-3 w-full group transition-all duration-300 relative ${isCollapsed ? 'justify-center' : 'justify-start'}`}
                     >
-                        <div className="relative w-9 h-9 min-w-[2.25rem] bg-green-500 rounded-lg flex items-center justify-center text-white shadow-sm transition-all duration-300 group-hover:bg-green-600 group-hover:scale-105 active:scale-95 overflow-hidden">
+                        <div className="relative w-8 h-8 min-w-[2rem] bg-green-500 rounded-lg flex items-center justify-center text-white shadow-sm transition-all duration-300 group-hover:bg-green-600 group-hover:scale-105 active:scale-95 overflow-hidden">
                             {/* Logo Icon (Sparkles) */}
                             <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isCollapsed ? 'opacity-100 scale-100 group-hover:opacity-0 group-hover:scale-50' : 'opacity-100 group-hover:opacity-0 group-hover:-translate-x-full'}`}>
-                                <Sparkles size={20} />
+                                <Sparkles size={16} />
                             </div>
 
                             {/* Toggle Icon (PanelLeft) */}
                             <div className={`absolute inset-0 flex items-center justify-center transition-all duration-300 ${isCollapsed ? 'opacity-0 scale-50 group-hover:opacity-100 group-hover:scale-100' : 'opacity-0 translate-x-full group-hover:opacity-100 group-hover:translate-x-0'}`}>
-                                <PanelLeft size={20} />
+                                <PanelLeft size={16} />
                             </div>
                         </div>
 
                         {!isCollapsed && (
                             <div className="flex flex-col items-start overflow-hidden transition-all duration-300">
-                                <span className="text-xl font-bold tracking-tight text-gray-900 group-hover:text-green-600 transition-colors">SkillBridge</span>
+                                <span className="text-base font-bold tracking-tight text-gray-900 group-hover:text-green-600 transition-colors">SkillBridge</span>
                                 <span className={`text-[8px] font-black uppercase tracking-[0.2em] text-gray-300 transition-all duration-500 delay-100 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>Professional</span>
                             </div>
                         )}

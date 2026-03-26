@@ -362,58 +362,53 @@ def get_job_recommendations(
     """
     Get job recommendations based on user's target role.
     """
-    from app.database import get_db
-
-    
     services = get_services()
     
+    # 1. Quick DB Fetch
     with get_db() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT target_role, location FROM users WHERE id = ?", (user_id,))
-        user = cursor.fetchone()
+        user_row = cursor.fetchone()
         
-        if not user:
+        if not user_row:
+             from app.exceptions import ServiceUnavailableError
              raise ServiceUnavailableError("Database", "User not found")
         
-        target_role = user[0]
-        location = user[1] or "United States"
+        target_role = user_row[0]
+        location = user_row[1] or "United States"
         
-        if not target_role:
-            return {
-                "success": False,
-                "message": "No target role set. Please update your profile.",
-                "data": {"jobs": []}
-            }
-            
-        # Use existing search logic
-        if not services.has_linkedin_api():
-             # Fallback or error
-             pass
-
-        job_fetcher = services.linkedin_fetcher
+    if not target_role:
+        return {
+            "success": False,
+            "message": "No target role set. Please update your profile.",
+            "data": {"jobs": []}
+        }
         
-        try:
-            jobs_data = job_fetcher.fetch_jobs(target_role, location, limit, use_cache=not refresh)
-            # Re-use search logic to include match score
-            search_results = search_jobs(
-                title=target_role, 
-                location=location, 
-                limit=limit, 
-                refresh=refresh,
-                user_id=user_id,
-                experience_level=None,
-                min_match=None
-            )
-            
-            return {
-                "success": True,
-                "message": f"Recommendations for '{target_role}'",
-                "data": {
-                    "jobs": search_results["data"]["jobs"],
-                    "target_role": target_role,
-                    "location": location
-                }
+    # 2. Slow external calls (linkedin_fetcher / linkedin_api)
+    # The search_jobs function itself handles its own database connections
+    # for each sub-request, so we keep it outside any long-running transaction.
+    try:
+        from app.exceptions import ServiceUnavailableError
+        search_results = search_jobs(
+            title=target_role, 
+            location=location, 
+            limit=limit, 
+            refresh=refresh,
+            user_id=user_id,
+            experience_level=None,
+            min_match=None
+        )
+        
+        return {
+            "success": True,
+            "message": f"Recommendations for '{target_role}'",
+            "data": {
+                "jobs": search_results["data"]["jobs"],
+                "target_role": target_role,
+                "location": location
             }
-        except Exception as e:
-            logger.error(f"Recommendation failed: {e}")
-            raise ServiceUnavailableError("Job Search API", str(e))
+        }
+    except Exception as e:
+        logger.error(f"Recommendation failed: {e}")
+        from app.exceptions import ServiceUnavailableError
+        raise ServiceUnavailableError("Job Search API", str(e))

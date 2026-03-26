@@ -277,15 +277,21 @@ class GroqSkillRefiner:
 
                 # Clamp to [0.0, 1.0]
                 refined_prof = max(0.0, min(float(raw_prof), 1.0))
-                merged["proficiency"] = round(refined_prof, 2)
-                merged["llm_refined"] = True
-                merged["llm_reasoning"] = llm_data.get("reasoning", "")
-                llm_count += 1
+                
+                # Only include if proficiency is meaningful (> 0.05)
+                # LLM sometimes returns 0.0 for skills it thinks are not present
+                if refined_prof > 0.05:
+                    merged["proficiency"] = round(refined_prof, 2)
+                    merged["llm_refined"] = True
+                    merged["llm_reasoning"] = llm_data.get("reasoning", "")
+                    llm_count += 1
+                    result.append(merged)
+                else:
+                    print(f"   🗑️  Removing skill '{skill_name}' due to low LLM proficiency ({refined_prof})")
             else:
                 merged["llm_refined"] = False
                 merged["llm_reasoning"] = ""
-
-            result.append(merged)
+                result.append(merged)
 
         # Sort by proficiency descending (same as original extractor)
         result.sort(key=lambda x: x["proficiency"], reverse=True)

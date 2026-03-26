@@ -16,16 +16,15 @@ async def generate_user_roadmap(
 ):
     """
     Generate and save a personalized roadmap for the user.
-    If stext is provided, it generates a roadmap for that specific role
-    and updates the user's target_role.
     """
     services = get_services()
     roadmap_gen = services.roadmap_generator
     
+    # 1. Quick DB Fetch
     with get_db() as conn:
         cursor = conn.cursor()
         
-        # 1. Verify user exists
+        # Verify user exists
         cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
         user_row = cursor.fetchone()
         if not user_row:
@@ -36,50 +35,49 @@ async def generate_user_roadmap(
         # Use stext if provided, otherwise use user's target_role or default
         if stext:
             target_role = stext
-            # We NO LONGER update user's profile target_role automatically here
-            # to allow them to go back to their "default" profile roadmap
-            logger.info(f"⚡ Generating custom roadmap for '{target_role}' for user {user_id} (profile preserved)")
+            logger.info(f"⚡ Generating custom roadmap for '{target_role}' for user {user_id}")
         else:
             target_role = user_dict.get('target_role') or "Software Engineer"
         
-        # 2. Get user skills
+        # Get user skills
         cursor.execute("SELECT * FROM user_skills WHERE user_id = ?", (user_id,))
         user_skills_rows = cursor.fetchall()
         user_skills = [dict(row) for row in user_skills_rows]
-        
-        # 3. Get gap analysis (using authoritative provider)
-        market_requirements = services.market_skill_provider.get_skills(target_role)
-        
-        # Format user skills for analyzer
-        user_skills_map = {s['skill_name']: {'proficiency': s['proficiency']} for s in user_skills}
-        gap_result = services.llm_gap_analyzer.analyze_gaps(user_skills_map, market_requirements, target_role=target_role)
-        
-        # 4. Generate roadmap using LLM + YouTube
-        youtube_service = services.youtube_service
-        roadmap_data = await roadmap_gen.generate_roadmap(
-            user_skills, target_role, gap_result, language,
-            youtube_service=youtube_service
-        )
-        
-        if "error" in roadmap_data:
-            raise HTTPException(status_code=500, detail=roadmap_data["error"])
-        
-        # 5. Save to database
+    
+    # 2. Slow external calls (Outside DB context)
+    market_requirements = services.market_skill_provider.get_skills(target_role)
+    
+    # Format user skills for analyzer
+    user_skills_map = {s['skill_name']: {'proficiency': s['proficiency']} for s in user_skills}
+    gap_result = services.llm_gap_analyzer.analyze_gaps(user_skills_map, market_requirements, target_role=target_role)
+    
+    # Generate roadmap using LLM + YouTube + Courses
+    youtube_service = services.youtube_service
+    course_recommender = services.course_recommender
+    roadmap_data = await roadmap_gen.generate_roadmap(
+        user_skills, target_role, gap_result, language,
+        youtube_service=youtube_service,
+        course_recommender=course_recommender
+    )
+    
+    if "error" in roadmap_data:
+        raise HTTPException(status_code=500, detail=roadmap_data["error"])
+    
+    # 3. Quick DB Save
+    with get_db() as conn:
+        cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO user_roadmaps (user_id, target_role, roadmap_data)
             VALUES (?, ?, ?)
         """, (user_id, target_role, json.dumps(roadmap_data)))
-        
         roadmap_id = cursor.lastrowid
-        
-        # Commit changes (if using manual commit, but get_db should handle it)
-        
-        return {
-            "message": f"Roadmap for '{target_role}' generated successfully",
-            "roadmap_id": roadmap_id,
-            "target_role": target_role,
-            "roadmap": roadmap_data
-        }
+    
+    return {
+        "message": f"Roadmap for '{target_role}' generated successfully",
+        "roadmap_id": roadmap_id,
+        "target_role": target_role,
+        "roadmap": roadmap_data
+    }
 
 @router.get("/user/{user_id}")
 async def get_latest_roadmap(user_id: int):
@@ -130,7 +128,9 @@ async def get_latest_roadmap(user_id: int):
         
         completed_skills = sum(1 for p in progress if p['completion_percentage'] >= 100)
         
-        roadmap_dict['is_complete'] = (total_skills > 0 and completed_skills >= total_skills)
+        # Determine if roadmap is complete based on progress
+        is_complete = (total_skills > 0 and completed_skills >= total_skills)
+        roadmap_dict['is_complete'] = is_complete
         roadmap_dict['completion_stats'] = {
             "total": total_skills,
             "completed": completed_skills,

@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from './api';
+import { setGlobalLoading } from './LoadingContext';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const login = async (email: string) => {
+        setGlobalLoading(true);
         const name = email.split('@')[0];
 
         try {
@@ -147,10 +149,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error('Login error:', error);
             throw error;
+        } finally {
+            setGlobalLoading(false);
         }
     };
 
     const register = async (data: any) => {
+        setGlobalLoading(true);
         try {
             const res = await fetch(`${API_BASE_URL}/api/users/register`, {
                 method: 'POST',
@@ -194,6 +199,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error('Registration error:', error);
             throw error;
+        } finally {
+            setGlobalLoading(false);
         }
     };
 

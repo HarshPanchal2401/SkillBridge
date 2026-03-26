@@ -31,7 +31,7 @@ export default function TutorChat({ videoId, videoTitle, isOpen, onClose, langua
             setMessages([
                 {
                     role: 'assistant',
-                    content: `👋 Hi! I'm your **AI Tutor** for this video.\n\n📺 **"${videoTitle}"**\n\nI've loaded the transcript and I'm ready to help! You can:\n- Ask me to **explain** any concept from the video\n- Request a **summary** of the key points\n- Ask me to **quiz you** on the material\n\nWhat would you like to know?`
+                    content: `👋 Hi! I'm your **AI Tutor** for this video. I've analyzed the content and I'm ready to help.\n\nWhat would you like to know or summary?`
                 }
             ]);
             setSessionId(null);

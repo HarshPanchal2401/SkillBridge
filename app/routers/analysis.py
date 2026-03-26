@@ -24,126 +24,7 @@ def analyze_user_gaps(
     """
     services = get_services()
     
-    with get_db() as conn:
-        cursor = conn.cursor()
-        
-        # Verify user exists
-        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        user = cursor.fetchone()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        user_dict = dict(user)
-        # Use user's target role if available, otherwise use job_title parameter
-        target_role = user_dict.get('target_role') or job_title
-        
-        # Get user skills
-        cursor.execute("SELECT * FROM user_skills WHERE user_id = ?", (user_id,))
-        user_skills_rows = cursor.fetchall()
-        
-        if not user_skills_rows:
-            raise HTTPException(
-                status_code=400, 
-                detail="No skills found for user. Run skill extraction first."
-            )
-        
-        # Format user skills
-        user_skills = {}
-        for row in user_skills_rows:
-            skill_dict = dict(row)
-            user_skills[skill_dict['skill_name']] = {
-                'proficiency': skill_dict['proficiency'],
-                'confidence': skill_dict['confidence']
-            }
-        
-        # ── Single authoritative market skill source (Groq LLM + 7-day cache) ──
-        provider = services.market_skill_provider
-        print(f"📋 Fetching market skills for: {target_role}")
-        market_requirements = provider.get_skills(target_role)
-        skills_source = "groq_llm"
-
-        # Safety net — should never be empty
-        if not market_requirements:
-            market_requirements = get_sample_market_requirements()
-            skills_source = "fallback"
-        
-        # Perform contextual gap analysis — SmartGapAnalyzer is always used;
-        # GroqGapAnalyzer only enriches with reasoning if Groq key is available.
-        print(f"🔬 Running SmartGapAnalyzer for: {target_role}")
-        gap_result = services.llm_gap_analyzer.analyze_gaps(
-            user_skills,
-            market_requirements,
-            target_role=target_role
-        )
-
-        # Unified extraction (GroqGapAnalyzer always returns skill_gaps key)
-        gaps = gap_result.get('skill_gaps', {})
-        critical_gaps  = gaps.get('critical',  gap_result.get('critical_gaps',  []))
-        important_gaps = gaps.get('important', gap_result.get('important_gaps', []))
-        emerging_gaps  = gaps.get('emerging',  gap_result.get('emerging_gaps',  []))
-        strengths      = gap_result.get('strengths', [])
-        overall_readiness = gap_result.get('overall_readiness', 0)
-        summary = gap_result.get('summary', {
-            'interpretation': gap_result.get('interpretation', ''),
-            'overall_readiness_pct': int(overall_readiness),
-            'critical_gap_count': len(critical_gaps),
-            'strength_count': len(strengths),
-        })
-
-        # Format fetched market skills for frontend display
-        fetched_market_skills = []
-        for skill, req in market_requirements.items():
-            fetched_market_skills.append({
-                "skill": skill,
-                "demand": req.get('frequency', 0),
-                "demand_percentage": f"{int(req.get('frequency', 0) * 100)}%",
-                "requirement_level": req.get('requirement_level', 'important'),
-                "trending": req.get("trending", False),
-                "llm_validated": req.get("llm_validated", False)
-            })
-        
-        # Sort by demand (descending) - high to low demanded
-        fetched_market_skills.sort(key=lambda x: x['demand'], reverse=True)
-        
-        # Combine all gaps for missing_skills
-        all_gaps = critical_gaps + important_gaps + emerging_gaps
-        all_gaps.sort(key=lambda x: x.get('demand', x.get('market_demand', 0)), reverse=True)
-        strengths.sort(key=lambda x: x.get('demand', x.get('market_demand', 0)), reverse=True)
-
-        return {
-            "message": "Gap analysis complete",
-            "user_id": user_id,
-            "target_role": { "id": "default", "title": target_role },
-            "skills_source": skills_source,
-            "fetched_market_skills": fetched_market_skills,
-            "user_skills_count": len(user_skills),
-            "market_skills_count": len(market_requirements),
-            "overall_readiness": overall_readiness,
-            "summary": summary,
-            "strengths": strengths,
-            "matched_skills": strengths,
-            "missing_skills": all_gaps,
-            "skill_gaps": {
-                "critical": critical_gaps,
-                "important": important_gaps,
-                "emerging": emerging_gaps
-            }
-        }
-
-
-# ===== COURSE RECOMMENDATION ENDPOINTS =====
-@router.get("/users/{user_id}/recommended-courses")
-@router.get("/users/{user_id}/gap-courses")  # Alias for frontend compatibility
-def get_recommended_courses(
-    user_id: int,
-    max_courses_per_skill: int = 3,
-    refresh: bool = False
-):
-    """
-    Get course recommendations based on user's skill gaps.
-    """
-    services = get_services()
-    
+    # 1. Quick DB Fetch
     with get_db() as conn:
         cursor = conn.cursor()
         
@@ -154,82 +35,104 @@ def get_recommended_courses(
             raise HTTPException(status_code=404, detail="User not found")
         
         user_dict = dict(user_row)
+        # Use user's target role if available, otherwise use job_title parameter
+        target_role = user_dict.get('target_role') or job_title
         
         # Get user skills
         cursor.execute("SELECT * FROM user_skills WHERE user_id = ?", (user_id,))
         user_skills_rows = cursor.fetchall()
-        
-        user_skills = {}
-        for row in user_skills_rows:
-            skill_dict = dict(row)
-            user_skills[skill_dict['skill_name']] = {
-                'proficiency': skill_dict['proficiency'],
-                'confidence': skill_dict['confidence']
-            }
-        
-        # Get market requirements (from cache or API)
-        # Use user's target role from DB if available, otherwise default
-        target_role = user_dict.get('target_role') or 'Data Analyst'
-        location = user_dict.get('location', 'United States')
-
-        # ── Single market skill source ────────────────────────────────────────
-        provider = services.market_skill_provider
-        market_requirements = provider.get_skills(target_role)
-        
-        # Perform gap analysis
-        gap_analyzer = services.gap_analyzer
-        course_recommender = services.course_recommender
-        
-        # Pass the global synonym map from SkillExtractor for consistent matching
-        synonym_map = services.skill_extractor.synonym_map
-        gap_result = gap_analyzer.analyze_gaps(user_skills, market_requirements, synonym_map=synonym_map)
-        
-        # Get skills to improve (prioritize critical gaps)
-        critical_gaps = [g['skill'] for g in gap_result['critical_gaps']]
-        important_gaps = [g['skill'] for g in gap_result['important_gaps']]
-        
-        # Take top 3 critical and top 2 important
-        skills_to_improve = critical_gaps[:3]
-        if len(skills_to_improve) < 5:
-            skills_to_improve += important_gaps[:(5 - len(skills_to_improve))]
-        
-        # Get course recommendations for each skill
-        recommendations = []
-        for skill in skills_to_improve:
-            # Pass refresh parameter down to course_recommender
-            courses = course_recommender.search_courses_for_skill(skill, max_courses_per_skill, force_refresh=refresh)
-            recommendations.append({
-                'skill': skill,
-                'gap_priority': 'critical' if skill in critical_gaps else 'important',
-                'courses': courses
-            })
-        
-        return {
-            "message": "Course recommendations generated",
-            "user_id": user_id,
-            "skills_targeted": len(skills_to_improve),
-            "total_courses": sum(len(r['courses']) for r in recommendations),
-            "recommendations": recommendations,
-            "refreshed": refresh
+    
+    if not user_skills_rows:
+        raise HTTPException(
+            status_code=400, 
+            detail="No skills found for user. Run skill extraction first."
+        )
+    
+    # Format user skills
+    user_skills = {}
+    for row in user_skills_rows:
+        skill_dict = dict(row)
+        user_skills[skill_dict['skill_name']] = {
+            'proficiency': skill_dict['proficiency'],
+            'confidence': skill_dict['confidence']
         }
-
-
-@router.get("/courses/search/{skill}")
-def search_courses_for_skill(skill: str, max_results: int = 5, refresh: bool = False):
-    """
-    Search for courses to learn a specific skill.
-    """
-    services = get_services()
-    course_recommender = services.course_recommender
     
-    courses = course_recommender.search_courses_for_skill(skill, max_results, force_refresh=refresh)
+    # 2. Slow external market skill source (Groq LLM + 7-day cache)
+    provider = services.market_skill_provider
+    print(f"📋 Fetching market skills for: {target_role}")
+    market_requirements = provider.get_skills(target_role)
+    skills_source = "groq_llm"
+
+    # Safety net — should never be empty
+    if not market_requirements:
+        from app.routers.dependencies import get_sample_market_requirements
+        market_requirements = get_sample_market_requirements()
+        skills_source = "fallback"
     
+    # 3. Perform slow contextual gap analysis
+    print(f"🔬 Running SmartGapAnalyzer for: {target_role}")
+    gap_result = services.llm_gap_analyzer.analyze_gaps(
+        user_skills,
+        market_requirements,
+        target_role=target_role
+    )
+
+    # Unified extraction (GroqGapAnalyzer always returns skill_gaps key)
+    gaps = gap_result.get('skill_gaps', {})
+    critical_gaps  = gaps.get('critical',  gap_result.get('critical_gaps',  []))
+    important_gaps = gaps.get('important', gap_result.get('important_gaps', []))
+    emerging_gaps  = gaps.get('emerging',  gap_result.get('emerging_gaps',  []))
+    strengths      = gap_result.get('strengths', [])
+    overall_readiness = gap_result.get('overall_readiness', 0)
+    summary = gap_result.get('summary', {
+        'interpretation': gap_result.get('interpretation', ''),
+        'overall_readiness_pct': int(overall_readiness),
+        'critical_gap_count': len(critical_gaps),
+        'strength_count': len(strengths),
+    })
+
+    # Format fetched market skills for frontend display
+    fetched_market_skills = []
+    for skill, req in market_requirements.items():
+        fetched_market_skills.append({
+            "skill": skill,
+            "demand": req.get('frequency', 0),
+            "demand_percentage": f"{int(req.get('frequency', 0) * 100)}%",
+            "requirement_level": req.get('requirement_level', 'important'),
+            "trending": req.get("trending", False),
+            "llm_validated": req.get("llm_validated", False)
+        })
+    
+    # Sort by demand (descending) - high to low demanded
+    fetched_market_skills.sort(key=lambda x: x['demand'], reverse=True)
+    
+    # Combine all gaps for missing_skills
+    all_gaps = critical_gaps + important_gaps + emerging_gaps
+    all_gaps.sort(key=lambda x: x.get('demand', x.get('market_demand', 0)), reverse=True)
+    strengths.sort(key=lambda x: x.get('demand', x.get('market_demand', 0)), reverse=True)
+
     return {
-        "skill": skill,
-        "total_courses": len(courses),
-        "courses": courses,
-        "refreshed": refresh
+        "message": "Gap analysis complete",
+        "user_id": user_id,
+        "target_role": { "id": "default", "title": target_role },
+        "skills_source": skills_source,
+        "fetched_market_skills": fetched_market_skills,
+        "user_skills_count": len(user_skills),
+        "market_skills_count": len(market_requirements),
+        "overall_readiness": overall_readiness,
+        "summary": summary,
+        "strengths": strengths,
+        "matched_skills": strengths,
+        "missing_skills": all_gaps,
+        "skill_gaps": {
+            "critical": critical_gaps,
+            "important": important_gaps,
+            "emerging": emerging_gaps
+        }
     }
+
+
+# DEPRECATED: Standard recommendation endpoints removed in favor of Roadmap Integration
 
 
 # ===== GITHUB ANALYSIS ENDPOINTS =====
@@ -604,35 +507,21 @@ def analyze_user_for_role(
 ):
     """
     Complete skill gap analysis for a user targeting a specific role.
-    
-    This endpoint:
-    1. Searches internet for current trending skills for the role
-    2. Fetches user's extracted skills
-    3. Performs gap analysis (matching user skills vs role requirements)
-    4. Identifies critical, important, and emerging skill gaps
-    5. Recommends courses for each gap
-    
-    Args:
-        role_id: Can be a role ID (like "frontend_developer") or a role name (like "Frontend Developer")
-    
-    Returns comprehensive analysis with readiness score.
     """
     services = get_services()
+    from app.routers.dependencies import load_role_requirements
     roles_data = load_role_requirements()
     
     # Decode and normalize role name
-    # role_id can be "frontend_developer" (old format) or "Frontend Developer" (new format)
     import urllib.parse
     role_name = urllib.parse.unquote(role_id)
     
-    # Check if it's a role ID in our static data, otherwise use it as-is
     if role_name in roles_data:
         role_title = roles_data[role_name].get("title", role_name)
     else:
-        # It's a free-text role name, use it directly
         role_title = role_name
     
-    # Update user's target role in database for persistence
+    # 1. Update user's target role (Quick DB call)
     try:
         with get_db() as conn:
             cursor = conn.cursor()
@@ -640,27 +529,14 @@ def analyze_user_for_role(
     except Exception as e:
         print(f"⚠️ Failed to update target_role for user {user_id}: {e}")
     
-    # ── Single authoritative market skill source ─────────────────────────────
+    # 2. Slow external market skill source
     provider = services.market_skill_provider
-    print(f"📋 Fetching Groq LLM market skills for: {role_title}")
+    print(f"📋 Fetching market skills for: {role_title}")
     market_requirements = provider.get_skills(role_title)
     skills_source = "groq_llm"
 
-    # Log fetched skills
-    print(f"\n{'='*60}")
-    print(f"📋 MARKET SKILLS FOR: {role_title}")
-    print(f"   Total Skills: {len(market_requirements)}")
-    print(f"{'='*60}")
-    for i, (skill, data) in enumerate(market_requirements.items(), 1):
-        level = data.get('requirement_level', 'unknown')
-        freq = int(data.get('frequency', 0) * 100)
-        trending = "🔥" if data.get('trending', False) else ""
-        print(f"   {i:2}. {skill:<25} | {level:<10} | {freq}% {trending}")
-    print(f"{'='*60}\n")
-
     # Fallback only if Groq returned nothing
     if not market_requirements:
-        print(f"⚠️ No skills returned, using static fallback")
         role_lower = role_name.lower()
         matched_role_id = None
         for rid, rdata in roles_data.items():
@@ -676,150 +552,122 @@ def analyze_user_for_role(
                 detail=f"No skills found for role '{role_title}'. Please try again."
             )
 
-    
+    # 3. Quick DB Fetch for user skills
     with get_db() as conn:
         cursor = conn.cursor()
-        
-        # Verify user exists
         cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        user = cursor.fetchone()
-        if not user:
+        user_row = cursor.fetchone()
+        if not user_row:
             raise HTTPException(status_code=404, detail="User not found")
         
-        # Get user's extracted skills
         cursor.execute("SELECT * FROM user_skills WHERE user_id = ?", (user_id,))
         user_skills_rows = cursor.fetchall()
         
-        if not user_skills_rows:
-            raise HTTPException(
-                status_code=400, 
-                detail="No skills found. Please extract skills from resume/GitHub first."
-            )
-        
-        # Format user skills for comparison
-        user_skills = {}
-        for row in user_skills_rows:
-            skill_dict = dict(row)
-            skill_name = skill_dict['skill_name'].lower().strip()
-            user_skills[skill_name] = {
-                'proficiency': skill_dict['proficiency'],
-                'confidence': skill_dict['confidence']
-            }
-        
-        # Perform contextual gap analysis — SmartGapAnalyzer core, Groq enriches reasoning
-        print(f"🔬 Running SmartGapAnalyzer for role: {role_title}")
-        gap_result = services.llm_gap_analyzer.analyze_gaps(
-            user_skills,
-            market_requirements,
-            target_role=role_title
+    if not user_skills_rows:
+        raise HTTPException(
+            status_code=400, 
+            detail="No skills found. Please extract skills from resume/GitHub first."
         )
-
-        # Unified extraction
-        gaps = gap_result.get('skill_gaps', {})
-        critical_gaps  = gaps.get('critical',  gap_result.get('critical_gaps',  []))
-        important_gaps = gaps.get('important', gap_result.get('important_gaps', []))
-        emerging_gaps  = gaps.get('emerging',  gap_result.get('emerging_gaps',  []))
-        strengths      = gap_result.get('strengths', [])
-        overall_readiness = gap_result.get('overall_readiness', 0)
-        summary = gap_result.get('summary', {
-            'interpretation': gap_result.get('interpretation', ''),
-            'overall_readiness_pct': int(overall_readiness),
-            'critical_gap_count': len(critical_gaps),
-            'strength_count': len(strengths),
-        })
-
-        missing_skills = critical_gaps + important_gaps + emerging_gaps
-        matched_skills = strengths
-        
-        # Get course recommendations for gaps
-        recommendations = []
-        if include_courses:
-            course_recommender = services.course_recommender
-            
-            # Recommend courses for top gaps (limit to 5 skills)
-            # Prioritize critical gaps
-            skills_to_learn = [s["skill"] for s in critical_gaps[:3]]
-            if len(skills_to_learn) < 5:
-                skills_to_learn.extend([s["skill"] for s in important_gaps[:(5-len(skills_to_learn))]])
-            
-            # Remove duplicates
-            unique_skills = []
-            seen = set()
-            for s in skills_to_learn:
-                if s.lower() not in seen:
-                    unique_skills.append(s)
-                    seen.add(s.lower())
-            
-            for skill in unique_skills:
-                courses = course_recommender.search_courses_for_skill(skill, max_courses_per_skill)
-                if courses:
-                    recommendations.append({
-                        "skill": skill,
-                        "priority": "critical" if any(s['skill'] == skill for s in critical_gaps) else "important",
-                        "courses": courses[:max_courses_per_skill]
-                    })
-        
-        # Build response
-        # Get role title
-        role_title_display = roles_data.get(role_id, {}).get("title", role_id.replace("_", " ").title())
-        
-        # Format market skills for display
-        fetched_market_skills = []
-        for skill, req in market_requirements.items():
-            fetched_market_skills.append({
-                "skill": skill,
-                "demand": req.get('frequency', 0),
-                "demand_percentage": f"{int(req.get('frequency', 0) * 100)}%",
-                "requirement_level": req.get('requirement_level', 'important'),
-                "trending": req.get("trending", False),
-                "llm_validated": req.get("llm_validated", False)
-            })
-        
-        # Sort by demand (descending)
-        fetched_market_skills.sort(key=lambda x: x['demand'], reverse=True)
-        
-        # Map GapAnalyzer results to frontend categories
-        immediate_learning = critical_gaps
-        skill_learning = important_gaps
-
-        return {
-            "message": "Role-based skill gap analysis complete",
-            "user_id": user_id,
-            "target_role": {
-                "id": role_id,
-                "title": role_title_display
-            },
-            "skills_source": skills_source,
-            "fetched_market_skills": fetched_market_skills,
-            "readiness": {
-                "score": overall_readiness,
-                "interpretation": summary.get('interpretation', ""),
-                "level": "ready" if overall_readiness >= 75 else "developing" if overall_readiness >= 40 else "early"
-            },
-            "skills_analysis": {
-                "total_role_skills": len(market_requirements),
-                "user_skills_matched": len(strengths),
-                "skills_missing": len(critical_gaps),
-                "match_percentage": overall_readiness
-            },
-            "skill_gaps": gap_result.get('skill_gaps', {
-                "critical": [],
-                "important": [],
-                "emerging": []
-            }),
-            "immediate_learning": immediate_learning,
-            "skill_learning": skill_learning,
-            "strengths": strengths,
-            "matched_skills": strengths,
-            "missing_skills": missing_skills,
-            "course_recommendations": recommendations,
-            "learning_path": {
-                "immediate_focus": [g['skill'] for g in immediate_learning[:3]],
-                "next_steps": [g['skill'] for g in skill_learning[:3]],
-                "future_skills": [g['skill'] for g in emerging_gaps[:2]],
-                "estimated_months": 3 if overall_readiness >= 75 else 6 if overall_readiness >= 40 else 9
-            }
+    
+    # Format user skills
+    user_skills = {}
+    for row in user_skills_rows:
+        skill_dict = dict(row)
+        user_skills[skill_dict['skill_name'].lower().strip()] = {
+            'proficiency': skill_dict['proficiency'],
+            'confidence': skill_dict['confidence']
         }
+    
+    # 4. Perform slow contextual gap analysis
+    print(f"🔬 Running SmartGapAnalyzer for role: {role_title}")
+    gap_result = services.llm_gap_analyzer.analyze_gaps(
+        user_skills,
+        market_requirements,
+        target_role=role_title
+    )
+
+    gaps = gap_result.get('skill_gaps', {})
+    critical_gaps  = gaps.get('critical',  gap_result.get('critical_gaps',  []))
+    important_gaps = gaps.get('important', gap_result.get('important_gaps', []))
+    emerging_gaps  = gaps.get('emerging',  gap_result.get('emerging_gaps',  []))
+    strengths      = gap_result.get('strengths', [])
+    overall_readiness = gap_result.get('overall_readiness', 0)
+    summary = gap_result.get('summary', {
+        'interpretation': gap_result.get('interpretation', ''),
+        'overall_readiness_pct': int(overall_readiness),
+    })
+
+    missing_skills = critical_gaps + important_gaps + emerging_gaps
+    
+    # 5. Slow course recommendations (Outside DB context)
+    recommendations = []
+    if include_courses:
+        course_recommender = services.course_recommender
+        skills_to_learn = [s["skill"] for s in critical_gaps[:3]]
+        if len(skills_to_learn) < 5:
+            skills_to_learn.extend([s["skill"] for s in important_gaps[:(5-len(skills_to_learn))]])
+        
+        unique_skills = []
+        seen = set()
+        for s in skills_to_learn:
+            if s.lower() not in seen:
+                unique_skills.append(s)
+                seen.add(s.lower())
+        
+        for skill in unique_skills:
+            courses = course_recommender.search_courses_for_skill(skill, max_courses_per_skill)
+            if courses:
+                recommendations.append({
+                    "skill": skill,
+                    "priority": "critical" if any(s['skill'] == skill for s in critical_gaps) else "important",
+                    "courses": courses[:max_courses_per_skill]
+                })
+
+    # 6. Format response
+    role_title_display = roles_data.get(role_id, {}).get("title", role_id.replace("_", " ").title())
+    fetched_market_skills = []
+    for skill, req in market_requirements.items():
+        fetched_market_skills.append({
+            "skill": skill,
+            "demand": req.get('frequency', 0),
+            "demand_percentage": f"{int(req.get('frequency', 0) * 100)}%",
+            "requirement_level": req.get('requirement_level', 'important'),
+            "trending": req.get("trending", False),
+            "llm_validated": req.get("llm_validated", False)
+        })
+    fetched_market_skills.sort(key=lambda x: x['demand'], reverse=True)
+    
+    return {
+        "message": "Role-based skill gap analysis complete",
+        "user_id": user_id,
+        "target_role": { "id": role_id, "title": role_title_display },
+        "skills_source": skills_source,
+        "fetched_market_skills": fetched_market_skills,
+        "readiness": {
+            "score": overall_readiness,
+            "interpretation": summary.get('interpretation', ""),
+            "level": "ready" if overall_readiness >= 75 else "developing" if overall_readiness >= 40 else "early"
+        },
+        "skills_analysis": {
+            "total_role_skills": len(market_requirements),
+            "user_skills_matched": len(strengths),
+            "skills_missing": len(critical_gaps),
+            "match_percentage": overall_readiness
+        },
+        "skill_gaps": gaps,
+        "immediate_learning": critical_gaps,
+        "skill_learning": important_gaps,
+        "strengths": strengths,
+        "matched_skills": strengths,
+        "missing_skills": missing_skills,
+        "course_recommendations": recommendations,
+        "learning_path": {
+            "immediate_focus": [g['skill'] for g in critical_gaps[:3]],
+            "next_steps": [g['skill'] for g in important_gaps[:3]],
+            "future_skills": [g['skill'] for g in emerging_gaps[:2]],
+            "estimated_months": 3 if overall_readiness >= 75 else 6 if overall_readiness >= 40 else 9
+        }
+    }
 
 
 @router.get("/users/{user_id}/gap-based-courses")
