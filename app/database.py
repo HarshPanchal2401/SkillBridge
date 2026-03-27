@@ -260,6 +260,7 @@ def init_db() -> None:
             resume_path TEXT,
             resume_text TEXT,
             resume_filename TEXT,
+            password TEXT, -- For authentication
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )

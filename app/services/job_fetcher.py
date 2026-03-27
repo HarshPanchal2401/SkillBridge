@@ -101,15 +101,47 @@ class JobFetcher:
         # 1. Attempt JobSpy Scrape
         if HAS_JOBSPY:
             try:
-                # Scrape from multiple sites
-                jobs_df = scrape_jobs(
-                    site_name=["linkedin", "indeed", "glassdoor"],
-                    search_term=search_term,
-                    location=location,
-                    results_wanted=limit,
-                    country_indeed='USA' if 'states' in location.lower() or 'usa' in location.lower() else 'India',
-                    # proxies=["http://..."] # Add proxies if needed
-                )
+                # Scrape from multiple sites in parallel for speed
+                from concurrent.futures import ThreadPoolExecutor, as_completed
+                
+                sites = ["linkedin", "indeed", "glassdoor"]
+                all_dfs = []
+                
+                print(f"🚀 Starting parallel scrape for sites: {sites}")
+                
+                with ThreadPoolExecutor(max_workers=len(sites)) as executor:
+                    future_to_site = {
+                        executor.submit(
+                            scrape_jobs, 
+                            site_name=[site],
+                            search_term=search_term,
+                            location=location,
+                            results_wanted=limit,
+                            country_indeed='USA' if 'states' in location.lower() or 'usa' in location.lower() else 'India'
+                        ): site for site in sites
+                    }
+                    
+                    for future in as_completed(future_to_site):
+                        site = future_to_site[future]
+                        try:
+                            df = future.result()
+                            if df is not None and not df.empty:
+                                print(f"✅ {site.capitalize()} returned {len(df)} jobs")
+                                all_dfs.append(df)
+                            else:
+                                print(f"⚠️ {site.capitalize()} returned no jobs")
+                        except Exception as exc:
+                            print(f"❌ {site.capitalize()} scrape generated an exception: {exc}")
+                
+                if all_dfs:
+                    jobs_df = pd.concat(all_dfs, ignore_index=True)
+                    # Remove duplicates if any
+                    if 'job_url' in jobs_df.columns:
+                        jobs_df = jobs_df.drop_duplicates(subset=['job_url'])
+                    elif 'id' in jobs_df.columns:
+                        jobs_df = jobs_df.drop_duplicates(subset=['id'])
+                else:
+                    jobs_df = pd.DataFrame()
                 
                 if jobs_df is not None and not jobs_df.empty:
                     print(f"✅ JobSpy found {len(jobs_df)} jobs")

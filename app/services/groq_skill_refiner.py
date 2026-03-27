@@ -9,6 +9,7 @@ Fallback: if Groq call fails or key is missing, returns original heuristic list 
 import os
 import json
 import re
+import concurrent.futures
 from typing import List, Dict, Any, Optional
 
 try:
@@ -184,16 +185,19 @@ class GroqSkillRefiner:
         try:
             print(f"🤖 Calling Groq ({GROQ_MODEL}) to refine {len(heuristic_skills)} skills...")
 
-            response = self.client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.1,      # Low temperature for consistent, factual scoring
-                max_tokens=2048,
-                timeout=GROQ_TIMEOUT,
-            )
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    self.client.chat.completions.create,
+                    model=GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.1,
+                    max_tokens=2048
+                )
+                # Hard 15s timeout for Skill Refinement
+                response = future.result(timeout=15)
 
             raw_content = response.choices[0].message.content.strip()
             print(f"✅ Groq responded ({len(raw_content)} chars)")
@@ -208,6 +212,9 @@ class GroqSkillRefiner:
             # Merge LLM results back with original heuristic data
             return self._merge_results(heuristic_skills, refined_list)
 
+        except concurrent.futures.TimeoutError:
+            print(f"⚠️  Groq refinement timed out after 15s — falling back to heuristic scores.")
+            return self._mark_heuristic(heuristic_skills)
         except Exception as e:
             print(f"⚠️  Groq refinement failed: {e} — falling back to heuristic scores.")
             return self._mark_heuristic(heuristic_skills)
@@ -331,16 +338,19 @@ class GroqSkillRefiner:
         try:
             print(f"🤖 Calling Groq to validate {len(market_skills)} market skills for '{role_title}'...")
             
-            response = self.client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=[
-                    {"role": "system", "content": MARKET_VALIDATION_SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=0.0,
-                max_tokens=2048,
-                timeout=GROQ_TIMEOUT,
-            )
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    self.client.chat.completions.create,
+                    model=GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": MARKET_VALIDATION_SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.0,
+                    max_tokens=2048
+                )
+                # Hard 15s timeout for Market Validation
+                response = future.result(timeout=15)
 
             raw_content = response.choices[0].message.content.strip()
             validated_list = self._parse_llm_response(raw_content)
@@ -374,6 +384,9 @@ class GroqSkillRefiner:
             print(f"✅ LLM validated {len(result)}/{len(market_skills)} market skills")
             return result
 
+        except concurrent.futures.TimeoutError:
+            print(f"⚠️ Market skill validation timed out after 15s")
+            return market_skills
         except Exception as e:
             print(f"⚠️ Market skill validation failed: {e}")
             return market_skills

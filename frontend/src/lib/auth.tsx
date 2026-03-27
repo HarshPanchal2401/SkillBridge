@@ -209,7 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfile(null);
         localStorage.removeItem('user');
         localStorage.removeItem('profile');
-        router.push('/login');
+        router.push('/');
     };
 
     const refreshUser = async () => {

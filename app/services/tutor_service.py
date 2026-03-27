@@ -2,6 +2,7 @@
 import os
 import uuid
 import json
+import concurrent.futures
 from typing import Dict, List, Optional, Any
 from app.logging_config import get_logger
 
@@ -212,12 +213,16 @@ You are an expert, friendly AI tutor helping a student learn from a YouTube vide
             recent_messages = session["messages"][-10:]
             groq_messages.extend(recent_messages)
 
-            chat_completion = client.chat.completions.create(
-                messages=groq_messages,
-                model="llama-3.3-70b-versatile",
-                temperature=0.4,
-                max_tokens=1024,
-            )
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    client.chat.completions.create,
+                    messages=groq_messages,
+                    model="llama-3.3-70b-versatile",
+                    temperature=0.4,
+                    max_tokens=1024
+                )
+                # Hard 10s timeout for Tutor Chat
+                chat_completion = future.result(timeout=10)
 
             reply = chat_completion.choices[0].message.content
 
@@ -225,6 +230,12 @@ You are an expert, friendly AI tutor helping a student learn from a YouTube vide
 
             return {"reply": reply, "session_id": sid}
 
+        except concurrent.futures.TimeoutError:
+            logger.error(f"❌ Tutor chat timed out after 10s for session {sid}")
+            return {
+                "reply": "I'm sorry, I'm taking too long to think. Please try asking again!",
+                "session_id": sid,
+            }
         except Exception as e:
             logger.error(f"❌ Tutor chat failed: {e}")
             return {

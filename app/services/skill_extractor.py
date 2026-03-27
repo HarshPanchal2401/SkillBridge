@@ -155,10 +155,22 @@ class SkillExtractor:
         
         # For single word skills
         if len(skill_words) == 1:
+            skill_start = skill_words[0][0]
             for word in words:
+                if not word: continue
+                # Optimization: only check if first letter matches or it's a very short word
+                if word[0] != skill_start and len(word) > 3:
+                     continue
+                     
                 # Remove special characters for comparison
                 clean_word = re.sub(r'[^\w]', '', word)
                 clean_skill = re.sub(r'[^\w]', '', skill_words[0])
+                if not clean_word or not clean_skill: continue
+                
+                # Fast check before expensive SequenceMatcher
+                if len(clean_word) != len(clean_skill) and abs(len(clean_word) - len(clean_skill)) > 1:
+                    continue
+                
                 ratio = SequenceMatcher(None, clean_word, clean_skill).ratio()
                 if ratio >= threshold:
                     return True
@@ -166,6 +178,8 @@ class SkillExtractor:
         # For multi-word skills, check if appears as phrase
         for i in range(len(words) - len(skill_words) + 1):
             phrase = ' '.join(words[i:i+len(skill_words)])
+            if phrase[0] != skill_words[0][0]: continue # Optimization
+            
             ratio = SequenceMatcher(None, phrase, ' '.join(skill_words)).ratio()
             if ratio >= threshold:
                 return True

@@ -54,7 +54,7 @@ export default function ProfilePage() {
 
     useEffect(() => {
         if (!authLoading && !user) {
-            router.push('/login');
+            router.push('/');
         } else if (user) {
             setFormData({
                 name: user.name || '',

@@ -76,7 +76,7 @@ export default function SkillsPage() {
 
     useEffect(() => {
         if (!authLoading && !user) {
-            router.push('/login');
+            router.push('/');
         } else if (userId) {
             loadData();
         }

@@ -4,10 +4,70 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 
 from app.database import get_db
-from app.routers.dependencies import get_services, get_sample_market_requirements
+from app.routers.dependencies import get_services, get_sample_market_requirements, load_role_requirements
 from app.routers.skills import _is_similar_project
 
 router = APIRouter(prefix="/api", tags=["Analysis"])
+
+
+def _sync_roadmap_to_user_skills(cursor, user_id, user_skills):
+    """
+    Sync roadmap and video progress to user skills proficiency.
+    Updates the user_skills dictionary in-place.
+    """
+    try:
+        # 1. Get latest roadmap ID
+        cursor.execute("SELECT id FROM user_roadmaps WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", (user_id,))
+        roadmap_row = cursor.fetchone()
+        
+        # 2. Collect skill progress from multiple sources
+        skill_proficiencies = {}
+        
+        # A. From video progress (most real-time source)
+        cursor.execute("""
+            SELECT skill_name, completion_percentage 
+            FROM video_progress 
+            WHERE user_id = ? AND skill_name IS NOT NULL
+        """, (user_id,))
+        for row in cursor.fetchall():
+            s_name = row['skill_name'].lower().strip()
+            # Track max completion across videos for the same skill
+            skill_proficiencies[s_name] = max(skill_proficiencies.get(s_name, 0), row['completion_percentage'] / 100.0)
+
+        # B. From roadmap progress (includes manual updates)
+        if roadmap_row:
+            cursor.execute("""
+                SELECT skill_name, completion_percentage 
+                FROM roadmap_progress 
+                WHERE user_id = ? AND roadmap_id = ?
+            """, (user_id, roadmap_row['id']))
+            for row in cursor.fetchall():
+                s_name = row['skill_name'].lower().strip()
+                skill_proficiencies[s_name] = max(skill_proficiencies.get(s_name, 0), row['completion_percentage'] / 100.0)
+
+        if not skill_proficiencies:
+            return
+
+        # 3. Apply to user_skills dictionary efficiently (O(N+M) instead of O(N*M))
+        # Create a normalized lookup map for the existing user_skills
+        normalized_lookup = { name.lower().strip(): name for name in user_skills.keys() }
+        
+        for s_name, roadmap_prof in skill_proficiencies.items():
+            # Match against existing skills using the lookup map
+            target_name = normalized_lookup.get(s_name)
+            if target_name:
+                user_skills[target_name]['proficiency'] = max(user_skills[target_name].get('proficiency', 0), roadmap_prof)
+                # Boost confidence if learning progress is high
+                user_skills[target_name]['confidence'] = max(user_skills[target_name].get('confidence', 0), 0.9 if roadmap_prof > 0.8 else 0.7)
+            elif roadmap_prof > 0:
+                # Add as discovered skill if it has progress but wasn't in original profile
+                user_skills[s_name] = {
+                    'proficiency': roadmap_prof,
+                    'confidence': 0.9 if roadmap_prof > 0.8 else 0.7,
+                    'source': 'learning_progress'
+                }
+    except Exception as e:
+        print(f"⚠️ Roadmap sync failed: {e}")
 
 
 # ===== GAP ANALYSIS ENDPOINTS =====
@@ -56,6 +116,11 @@ def analyze_user_gaps(
             'proficiency': skill_dict['proficiency'],
             'confidence': skill_dict['confidence']
         }
+    
+    # NEW: Sync roadmap/video progress to user skills
+    with get_db() as conn:
+        cursor = conn.cursor()
+        _sync_roadmap_to_user_skills(cursor, user_id, user_skills)
     
     # 2. Slow external market skill source (Groq LLM + 7-day cache)
     provider = services.market_skill_provider
@@ -390,17 +455,6 @@ def run_complete_analysis(
 
 # ===== ROLE-BASED GAP ANALYSIS =====
 
-def load_role_requirements():
-    """Load role-specific market requirements from JSON file."""
-    import os
-    roles_file = os.path.join("app", "data", "role_requirements.json")
-    try:
-        with open(roles_file, 'r') as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Error loading role requirements: {e}")
-        return {}
-
 
 @router.get("/roles")
 def get_available_roles():
@@ -509,7 +563,6 @@ def analyze_user_for_role(
     Complete skill gap analysis for a user targeting a specific role.
     """
     services = get_services()
-    from app.routers.dependencies import load_role_requirements
     roles_data = load_role_requirements()
     
     # Decode and normalize role name
@@ -577,6 +630,11 @@ def analyze_user_for_role(
             'proficiency': skill_dict['proficiency'],
             'confidence': skill_dict['confidence']
         }
+    
+    # NEW: Sync roadmap/video progress to user skills
+    with get_db() as conn:
+        cursor = conn.cursor()
+        _sync_roadmap_to_user_skills(cursor, user_id, user_skills)
     
     # 4. Perform slow contextual gap analysis
     print(f"🔬 Running SmartGapAnalyzer for role: {role_title}")

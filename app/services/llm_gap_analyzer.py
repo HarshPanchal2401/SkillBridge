@@ -8,6 +8,7 @@ If Groq is unavailable the SmartGapAnalyzer result is returned as-is.
 import os
 import json
 import re
+import concurrent.futures
 from typing import List, Dict, Any, Optional
 
 try:
@@ -97,8 +98,9 @@ class GroqGapAnalyzer:
         if self.available:
             try:
                 result = self._contextualize_gaps(result, user_skills, target_role)
-            except Exception as e:
-                print(f"⚠️  Groq contextualization failed (using base result): {e}")
+            except Exception:
+                # Silently fallback to base result
+                pass
 
         # Reformat to match the LLM-style `skill_gaps` key expected by analysis.py
         return {
@@ -141,21 +143,36 @@ class GroqGapAnalyzer:
         
         user_skills_list = list(user_skills.keys())
 
-        response = self.client.chat.completions.create(
-            model=GROQ_MODEL,
-            messages=[
-                {"role": "system", "content": EVAL_SYSTEM},
-                {"role": "user",   "content": EVAL_USER_TMPL.format(
-                    target_role=target_role,
-                    user_skills_list=", ".join(user_skills_list),
-                    gaps_json=json.dumps(slim_gaps, indent=2)
-                )},
-            ],
-            temperature=0.0,   # 0.0 for strict analytical evaluation
-            max_tokens=600,
-            response_format={"type": "json_object"},
-            timeout=GROQ_TIMEOUT,
-        )
+        # Define the API call as a separate function for the thread executor
+        def _fetch_from_groq():
+            return self.client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=[
+                    {"role": "system", "content": EVAL_SYSTEM},
+                    {"role": "user",   "content": EVAL_USER_TMPL.format(
+                        target_role=target_role,
+                        user_skills_list=", ".join(user_skills_list),
+                        gaps_json=json.dumps(slim_gaps, indent=2)
+                    )},
+                ],
+                temperature=0.0,
+                max_tokens=600,
+                response_format={"type": "json_object"},
+                timeout=GROQ_TIMEOUT,
+            )
+
+        # Wrap in a thread pool with a hard timeout to prevent hangs
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        try:
+            future = executor.submit(_fetch_from_groq)
+            # Hard 10s wait for LLM enrichment (non-blocking if it fails)
+            response = future.result(timeout=10)
+        except Exception:
+            # If it hangs or fails, we fail gracefully and return base results
+            executor.shutdown(wait=False, cancel_futures=True)
+            return result
+        finally:
+            executor.shutdown(wait=False, cancel_futures=True)
 
         content = response.choices[0].message.content
         evaluated_list = self._parse_enriched(content)

@@ -32,6 +32,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import concurrent.futures
 from datetime import datetime
 from typing import Dict, Optional
 
@@ -227,20 +228,31 @@ class GroqMarketSkillProvider:
         """
         Ask Groq LLM for the skill set of *role_title*.
         Returns parsed skills dict or None on error.
+        
+        Uses a hard threaded timeout to prevent application hangs if the API stalls.
         """
         print(f"   🤖 Asking Groq for '{role_title}' skills…")
+        
         try:
-            response = self.client.chat.completions.create(  # type: ignore[union-attr]
-                model=GROQ_MODEL,
-                messages=[
-                    {"role": "system", "content": _SYSTEM_PROMPT},
-                    {"role": "user",   "content": _USER_TMPL.format(role=role_title)},
-                ],
-                temperature=0.1,          # low temperature = consistent, authoritative output
-                max_tokens=1800,          # enough for 25 skills with full schema
-                response_format={"type": "json_object"},
-                timeout=GROQ_TIMEOUT,
-            )
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    self.client.chat.completions.create, # type: ignore[union-attr]
+                    model=GROQ_MODEL,
+                    messages=[
+                        {"role": "system", "content": _SYSTEM_PROMPT},
+                        {"role": "user",   "content": _USER_TMPL.format(role=role_title)},
+                    ],
+                    temperature=0.1,
+                    max_tokens=1800,
+                    response_format={"type": "json_object"}
+                )
+                
+                # Hard 15s timeout for Market Skill generation
+                response = future.result(timeout=15)
+                
+        except concurrent.futures.TimeoutError:
+            print(f"   ❌ Groq timeout after 15s — falling back")
+            return None
         except Exception as e:
             print(f"   ❌ Groq call failed: {e}")
             return None

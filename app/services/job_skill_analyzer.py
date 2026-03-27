@@ -1,6 +1,6 @@
-"""Analyze job descriptions to extract required skills."""
 import re
 from typing import List, Dict, Tuple
+from app.cache import cached
 from collections import defaultdict
 
 
@@ -22,6 +22,7 @@ class JobSkillAnalyzer:
             'desired', 'ideal', 'good to have', 'advantageous'
         ]
     
+    @cached(ttl=3600, key_prefix="job_skills")
     def extract_skills_from_job(self, job_description: str) -> Dict[str, Dict]:
         """
         Extract skills from a single job description.
@@ -44,14 +45,14 @@ class JobSkillAnalyzer:
         
         # Try to find "Required" section
         for keyword in self.required_keywords:
-            pattern = f"{keyword}[:\s]+(.*?)(?:{'|'.join(self.preferred_keywords)}|$)"
+            pattern = fr"{keyword}[:\s]+(.*?)(?:{'|'.join(self.preferred_keywords)}|$)"
             match = re.search(pattern, description_lower, re.DOTALL | re.IGNORECASE)
             if match:
                 required_section += match.group(1) + " "
         
         # Try to find "Preferred" section
         for keyword in self.preferred_keywords:
-            pattern = f"{keyword}[:\s]+(.*?)$"
+            pattern = fr"{keyword}[:\s]+(.*?)$"
             match = re.search(pattern, description_lower, re.DOTALL | re.IGNORECASE)
             if match:
                 preferred_section += match.group(1) + " "

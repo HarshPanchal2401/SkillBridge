@@ -75,7 +75,7 @@ export default function YouTubePlayer({
             if (getProgress) {
                 getProgress(activeVId).then((data: any) => {
                     const pos = data?.progress?.last_position_seconds;
-                    if (pos && pos > 5) {
+                    if (pos && pos > 2) {
                         setResumeTime(pos);
                     }
                 }).catch(() => { });
@@ -85,7 +85,7 @@ export default function YouTubePlayer({
 
     // ── AUTO-SEEK to saved position when BOTH player and resumeTime are ready ──
     useEffect(() => {
-        if (player && resumeTime > 5 && !hasSeededRef.current) {
+        if (player && resumeTime > 2 && !hasSeededRef.current) {
             try {
                 if (typeof player.seekTo === 'function') {
                     player.seekTo(resumeTime, true);

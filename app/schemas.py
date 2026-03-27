@@ -71,6 +71,7 @@ class UserCreate(BaseModel):
     phone: Optional[str] = Field(None, max_length=20)
     linkedin_url: Optional[str] = Field(None, max_length=500)
     github_url: Optional[str] = Field(None, max_length=500)
+    password: Optional[str] = Field(None, min_length=6, description="User's password")
     
     @field_validator('email')
     @classmethod
@@ -125,6 +126,7 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = Field(None, max_length=20)
     linkedin_url: Optional[str] = Field(None, max_length=500)
     github_url: Optional[str] = Field(None, max_length=500)
+    password: Optional[str] = Field(None, min_length=6)
     
     @field_validator('email')
     @classmethod

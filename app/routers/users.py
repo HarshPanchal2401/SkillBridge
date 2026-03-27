@@ -41,11 +41,11 @@ def register_user(user: schemas.UserCreate):
         # Insert new user
         cursor.execute('''
             INSERT INTO users (name, email, education, specialization, university, graduation_year, location, 
-                             target_role, target_sector, phone, linkedin_url, github_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             target_role, target_sector, phone, linkedin_url, github_url, password)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (user.name, user.email, user.education, user.specialization, user.university, user.graduation_year,
               user.location, user.target_role, user.target_sector, user.phone, 
-              user.linkedin_url, user.github_url))
+              user.linkedin_url, user.github_url, user.password))
         
         user_id = cursor.lastrowid
         logger.info(f"Created new user: {user_id} ({user.email})")
@@ -137,6 +137,37 @@ def get_user_profile(user_id: int):
             "total_skills": total_skills,
             "profile_completion": profile_completion
         }
+
+
+@router.get("/{user_id}/projects", response_model=List[schemas.ProjectResponse])
+def get_user_projects(user_id: int):
+    """Get all projects for a specific user."""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC", (user_id,))
+        rows = cursor.fetchall()
+        
+        projects = []
+        for row in rows:
+            project = dict(row)
+            # Parse tech_stack from JSON string if needed, or if it's already a list in DB
+            # Based on database.py tech_stack is TEXT
+            if project.get('tech_stack'):
+                try:
+                    project['tech_stack'] = json.loads(project['tech_stack'])
+                except:
+                    project['tech_stack'] = [s.strip() for s in project['tech_stack'].split(',')]
+            else:
+                project['tech_stack'] = []
+            
+            if project.get('skills_extracted'):
+                try:
+                    project['skills_extracted'] = json.loads(project['skills_extracted'])
+                except:
+                    project['skills_extracted'] = []
+            
+            projects.append(project)
+        return projects
 
 
 @router.get("", response_model=List[schemas.UserResponse])

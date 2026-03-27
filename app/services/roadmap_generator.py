@@ -1,6 +1,6 @@
-"""Roadmap Generator — Generates skill-gap roadmap via LLM, then attaches real YouTube resources."""
 import json
 import os
+import concurrent.futures
 from typing import Dict, List, Any, Optional
 from app.logging_config import get_logger
 
@@ -200,25 +200,33 @@ You are the core intelligence behind the **SkillBridge Learning Experience**. Ge
 
         try:
             from groq import Groq
-
             client = Groq(api_key=self.api_key)
 
-            chat_completion = client.chat.completions.create(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a professional career coach. Always return valid JSON. Do NOT include video or YouTube suggestions — only skill metadata. CRITICAL: While the fast_track_roadmap should focus on gaps, the full_roadmap MUST be a comprehensive career journey from absolute basics to mastery, including foundational skills.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                model="llama-3.3-70b-versatile",
-                response_format={"type": "json_object"},
-                temperature=0.1,
-            )
+            def _call_groq():
+                return client.chat.completions.create(
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You are a professional career coach. Always return valid JSON. Do NOT include video or YouTube suggestions — only skill metadata. CRITICAL: While the fast_track_roadmap should focus on gaps, the full_roadmap MUST be a comprehensive career journey from absolute basics to mastery, including foundational skills.",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    model="llama-3.3-70b-versatile",
+                    response_format={"type": "json_object"},
+                    temperature=0.1,
+                )
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(_call_groq)
+                # Hard 25s timeout for Roadmap generation
+                chat_completion = future.result(timeout=25)
 
             content = chat_completion.choices[0].message.content
             roadmap_data = json.loads(content)
 
+        except concurrent.futures.TimeoutError:
+            logger.error("❌ Roadmap generation timeout after 25s")
+            return {"error": "LLM generation timed out. Please try again."}
         except Exception as e:
             logger.error(f"❌ LLM roadmap generation failed: {e}")
             return {"error": f"LLM generation failed: {str(e)}"}

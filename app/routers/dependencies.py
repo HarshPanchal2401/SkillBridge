@@ -1,5 +1,6 @@
 """Dependencies for routers - shared services and configurations with proper dependency injection."""
 import os
+import json
 from functools import lru_cache
 from typing import Optional, Generator
 from dotenv import load_dotenv
@@ -351,3 +352,14 @@ def get_sample_market_requirements() -> dict:
 def get_upload_dir() -> str:
     """Get the upload directory path."""
     return UPLOAD_DIR
+
+
+def load_role_requirements():
+    """Load role-specific market requirements from JSON file."""
+    roles_file = os.path.join("app", "data", "role_requirements.json")
+    try:
+        with open(roles_file, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading role requirements: {e}")
+        return {}

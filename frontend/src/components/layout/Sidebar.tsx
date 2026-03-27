@@ -150,6 +150,14 @@ export function Sidebar({ isCollapsed, setIsCollapsed }: { isCollapsed: boolean;
                         </div>
                     )}
 
+                    <Link
+                        href="/dashboard/settings"
+                        className={`flex items-center gap-3 transition-all duration-200 group ${isCollapsed ? 'w-10 h-10 justify-center rounded-lg text-gray-400 hover:text-green-500 hover:bg-green-50' : 'px-4 py-3 w-full text-gray-500 hover:text-green-600 hover:bg-gray-50 rounded-xl'} ${pathname === '/dashboard/settings' ? 'bg-green-50 text-green-700' : ''}`}
+                    >
+                        <Target size={16} className={pathname === '/dashboard/settings' ? 'text-green-600' : ''} />
+                        {!isCollapsed && <span className="text-xs font-semibold uppercase tracking-wider">Settings</span>}
+                    </Link>
+
                     <button
                         onClick={logout}
                         className={`flex items-center gap-3 transition-all duration-200 group ${isCollapsed ? 'w-10 h-10 justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50' : 'px-4 py-3 w-full text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl'}`}

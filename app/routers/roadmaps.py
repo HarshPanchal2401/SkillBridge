@@ -128,13 +128,22 @@ async def get_latest_roadmap(user_id: int):
         
         completed_skills = sum(1 for p in progress if p['completion_percentage'] >= 100)
         
+        # Calculate granular percentage based on partial progress of ALL skills
+        total_progress_points = sum(p['completion_percentage'] for p in progress)
+        raw_percentage = (total_progress_points / total_skills) if total_skills > 0 else 0
+        overall_percentage = round(raw_percentage)
+        
+        # Safeguard: If there is actual progress but it rounds to 0, show 1% instead
+        if overall_percentage == 0 and total_progress_points > 0:
+            overall_percentage = 1
+        
         # Determine if roadmap is complete based on progress
         is_complete = (total_skills > 0 and completed_skills >= total_skills)
         roadmap_dict['is_complete'] = is_complete
         roadmap_dict['completion_stats'] = {
             "total": total_skills,
             "completed": completed_skills,
-            "percentage": round((completed_skills / total_skills * 100) if total_skills > 0 else 0)
+            "percentage": overall_percentage
         }
         
         return roadmap_dict

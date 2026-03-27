@@ -105,8 +105,8 @@ async def save_video_progress(req: SaveProgressRequest):
                 req.video_id,
             ))
 
-            if is_completed:
-                sync_roadmap_progress(cursor, req.user_id, req.skill_name, new_percent)
+            # Sync to roadmap progress even if not fully completed (allows In Progress status)
+            sync_roadmap_progress(cursor, req.user_id, req.skill_name, new_percent)
 
             return {"message": "Progress updated", "is_completed": bool(is_completed), "accumulated_percent": new_percent}
         else:
@@ -133,8 +133,8 @@ async def save_video_progress(req: SaveProgressRequest):
                 is_completed,
             ))
 
-            if is_completed:
-                sync_roadmap_progress(cursor, req.user_id, req.skill_name, new_percent)
+            # Sync to roadmap progress even if not fully completed (allows In Progress status)
+            sync_roadmap_progress(cursor, req.user_id, req.skill_name, new_percent)
 
             return {"message": "Progress saved", "is_completed": bool(is_completed), "accumulated_percent": new_percent}
 

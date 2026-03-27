@@ -48,11 +48,11 @@ export default function JobsPage() {
 
     useEffect(() => {
         if (!authLoading && !user) {
-            router.push('/login');
+            router.push('/');
         } else if (userId) {
             loadInitialRecommendations();
         }
-    }, [user, authLoading, userId]);
+    }, [user, authLoading, userId, router]);
 
     const loadInitialRecommendations = async (refresh: boolean = false) => {
         if (!userId) return;

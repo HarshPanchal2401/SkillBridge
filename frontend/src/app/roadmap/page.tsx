@@ -333,7 +333,8 @@ export default function RoadmapPage() {
             id: videoToPlay.video_id, 
             title: videoToPlay.title, 
             skillName,
-            language: targetLang
+            language: targetLang,
+            initialTime: videoProgressMap[videoToPlay.video_id]?.last_position_seconds || 0
         });
         setPlayerOpen(true);
         if (user?.id) api.incrementPlayCount(String(user.id), videoToPlay.video_id).catch(() => { });

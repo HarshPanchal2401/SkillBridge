@@ -3,6 +3,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Query, Body
 
+from app.database import get_db
 from app.routers.dependencies import get_services
 from app.exceptions import ServiceUnavailableError, ValidationError
 from app.logging_config import get_logger
@@ -62,7 +63,6 @@ def search_jobs(
     - **user_id**: Required if min_match is set
     """
     services = get_services()
-    from app.database import get_db
     
     if not services.has_linkedin_api():
         raise ServiceUnavailableError(
@@ -94,9 +94,17 @@ def search_jobs(
                 gap_analyzer = services.gap_analyzer
                 job_analyzer = services.job_analyzer
                 
-                for job in jobs:
-                    # Extract skills from job description (limit to first 1000 chars for speed if needed)
-                    job_skills_data = job_analyzer.extract_skills_from_job(job.get('description', ''))
+                print(f"🚀 Parallelizing skill matching for {len(jobs)} jobs")
+                from concurrent.futures import ThreadPoolExecutor
+                
+                def _analyze_single_job(job):
+                    # Extract skills from job description
+                    desc = job.get('description', '')
+                    if not desc:
+                        job['match_score'] = 0
+                        return job
+                        
+                    job_skills_data = job_analyzer.extract_skills_from_job(desc)
                     
                     # Create temporary market requirements for this job
                     job_market_reqs = {
@@ -109,6 +117,10 @@ def search_jobs(
                         job['match_score'] = analysis.get('overall_readiness', 0)
                     else:
                         job['match_score'] = 0
+                    return job
+
+                with ThreadPoolExecutor(max_workers=min(10, len(jobs))) as executor:
+                    jobs = list(executor.map(_analyze_single_job, jobs))
                 
                 # Filter by min_match if provided
                 if min_match and min_match > 0:
@@ -371,7 +383,6 @@ def get_job_recommendations(
         user_row = cursor.fetchone()
         
         if not user_row:
-             from app.exceptions import ServiceUnavailableError
              raise ServiceUnavailableError("Database", "User not found")
         
         target_role = user_row[0]
@@ -388,7 +399,6 @@ def get_job_recommendations(
     # The search_jobs function itself handles its own database connections
     # for each sub-request, so we keep it outside any long-running transaction.
     try:
-        from app.exceptions import ServiceUnavailableError
         search_results = search_jobs(
             title=target_role, 
             location=location, 
@@ -410,5 +420,4 @@ def get_job_recommendations(
         }
     except Exception as e:
         logger.error(f"Recommendation failed: {e}")
-        from app.exceptions import ServiceUnavailableError
         raise ServiceUnavailableError("Job Search API", str(e))
